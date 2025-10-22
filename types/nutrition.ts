@@ -1,0 +1,190 @@
+// Tipos para el sistema de nutrición basados en tu API real
+
+export interface Allergy {
+  id: number;
+  name: string;
+}
+
+export interface Condition {
+  id: number;
+  code: string;
+  label: string;
+}
+
+export interface Cuisine {
+  id: number;
+  name: string;
+}
+
+export interface UserProfile {
+  userId: string;
+  sex?: 'MALE' | 'FEMALE';
+  birthDate?: string;
+  heightCm?: number;
+  weightKg?: number;
+  activityLevel?: 'SEDENTARY' | 'LIGHT' | 'MODERATE' | 'ACTIVE' | 'VERY_ACTIVE';
+  country?: string;
+  budgetLevel?: number;
+  cookTimePerMeal?: number;
+  allergies?: Allergy[];
+  conditions?: Condition[];
+  cuisinesLike?: Cuisine[];
+  cuisinesDislike?: Cuisine[];
+}
+
+export interface Food {
+  id: string;
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+  sugar: number;
+  sodium: number;
+  servingSize: string;
+  category: string;
+}
+
+export interface Meal {
+  id: string;
+  name: string;
+  type: 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
+  foods: MealFood[];
+  totalCalories: number;
+  totalProtein: number;
+  totalCarbs: number;
+  totalFat: number;
+  preparationTime: number;
+  instructions?: string;
+}
+
+export interface MealFood {
+  food: Food;
+  quantity: number;
+  unit: string;
+}
+
+export interface NutritionPlan {
+  id: string;
+  userId: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  dailyCalories: number;
+  meals: DailyMeal[];
+  isActive: boolean;
+  generatedByAI: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DailyMeal {
+  date: string;
+  breakfast: Meal;
+  lunch: Meal;
+  dinner: Meal;
+  snacks: Meal[];
+}
+
+export interface Progress {
+  id: string;
+  userId: string;
+  date: string;
+  weight?: number;
+  caloriesConsumed: number;
+  caloriesTarget: number;
+  proteinConsumed: number;
+  carbsConsumed: number;
+  fatConsumed: number;
+  waterIntake?: number;
+  notes?: string;
+}
+
+export interface WeightEntry {
+  id: string;
+  userId: string;
+  weight: number;
+  date: string;
+  notes?: string;
+}
+
+export interface AIGenerationRequest {
+  userProfile: UserProfile;
+  duration: number; // días
+  preferences?: string[];
+  excludeFoods?: string[];
+}
+
+export interface AIGenerationResponse {
+  plan: NutritionPlan;
+  recommendations: string[];
+  nutritionalAnalysis: {
+    averageCalories: number;
+    macroDistribution: {
+      protein: number;
+      carbs: number;
+      fat: number;
+    };
+  };
+}
+
+// Tipos para el plan semanal basados en la API real
+export interface WeeklyPlan {
+  id: string;
+  userId: string;
+  weekStart: string;
+  macros: {
+    kcalTarget: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+  };
+  notes: string;
+  days: WeeklyPlanDay[];
+}
+
+export interface WeeklyPlanDay {
+  dayIndex: number; // 1-7 (lunes a domingo)
+  meals: WeeklyPlanMeal[];
+}
+
+export interface WeeklyPlanIngredient {
+  id?: number;
+  name: string;
+  qty?: string | number; // La API usa 'qty' en lugar de 'quantity'
+  quantity?: number; // Mantener por compatibilidad
+  unit?: string;
+}
+
+export interface WeeklyPlanMeal {
+  slot: 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
+  title: string;
+  kcal: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  tags: string[];
+  ingredients: WeeklyPlanIngredient[] | string[]; // Puede ser array de objetos o strings
+}
+
+// Respuesta del endpoint de generación de plan
+export interface GeneratePlanResponse {
+  planId: string;
+  created: boolean;
+}
+
+// Lista de compras
+export interface ShoppingListItem {
+  name: string;
+  unit: string;
+  qty: number;
+  category?: string;
+}
+
+export interface ShoppingListResponse {
+  planId: string;
+  items: ShoppingListItem[];
+  nextCursor: string | null;
+  total: number;
+}

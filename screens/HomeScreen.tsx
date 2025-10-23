@@ -10,9 +10,10 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NutritionService } from '../services/nutritionService';
-import { WeeklyPlan, WeeklyPlanMeal, ShoppingListItem } from '../types/nutrition';
+import { WeeklyPlan, WeeklyPlanMeal, ShoppingListItem, CheckinResponse, Checkin } from '../types/nutrition';
 import { PlanGeneratingModal } from '../components/PlanGeneratingModal';
 import { ShoppingListModal } from '../components/ShoppingListModal';
+import { DailyCheckinModal } from '../components/DailyCheckinModal';
 
 export const HomeScreen: React.FC = () => {
   const [user, setUser] = React.useState<any>(null);
@@ -26,6 +27,9 @@ export const HomeScreen: React.FC = () => {
   const [shoppingListItems, setShoppingListItems] = React.useState<ShoppingListItem[]>([]);
   const [loadingShoppingList, setLoadingShoppingList] = React.useState(false);
   const [shoppingListTotal, setShoppingListTotal] = React.useState(0);
+  const [showCheckinModal, setShowCheckinModal] = React.useState(false);
+  const [todayCheckin, setTodayCheckin] = React.useState<Checkin | null>(null);
+  const [gamificationData, setGamificationData] = React.useState<CheckinResponse['gamification'] | null>(null);
 
   const loadData = async () => {
     try {
@@ -42,6 +46,10 @@ export const HomeScreen: React.FC = () => {
 
       const plan = await NutritionService.getWeeklyPlan(week);
       setWeeklyPlan(plan);
+
+      // Cargar checkin del día
+      const checkin = await NutritionService.getTodayCheckin();
+      setTodayCheckin(checkin);
     } catch (error) {
       console.log('Error loading data:', error);
     } finally {
@@ -198,6 +206,26 @@ export const HomeScreen: React.FC = () => {
     setShoppingListTotal(0);
   };
 
+  const handleCheckinSuccess = async (response: CheckinResponse) => {
+    setGamificationData(response.gamification);
+    
+    // Recargar el checkin del día inmediatamente
+    try {
+      const checkin = await NutritionService.getTodayCheckin();
+      setTodayCheckin(checkin);
+    } catch (error) {
+      console.log('Error reloading checkin:', error);
+    }
+  };
+
+  const openCheckinModal = () => {
+    setShowCheckinModal(true);
+  };
+
+  const closeCheckinModal = () => {
+    setShowCheckinModal(false);
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
@@ -221,6 +249,68 @@ export const HomeScreen: React.FC = () => {
 
         {weeklyPlan ? (
           <>
+            {/* Checkin diario */}
+            <View style={styles.checkinCard}>
+              <View style={styles.checkinHeader}>
+                <Text style={styles.cardTitle}>Checkin diario</Text>
+                {todayCheckin && (
+                  <View style={styles.checkinBadge}>
+                    <Text style={styles.checkinBadgeText}>✅ Completado</Text>
+                  </View>
+                )}
+              </View>
+              
+              {todayCheckin ? (
+                <View style={styles.checkinSummary}>
+                  <View style={styles.checkinRow}>
+                    {todayCheckin.weightKg && (
+                      <View style={styles.checkinItem}>
+                        <Text style={styles.checkinValue}>{todayCheckin.weightKg} kg</Text>
+                        <Text style={styles.checkinLabel}>Peso</Text>
+                      </View>
+                    )}
+                    {todayCheckin.adherencePct !== undefined && (
+                      <View style={styles.checkinItem}>
+                        <Text style={styles.checkinValue}>{todayCheckin.adherencePct}%</Text>
+                        <Text style={styles.checkinLabel}>Adherencia</Text>
+                      </View>
+                    )}
+                    {todayCheckin.hungerLvl && (
+                      <View style={styles.checkinItem}>
+                        <Text style={styles.checkinValue}>{todayCheckin.hungerLvl}/10</Text>
+                        <Text style={styles.checkinLabel}>Hambre</Text>
+                      </View>
+                    )}
+                  </View>
+                  {todayCheckin.notes && (
+                    <Text style={styles.checkinNotes}>"{todayCheckin.notes}"</Text>
+                  )}
+                  <TouchableOpacity style={styles.updateCheckinButton} onPress={openCheckinModal}>
+                    <Text style={styles.updateCheckinButtonText}>Actualizar checkin</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.noCheckinContainer}>
+                  <Text style={styles.noCheckinText}>
+                    ¿Cómo te sientes hoy? Registra tu progreso diario
+                  </Text>
+                  <TouchableOpacity style={styles.checkinButton} onPress={openCheckinModal}>
+                    <Text style={styles.checkinButtonText}>📝 Hacer checkin</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {gamificationData && (
+                <View style={styles.gamificationInfo}>
+                  <Text style={styles.gamificationTitle}>🎉 ¡Logros recientes!</Text>
+                  <View style={styles.gamificationRow}>
+                    <Text style={styles.gamificationText}>🔥 {gamificationData.streakDays} días</Text>
+                    <Text style={styles.gamificationText}>⭐ {gamificationData.totalPoints} puntos</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
             {/* Progreso del día */}
             <View style={styles.progressCard}>
               <Text style={styles.cardTitle}>Progreso de hoy</Text>
@@ -336,6 +426,13 @@ export const HomeScreen: React.FC = () => {
         loading={loadingShoppingList}
         total={shoppingListTotal}
         planId={weeklyPlan?.id}
+      />
+
+      {/* Modal de checkin diario */}
+      <DailyCheckinModal
+        visible={showCheckinModal}
+        onClose={closeCheckinModal}
+        onSuccess={handleCheckinSuccess}
       />
     </>
   );
@@ -633,5 +730,124 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  // Estilos para checkin
+  checkinCard: {
+    backgroundColor: '#fff',
+    margin: 20,
+    padding: 20,
+    borderRadius: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  checkinHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  checkinBadge: {
+    backgroundColor: '#E8F5E8',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  checkinBadgeText: {
+    fontSize: 12,
+    color: '#2E7D32',
+    fontWeight: '600',
+  },
+  checkinSummary: {
+    marginTop: 10,
+  },
+  checkinRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 15,
+  },
+  checkinItem: {
+    alignItems: 'center',
+  },
+  checkinValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+  },
+  checkinLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 5,
+  },
+  checkinNotes: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginBottom: 15,
+    paddingHorizontal: 10,
+  },
+  updateCheckinButton: {
+    backgroundColor: '#f0f0f0',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    alignSelf: 'center',
+  },
+  updateCheckinButtonText: {
+    color: '#666',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  noCheckinContainer: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  noCheckinText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 15,
+    lineHeight: 22,
+  },
+  checkinButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  checkinButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  gamificationInfo: {
+    backgroundColor: '#FFF3E0',
+    padding: 15,
+    borderRadius: 10,
+    marginTop: 15,
+  },
+  gamificationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#E65100',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  gamificationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  gamificationText: {
+    fontSize: 14,
+    color: '#F57C00',
+    fontWeight: '600',
   },
 });

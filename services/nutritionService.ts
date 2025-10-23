@@ -13,7 +13,12 @@ import {
   ShoppingListResponse,
   Cuisine,
   Allergy,
-  Condition
+  Condition,
+  CheckinRequest,
+  CheckinResponse,
+  Checkin,
+  TodayCheckinResponse,
+  CheckinHistoryResponse
 } from '../types/nutrition';
 
 export class NutritionService {
@@ -221,6 +226,49 @@ export class NutritionService {
       responseType: 'text'
     });
     return response.data;
+  }
+
+  // Checkins - Tracking diario
+  static async createCheckin(checkinData: CheckinRequest): Promise<CheckinResponse> {
+    const response = await api.post<CheckinResponse>('/checkins', checkinData);
+    return response.data;
+  }
+
+  static async getTodayCheckin(): Promise<Checkin | null> {
+    try {
+      const response = await api.get<TodayCheckinResponse>('/checkins/today');
+      return response.data.hasCheckin ? response.data.checkin : null;
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return null; // No hay checkin para hoy
+      }
+      console.log('Error getting today checkin:', error);
+      return null;
+    }
+  }
+
+  static async getCheckinHistory(from?: string, to?: string): Promise<Checkin[]> {
+    try {
+      const params: any = {};
+      if (from) params.from = from;
+      if (to) params.to = to;
+      
+      const response = await api.get<CheckinHistoryResponse>('/checkins', { params });
+      
+      // La respuesta tiene formato {items: [...]}
+      if (response.data && Array.isArray(response.data.items)) {
+        return response.data.items;
+      } else {
+        console.log('API returned unexpected format:', response.data);
+        return [];
+      }
+    } catch (error: any) {
+      console.log('Error in getCheckinHistory:', error);
+      if (error.response?.status === 404) {
+        return []; // No hay checkins en el rango
+      }
+      throw error;
+    }
   }
 
   // Función helper para obtener la semana actual en formato ISO (YYYY-WXX)

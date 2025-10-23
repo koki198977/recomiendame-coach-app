@@ -188,3 +188,45 @@ export interface ShoppingListResponse {
   nextCursor: string | null;
   total: number;
 }
+
+// Checkins y tracking diario
+export interface CheckinRequest {
+  weightKg?: number;
+  adherencePct?: number;
+  hungerLvl?: number; // 1-10 scale
+  notes?: string;
+}
+
+export interface CheckinResponse {
+  ok: boolean;
+  id: string;
+  date: string;
+  gamification: {
+    streakDays: number;
+    pointsAdded: number;
+    unlocked: string[];
+    totalPoints: number;
+  };
+}
+
+export interface Checkin {
+  id: string;
+  userId?: string;
+  date: string;
+  weightKg?: number;
+  adherencePct?: number;
+  hungerLvl?: number;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface TodayCheckinResponse {
+  checkin: Checkin | null;
+  hasCheckin: boolean;
+  date: string;
+}
+
+export interface CheckinHistoryResponse {
+  items: Checkin[];
+}

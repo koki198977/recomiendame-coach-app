@@ -42,6 +42,24 @@ export const PlanScreen: React.FC = () => {
     loadWeeklyPlan();
   }, []);
 
+  // Función para determinar si una semana es pasada
+  const isWeekInPast = (weekString: string): boolean => {
+    const currentWeekString = NutritionService.getCurrentWeek();
+    return weekString < currentWeekString;
+  };
+
+  // Función para determinar si una semana es actual o futura
+  const canModifyWeek = (weekString: string): boolean => {
+    const currentWeekString = NutritionService.getCurrentWeek();
+    return weekString >= currentWeekString;
+  };
+
+  // Función para determinar si se puede navegar hacia adelante
+  const canNavigateNext = (): boolean => {
+    const currentWeekString = NutritionService.getCurrentWeek();
+    return currentWeek < currentWeekString;
+  };
+
   useEffect(() => {
     if (currentWeek) {
       generateWeekDays(currentWeek);
@@ -58,14 +76,17 @@ export const PlanScreen: React.FC = () => {
       setWeeklyPlan(plan);
       
       if (!plan) {
-        Alert.alert(
-          'Sin plan semanal',
-          'No tienes un plan para esta semana. ¿Quieres generar uno?',
-          [
-            { text: 'Cancelar', style: 'cancel' },
-            { text: 'Generar', onPress: () => generatePlan(targetWeek) }
-          ]
-        );
+        if (canModifyWeek(targetWeek)) {
+          Alert.alert(
+            'Sin plan semanal',
+            'No tienes un plan para esta semana. ¿Quieres generar uno?',
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              { text: 'Generar', onPress: () => generatePlan(targetWeek) }
+            ]
+          );
+        }
+        // Si es semana pasada, no mostrar alert, solo mostrar que no hay plan
       }
     } catch (error) {
       console.log('Error loading weekly plan:', error);
@@ -138,6 +159,16 @@ export const PlanScreen: React.FC = () => {
   };
 
   const navigateWeek = (direction: 'prev' | 'next') => {
+    const currentWeekString = NutritionService.getCurrentWeek();
+    
+    // Solo permitir navegación hacia atrás (semanas pasadas)
+    if (direction === 'next') {
+      // No permitir ir más allá de la semana actual
+      if (currentWeek >= currentWeekString) {
+        return; // Ya estamos en la semana actual, no avanzar más
+      }
+    }
+    
     const [year, weekNum] = currentWeek.split('-W');
     let newWeek = parseInt(weekNum) + (direction === 'next' ? 1 : -1);
     let newYear = parseInt(year);
@@ -152,8 +183,16 @@ export const PlanScreen: React.FC = () => {
     }
     
     const newWeekString = `${newYear}-W${newWeek.toString().padStart(2, '0')}`;
+    
+    // Verificar que no vayamos más allá de la semana actual
+    if (direction === 'next' && newWeekString > currentWeekString) {
+      return; // No permitir ir al futuro
+    }
+    
     loadWeeklyPlan(newWeekString);
   };
+
+
 
   const getSelectedDayMeals = (): WeeklyPlanMeal[] => {
     if (!weeklyPlan || !weekDays[selectedDay]) return [];
@@ -211,6 +250,16 @@ export const PlanScreen: React.FC = () => {
   const handleRegenerateDay = async () => {
     if (!weeklyPlan || !weekDays[selectedDay]) return;
 
+    // Verificar si se puede modificar esta semana
+    if (!canModifyWeek(currentWeek)) {
+      Alert.alert(
+        'Semana pasada',
+        'No puedes modificar planes de semanas anteriores. Solo puedes ver el contenido.',
+        [{ text: 'Entendido', style: 'default' }]
+      );
+      return;
+    }
+
     Alert.alert(
       'Regenerar día completo',
       '¿Estás seguro? Esto cambiará todas las comidas de este día.',
@@ -251,6 +300,16 @@ export const PlanScreen: React.FC = () => {
 
   const handleSwapMeal = async (mealIndex: number, mealTitle: string) => {
     if (!weeklyPlan || !weekDays[selectedDay]) return;
+
+    // Verificar si se puede modificar esta semana
+    if (!canModifyWeek(currentWeek)) {
+      Alert.alert(
+        'Semana pasada',
+        'No puedes modificar comidas de semanas anteriores. Solo puedes ver el contenido.',
+        [{ text: 'Entendido', style: 'default' }]
+      );
+      return;
+    }
 
     Alert.alert(
       'Cambiar comida',
@@ -303,8 +362,14 @@ export const PlanScreen: React.FC = () => {
       
       <Text style={styles.weekTitle}>Semana {currentWeek}</Text>
       
-      <TouchableOpacity style={styles.navButton} onPress={() => navigateWeek('next')}>
-        <Text style={styles.navButtonText}>›</Text>
+      <TouchableOpacity 
+        style={[styles.navButton, !canNavigateNext() && styles.navButtonDisabled]} 
+        onPress={() => navigateWeek('next')}
+        disabled={!canNavigateNext()}
+      >
+        <Text style={[styles.navButtonText, !canNavigateNext() && styles.navButtonTextDisabled]}>
+          ›
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -380,14 +445,19 @@ export const PlanScreen: React.FC = () => {
         {/* Botón para regenerar día completo */}
         <View style={styles.dayActions}>
           <TouchableOpacity 
-            style={[styles.regenerateDayButton, regeneratingDay && styles.buttonDisabled]}
+            style={[
+              styles.regenerateDayButton, 
+              (regeneratingDay || !canModifyWeek(currentWeek)) && styles.buttonDisabled
+            ]}
             onPress={handleRegenerateDay}
-            disabled={regeneratingDay}
+            disabled={regeneratingDay || !canModifyWeek(currentWeek)}
           >
             {regeneratingDay ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={styles.regenerateDayButtonText}>🔄 Regenerar día completo</Text>
+              <Text style={styles.regenerateDayButtonText}>
+                {!canModifyWeek(currentWeek) ? '🔒 Semana pasada' : '🔄 Regenerar día completo'}
+              </Text>
             )}
           </TouchableOpacity>
         </View>
@@ -419,14 +489,19 @@ export const PlanScreen: React.FC = () => {
                     
                     {/* Botón para cambiar comida individual */}
                     <TouchableOpacity 
-                      style={[styles.swapMealButton, isSwapping && styles.buttonDisabled]}
+                      style={[
+                        styles.swapMealButton, 
+                        (isSwapping || !canModifyWeek(currentWeek)) && styles.buttonDisabled
+                      ]}
                       onPress={() => handleSwapMeal(globalMealIndex, meal.title)}
-                      disabled={isSwapping}
+                      disabled={isSwapping || !canModifyWeek(currentWeek)}
                     >
                       {isSwapping ? (
                         <ActivityIndicator size="small" color="#4CAF50" />
                       ) : (
-                        <Text style={styles.swapMealButtonText}>🔄</Text>
+                        <Text style={styles.swapMealButtonText}>
+                          {!canModifyWeek(currentWeek) ? '🔒' : '🔄'}
+                        </Text>
                       )}
                     </TouchableOpacity>
                   </View>
@@ -479,7 +554,14 @@ export const PlanScreen: React.FC = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Mi Plan Semanal</Text>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>Mi Plan Semanal</Text>
+          {isWeekInPast(currentWeek) && (
+            <View style={styles.pastWeekBadge}>
+              <Text style={styles.pastWeekBadgeText}>🔒 Solo lectura</Text>
+            </View>
+          )}
+        </View>
         <View style={styles.headerButtons}>
           {weeklyPlan && (
             <>
@@ -553,14 +635,26 @@ export const PlanScreen: React.FC = () => {
           <View style={styles.noPlanContainer}>
             <Text style={styles.noPlanTitle}>Sin plan semanal</Text>
             <Text style={styles.noPlanDescription}>
-              No tienes un plan nutricional para esta semana.
+              {isWeekInPast(currentWeek) 
+                ? 'No tienes un plan nutricional registrado para esta semana pasada.'
+                : 'No tienes un plan nutricional para esta semana.'
+              }
             </Text>
-            <TouchableOpacity 
-              style={styles.generateButton}
-              onPress={() => generatePlan(currentWeek)}
-            >
-              <Text style={styles.generateButtonText}>🤖 Generar plan con IA</Text>
-            </TouchableOpacity>
+            {canModifyWeek(currentWeek) && (
+              <TouchableOpacity 
+                style={styles.generateButton}
+                onPress={() => generatePlan(currentWeek)}
+              >
+                <Text style={styles.generateButtonText}>🤖 Generar plan con IA</Text>
+              </TouchableOpacity>
+            )}
+            {isWeekInPast(currentWeek) && (
+              <View style={styles.pastWeekInfo}>
+                <Text style={styles.pastWeekInfoText}>
+                  🔒 Las semanas pasadas son solo de consulta
+                </Text>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -609,10 +703,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  headerTitleContainer: {
+    flex: 1,
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  pastWeekBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 5,
+    alignSelf: 'flex-start',
+  },
+  pastWeekBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   headerButtons: {
     flexDirection: 'row',
@@ -662,6 +772,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#4CAF50',
+  },
+  navButtonDisabled: {
+    backgroundColor: '#f0f0f0',
+    opacity: 0.5,
+  },
+  navButtonTextDisabled: {
+    color: '#ccc',
   },
   weekTitle: {
     fontSize: 16,
@@ -961,5 +1078,18 @@ const styles = StyleSheet.create({
   swapMealButtonText: {
     fontSize: 16,
     color: '#4CAF50',
+  },
+  pastWeekInfo: {
+    backgroundColor: '#FFF3E0',
+    padding: 15,
+    borderRadius: 10,
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  pastWeekInfoText: {
+    fontSize: 14,
+    color: '#E65100',
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

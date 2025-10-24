@@ -9,6 +9,7 @@ import { HomeScreen } from './screens/HomeScreen';
 import { PlanScreen } from './screens/PlanScreen';
 import { ProgressScreen } from './screens/ProgressScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
+import { SocialScreen } from './screens/SocialScreen';
 import { Logo } from './components/Logo';
 import { CompleteProfileModal } from './components/CompleteProfileModal';
 import { NutritionService } from './services/nutritionService';
@@ -24,6 +25,8 @@ const MainApp: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         return <HomeScreen />;
       case 'plan':
         return <PlanScreen />;
+      case 'social':
+        return <SocialScreen />;
       case 'progress':
         return <ProgressScreen />;
       case 'profile':
@@ -64,6 +67,18 @@ const MainApp: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
             </View>
             <Text style={[styles.tabText, activeTab === 'plan' && styles.activeTabText]}>
               Mi Plan
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.tab}
+            onPress={() => setActiveTab('social')}
+          >
+            <View style={[styles.tabIconContainer, activeTab === 'social' && styles.activeTabIconContainer]}>
+              <Text style={[styles.tabIcon, activeTab === 'social' && styles.activeTabIcon]}>👥</Text>
+            </View>
+            <Text style={[styles.tabText, activeTab === 'social' && styles.activeTabText]}>
+              Social
             </Text>
           </TouchableOpacity>
 

@@ -18,11 +18,11 @@ export interface Cuisine {
 
 export interface UserProfile {
   userId: string;
-  sex?: 'MALE' | 'FEMALE';
+  sex?: "MALE" | "FEMALE";
   birthDate?: string;
   heightCm?: number;
   weightKg?: number;
-  activityLevel?: 'SEDENTARY' | 'LIGHT' | 'MODERATE' | 'ACTIVE' | 'VERY_ACTIVE';
+  activityLevel?: "SEDENTARY" | "LIGHT" | "MODERATE" | "ACTIVE" | "VERY_ACTIVE";
   country?: string;
   budgetLevel?: number;
   cookTimePerMeal?: number;
@@ -49,7 +49,7 @@ export interface Food {
 export interface Meal {
   id: string;
   name: string;
-  type: 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
+  type: "BREAKFAST" | "LUNCH" | "DINNER" | "SNACK";
   foods: MealFood[];
   totalCalories: number;
   totalProtein: number;
@@ -158,7 +158,7 @@ export interface WeeklyPlanIngredient {
 }
 
 export interface WeeklyPlanMeal {
-  slot: 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
+  slot: "BREAKFAST" | "LUNCH" | "DINNER" | "SNACK";
   title: string;
   kcal: number;
   protein_g: number;
@@ -229,4 +229,85 @@ export interface TodayCheckinResponse {
 
 export interface CheckinHistoryResponse {
   items: Checkin[];
+}
+
+// Sistema de redes sociales
+export interface User {
+  id: string;
+  name?: string;
+  email: string;
+  avatar?: string;
+}
+
+export interface PostAuthor {
+  id: string;
+  email: string;
+  name?: string;
+}
+
+export interface PostMedia {
+  id: string;
+  url: string;
+  width?: number | null;
+  height?: number | null;
+}
+
+// Tipo unificado que maneja ambos formatos de la API
+export interface Post {
+  id: string;
+  caption: string;
+  createdAt: string;
+  likesCount: number;
+  commentsCount: number;
+  challengeId?: string | null;
+
+  // Formato 1: /posts/following
+  author?: PostAuthor;
+  media?: PostMedia | null;
+  likedByMe?: boolean;
+  visibility?: string;
+  challenge?: any | null;
+
+  // Formato 2: /posts/me y /posts
+  authorId?: string;
+  authorName?: string;
+  mediaUrl?: string | null;
+  isLikedByMe?: boolean;
+}
+
+export interface PostsResponse {
+  items: Post[];
+  total: number;
+}
+
+export interface CreatePostRequest {
+  caption: string;
+  challengeId?: string | null;
+  mediaUrl?: string;
+}
+
+export interface Comment {
+  id: string;
+  body: string;
+  createdAt: string;
+  author: {
+    id: string;
+    email: string;
+  };
+}
+
+export interface CreateCommentRequest {
+  body: string;
+}
+
+export interface CommentsResponse {
+  items: Comment[];
+  total: number;
+  skip: number;
+  take: number;
+}
+
+export interface LikeResponse {
+  liked: boolean;
+  likesCount: number;
 }

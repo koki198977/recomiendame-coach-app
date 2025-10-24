@@ -385,16 +385,10 @@ export const HomeScreen: React.FC = () => {
               </View>
             )}
 
-            {/* Botones de acción */}
-            <View style={styles.actionButtons}>
-              <TouchableOpacity style={styles.shoppingButton} onPress={handleGenerateShoppingList}>
-                <Text style={styles.shoppingButtonText}>🛒 Lista de compras</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.aiButton} onPress={handleGeneratePlan}>
-                <Text style={styles.aiButtonText}>🤖 Regenerar plan</Text>
-              </TouchableOpacity>
-            </View>
+            {/* Botón de lista de compras */}
+            <TouchableOpacity style={styles.shoppingButtonFull} onPress={handleGenerateShoppingList}>
+              <Text style={styles.shoppingButtonText}>🛒 Lista de compras</Text>
+            </TouchableOpacity>
           </>
         ) : (
           /* No hay plan - Mostrar opción para crear */
@@ -576,15 +570,10 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 5,
   },
-  actionButtons: {
-    flexDirection: 'row',
+  shoppingButtonFull: {
+    backgroundColor: '#4CAF50',
     marginHorizontal: 20,
     marginVertical: 20,
-    gap: 10,
-  },
-  shoppingButton: {
-    backgroundColor: '#4CAF50',
-    flex: 1,
     paddingVertical: 15,
     borderRadius: 25,
     alignItems: 'center',
@@ -595,23 +584,6 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   shoppingButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  aiButton: {
-    backgroundColor: '#FF9800',
-    flex: 1,
-    paddingVertical: 15,
-    borderRadius: 25,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  aiButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',

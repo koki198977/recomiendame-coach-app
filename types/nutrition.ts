@@ -311,3 +311,30 @@ export interface LikeResponse {
   liked: boolean;
   likesCount: number;
 }
+
+// Sistema de seguimientos
+export interface FollowResponse {
+  following: boolean;
+  followersCount: number;
+  followingCount: number;
+}
+
+export interface SocialUserProfile {
+  id: string;
+  email: string;
+  role?: string;
+  emailVerified?: boolean;
+  name?: string;
+  avatar?: string;
+  followersCount: number;
+  followingCount: number;
+  postsCount: number;
+  isFollowing?: boolean;
+  isFollowedBy?: boolean;
+  isFollowedByMe?: boolean; // Campo que viene del endpoint
+}
+
+export interface UsersResponse {
+  items: SocialUserProfile[];
+  total: number;
+}

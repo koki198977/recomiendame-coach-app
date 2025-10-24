@@ -11,8 +11,11 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NutritionService } from '../services/nutritionService';
-import { UserProfile } from '../types/nutrition';
+import { SocialService } from '../services/socialService';
+import { UserProfile, SocialUserProfile } from '../types/nutrition';
 import { EditPreferencesModal } from '../components/EditPreferencesModal';
+import { FollowersModal } from '../components/FollowersModal';
+import { getCurrentUserId } from '../utils/userUtils';
 
 interface ProfileScreenProps {
   onLogout?: () => void;
@@ -21,6 +24,8 @@ interface ProfileScreenProps {
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
   const [user, setUser] = React.useState<any>(null);
   const [userProfile, setUserProfile] = React.useState<UserProfile | null>(null);
+  const [socialProfile, setSocialProfile] = React.useState<SocialUserProfile | null>(null);
+  const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [showPreferencesModalState, setShowPreferencesModalState] = React.useState(false);
   const [showEditModal, setShowEditModal] = React.useState(false);
@@ -47,6 +52,29 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
         await AsyncStorage.setItem('userProfile', JSON.stringify(profile));
       } catch (profileError) {
         console.log('Error loading profile from API, trying local storage:', profileError);
+      }
+
+      // Cargar perfil del usuario (que incluye el userId correcto)
+      try {
+        const profileData = await SocialService.getCurrentUser();
+        setCurrentUserId(profileData.userId);
+        console.log('ProfileScreen - Profile loaded with userId:', profileData.userId);
+        
+        // Cargar estadísticas sociales
+        try {
+          const socialStats = await SocialService.getMySocialProfile();
+          setSocialProfile(socialStats);
+          console.log('ProfileScreen - Social stats loaded:', socialStats);
+        } catch (socialStatsError) {
+          console.log('Error loading social stats:', socialStatsError);
+        }
+      } catch (socialError) {
+        console.log('Error loading profile:', socialError);
+        
+        // Fallback: obtener desde AsyncStorage
+        const userId = await getCurrentUserId();
+        setCurrentUserId(userId);
+        console.log('ProfileScreen - Fallback user ID:', userId);
         
         // Si falla la API, intentar cargar desde AsyncStorage
         const localProfile = await AsyncStorage.getItem('userProfile');
@@ -234,6 +262,72 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
     </View>
   );
 
+  const [showFollowersModal, setShowFollowersModal] = React.useState(false);
+  const [showFollowingModal, setShowFollowingModal] = React.useState(false);
+
+  const renderSocialStats = () => {
+    console.log('Rendering social stats with profile:', socialProfile);
+    return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Red Social</Text>
+      
+      <TouchableOpacity style={styles.dataItem}>
+        <View style={styles.dataLeft}>
+          <Text style={styles.dataIcon}>📝</Text>
+          <Text style={styles.dataLabel}>Mis posts</Text>
+        </View>
+        <Text style={styles.dataValue}>
+          {socialProfile?.postsCount || 0}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={styles.dataItem}
+        onPress={() => {
+          if (currentUserId || socialProfile?.id) {
+            setShowFollowersModal(true);
+          } else {
+            console.log('No user ID available for followers');
+          }
+        }}
+      >
+        <View style={styles.dataLeft}>
+          <Text style={styles.dataIcon}>👥</Text>
+          <Text style={styles.dataLabel}>Seguidores</Text>
+        </View>
+        <View style={styles.dataRight}>
+          <Text style={styles.dataValue}>
+            {socialProfile?.followersCount || 0}
+          </Text>
+          <Text style={styles.menuArrow}>›</Text>
+        </View>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={styles.dataItem}
+        onPress={() => {
+          if (currentUserId || socialProfile?.id) {
+            setShowFollowingModal(true);
+          } else {
+            console.log('No user ID available for following');
+          }
+        }}
+      >
+        <View style={styles.dataLeft}>
+          <Text style={styles.dataIcon}>👤</Text>
+          <Text style={styles.dataLabel}>Siguiendo</Text>
+        </View>
+        <View style={styles.dataRight}>
+          <Text style={styles.dataValue}>
+            {socialProfile?.followingCount || 0}
+          </Text>
+          <Text style={styles.menuArrow}>›</Text>
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+  };
+
   const renderCulinaryPreferences = () => (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Preferencias Culinarias</Text>
@@ -341,6 +435,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
 
       <ScrollView style={styles.content}>
         {renderProfileInfo()}
+        {renderSocialStats()}
         {renderHealthData()}
         {renderCulinaryPreferences()}
         {renderPreferences()}
@@ -456,6 +551,22 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
           preferencesType === 'allergies' ? '🚫 Editar Alergias' :
           preferencesType === 'conditions' ? '🏥 Editar Condiciones Médicas' : 'Editar'
         }
+      />
+
+      {/* Modal de seguidores */}
+      <FollowersModal
+        visible={showFollowersModal}
+        onClose={() => setShowFollowersModal(false)}
+        userId={currentUserId || socialProfile?.id || ''}
+        type="followers"
+      />
+
+      {/* Modal de siguiendo */}
+      <FollowersModal
+        visible={showFollowingModal}
+        onClose={() => setShowFollowingModal(false)}
+        userId={currentUserId || socialProfile?.id || ''}
+        type="following"
       />
     </View>
   );

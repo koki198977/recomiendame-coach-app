@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Post } from '../types/nutrition';
 import { SocialService } from '../services/socialService';
@@ -15,6 +16,7 @@ interface PostCardProps {
   onPostUpdate?: (updatedPost: Post) => void;
   onCommentPress?: (post: Post) => void;
   isMyPost?: boolean; // Indica si es del feed "Míos"
+  showFollowButton?: boolean; // Mostrar botón seguir
 }
 
 export const PostCard: React.FC<PostCardProps> = ({
@@ -22,9 +24,12 @@ export const PostCard: React.FC<PostCardProps> = ({
   onPostUpdate,
   onCommentPress,
   isMyPost = false,
+  showFollowButton = false,
 }) => {
   const [isLiking, setIsLiking] = useState(false);
   const [currentPost, setCurrentPost] = useState(post);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followingUser, setFollowingUser] = useState(false);
 
   // Sincronizar el estado local cuando el prop cambie
   useEffect(() => {
@@ -171,25 +176,61 @@ export const PostCard: React.FC<PostCardProps> = ({
     return false;
   };
 
+  const handleFollowUser = async () => {
+    if (followingUser || !currentPost.authorId) return;
+
+    try {
+      setFollowingUser(true);
+      
+      if (isFollowing) {
+        await SocialService.unfollowUser(currentPost.authorId);
+        setIsFollowing(false);
+      } else {
+        await SocialService.followUser(currentPost.authorId);
+        setIsFollowing(true);
+      }
+    } catch (error) {
+      console.log('Error following/unfollowing user:', error);
+      Alert.alert('Error', 'No se pudo procesar la acción');
+    } finally {
+      setFollowingUser(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Header del post */}
       <View style={styles.header}>
-        <View style={styles.userInfo}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {getUserInitial(currentPost)}
-            </Text>
-          </View>
-          <View style={styles.userDetails}>
-            <Text style={styles.userName}>
-              {getUserDisplayName(currentPost)}
-            </Text>
-            <Text style={styles.postTime}>
-              {formatDate(currentPost.createdAt)}
-            </Text>
-          </View>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>
+            {getUserInitial(currentPost)}
+          </Text>
         </View>
+        <View style={styles.userDetails}>
+          <Text style={styles.userName} numberOfLines={1} ellipsizeMode="tail">
+            {getUserDisplayName(currentPost)}
+          </Text>
+          <Text style={styles.postTime}>
+            {formatDate(currentPost.createdAt)}
+          </Text>
+        </View>
+        
+        {/* Botón seguir */}
+        {showFollowButton && !isMyPost && (
+          <TouchableOpacity 
+            style={[styles.followButton, isFollowing && styles.followingButton]}
+            onPress={handleFollowUser}
+            disabled={followingUser}
+          >
+            {followingUser ? (
+              <ActivityIndicator size="small" color={isFollowing ? "#4CAF50" : "#fff"} />
+            ) : (
+              <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>
+                {isFollowing ? 'Siguiendo' : 'Seguir'}
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Contenido del post */}
@@ -246,14 +287,10 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 15,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
     paddingBottom: 10,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   avatar: {
     width: 40,
@@ -263,6 +300,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    flexShrink: 0,
   },
   avatarImage: {
     width: 40,
@@ -276,6 +314,8 @@ const styles = StyleSheet.create({
   },
   userDetails: {
     flex: 1,
+    marginRight: 8,
+    minWidth: 0, // Permite que el texto se trunque si es necesario
   },
   userName: {
     fontSize: 16,
@@ -323,5 +363,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     fontWeight: '600',
+  },
+  followButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    maxWidth: 80,
+  },
+  followingButton: {
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+  },
+  followButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  followingButtonText: {
+    color: '#4CAF50',
   },
 });

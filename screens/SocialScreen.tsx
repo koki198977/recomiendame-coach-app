@@ -7,12 +7,16 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
+  Modal,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SocialService } from '../services/socialService';
 import { Post } from '../types/nutrition';
 import { PostCard } from '../components/PostCard';
 import { CreatePostModal } from '../components/CreatePostModal';
 import { CommentsModal } from '../components/CommentsModal';
+import { UsersScreen } from './UsersScreen';
+import { getCurrentUserId, getCurrentUserEmail } from '../utils/userUtils';
 
 export const SocialScreen: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -23,18 +27,49 @@ export const SocialScreen: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [showUsersModal, setShowUsersModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [feedType, setFeedType] = useState<'all' | 'following' | 'mine'>('all');
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
   const POSTS_PER_PAGE = 10;
 
   useEffect(() => {
+    loadCurrentUser();
     loadFeed();
   }, []);
 
   useEffect(() => {
     loadFeed();
   }, [feedType]);
+
+  const loadCurrentUser = async () => {
+    try {
+      // Intentar obtener del endpoint /me/profile (que tiene el userId correcto)
+      try {
+        const profileData = await SocialService.getCurrentUser();
+        setCurrentUserId(profileData.userId);
+        console.log('SocialScreen - User ID from profile:', profileData.userId);
+        
+        // También obtener email desde AsyncStorage
+        const userEmail = await getCurrentUserEmail();
+        setCurrentUserEmail(userEmail);
+      } catch (error) {
+        console.log('Error loading profile from API:', error);
+        
+        // Fallback: obtener desde AsyncStorage
+        const userId = await getCurrentUserId();
+        const userEmail = await getCurrentUserEmail();
+        
+        setCurrentUserId(userId);
+        setCurrentUserEmail(userEmail);
+        console.log('SocialScreen - Fallback user:', { userId, userEmail });
+      }
+    } catch (error) {
+      console.log('Error in loadCurrentUser:', error);
+    }
+  };
 
   const loadFeed = async (isRefresh: boolean = false) => {
     try {
@@ -47,6 +82,16 @@ export const SocialScreen: React.FC = () => {
       } else if (feedType === 'following') {
         // Posts de personas que sigo
         response = await SocialService.getFollowingPosts(0, POSTS_PER_PAGE);
+        
+        // Filtrar posts propios del feed de "Siguiendo"
+        if (response.items && currentUserId) {
+          response.items = response.items.filter(post => {
+            const isMyPost = post.authorId === currentUserId || 
+                           post.author?.id === currentUserId ||
+                           (currentUserEmail && (post.authorName === currentUserEmail || post.author?.email === currentUserEmail));
+            return !isMyPost; // Excluir posts propios
+          });
+        }
       } else {
         // Mis posts
         response = await SocialService.getMyPosts(0, POSTS_PER_PAGE);
@@ -79,6 +124,16 @@ export const SocialScreen: React.FC = () => {
         response = await SocialService.getAllPosts(skip, POSTS_PER_PAGE);
       } else if (feedType === 'following') {
         response = await SocialService.getFollowingPosts(skip, POSTS_PER_PAGE);
+        
+        // Filtrar posts propios del feed de "Siguiendo"
+        if (response.items && currentUserId) {
+          response.items = response.items.filter(post => {
+            const isMyPost = post.authorId === currentUserId || 
+                           post.author?.id === currentUserId ||
+                           (currentUserEmail && (post.authorName === currentUserEmail || post.author?.email === currentUserEmail));
+            return !isMyPost; // Excluir posts propios
+          });
+        }
       } else {
         response = await SocialService.getMyPosts(skip, POSTS_PER_PAGE);
       }
@@ -141,6 +196,35 @@ export const SocialScreen: React.FC = () => {
     setSelectedPost(null);
   };
 
+  const isMyPost = (post: Post): boolean => {
+    console.log('Checking if my post:', {
+      currentUserId,
+      currentUserEmail,
+      postAuthorId: post.authorId,
+      postAuthorName: post.authorName,
+      postAuthor: post.author
+    });
+    
+    // Verificar por ID
+    if (currentUserId) {
+      if (post.authorId === currentUserId || post.author?.id === currentUserId) {
+        console.log('✅ My post by ID match');
+        return true;
+      }
+    }
+    
+    // Verificar por email como fallback
+    if (currentUserEmail) {
+      if (post.authorName === currentUserEmail || post.author?.email === currentUserEmail) {
+        console.log('✅ My post by email match');
+        return true;
+      }
+    }
+    
+    console.log('❌ Not my post');
+    return false;
+  };
+
   const handleCommentAdded = (postId: string, newCommentsCount: number) => {
     // Actualizar el contador de comentarios del post específico
     setPosts(prevPosts => 
@@ -166,12 +250,20 @@ export const SocialScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Comunidad</Text>
-        <TouchableOpacity 
-          style={styles.createButton}
-          onPress={() => setShowCreateModal(true)}
-        >
-          <Text style={styles.createButtonText}>✨ Crear</Text>
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity 
+            style={styles.searchButton}
+            onPress={() => setShowUsersModal(true)}
+          >
+            <Text style={styles.searchButtonText}>🔍</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.createButton}
+            onPress={() => setShowCreateModal(true)}
+          >
+            <Text style={styles.createButtonText}>✨ Crear</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Feed Type Selector */}
@@ -227,7 +319,8 @@ export const SocialScreen: React.FC = () => {
                 post={post}
                 onPostUpdate={handlePostUpdate}
                 onCommentPress={handleCommentPress}
-                isMyPost={feedType === 'mine'}
+                isMyPost={feedType === 'mine' || isMyPost(post)}
+                showFollowButton={feedType === 'all' && !isMyPost(post)}
               />
             ))}
             
@@ -276,6 +369,25 @@ export const SocialScreen: React.FC = () => {
         post={selectedPost}
         onCommentAdded={handleCommentAdded}
       />
+
+      {/* Modal de búsqueda de usuarios */}
+      <Modal
+        visible={showUsersModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity 
+              style={styles.closeModalButton}
+              onPress={() => setShowUsersModal(false)}
+            >
+              <Text style={styles.closeModalButtonText}>✕ Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+          <UsersScreen />
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -307,6 +419,22 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  searchButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    minWidth: 40,
+    alignItems: 'center',
+  },
+  searchButtonText: {
+    fontSize: 16,
   },
   createButton: {
     backgroundColor: 'rgba(255,255,255,0.2)',
@@ -379,6 +507,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  modalHeader: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 15,
+    alignItems: 'flex-end',
+  },
+  closeModalButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  closeModalButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   feedSelector: {
     flexDirection: 'row',

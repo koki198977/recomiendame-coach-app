@@ -118,6 +118,7 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState('loading');
   const [showCompleteProfile, setShowCompleteProfile] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [verificationMessage, setVerificationMessage] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -144,6 +145,9 @@ export default function App() {
   }, []);
 
   const handleLoginSuccess = async () => {
+    // Limpiar mensaje de verificación al hacer login exitoso
+    setVerificationMessage(undefined);
+    
     // Verificar si el usuario tiene perfil completo
     try {
       console.log('Verificando perfil del usuario...');
@@ -198,9 +202,10 @@ export default function App() {
     setShowCompleteProfile(false);
   };
 
-  const handleRegisterSuccess = async () => {
-    // Después del registro exitoso, verificar perfil igual que en login
-    await handleLoginSuccess();
+  const handleRegisterSuccess = async (message?: string) => {
+    // Después del registro exitoso, ir al login con mensaje de verificación
+    setVerificationMessage(message);
+    setCurrentScreen('login');
   };
 
   const handleShowRegister = () => {
@@ -208,6 +213,7 @@ export default function App() {
   };
 
   const handleBackToLogin = () => {
+    setVerificationMessage(undefined); // Limpiar mensaje al volver al login manualmente
     setCurrentScreen('login');
   };
 
@@ -237,6 +243,7 @@ export default function App() {
         <LoginScreen 
           onLoginSuccess={handleLoginSuccess} 
           onShowRegister={handleShowRegister}
+          verificationMessage={verificationMessage}
         />
         <StatusBar style="dark" />
       </>

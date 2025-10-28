@@ -10,13 +10,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Logo } from '../components/Logo';
 import { AuthService } from '../services/authService';
 
 interface RegisterScreenProps {
-  onRegisterSuccess: () => void;
+  onRegisterSuccess: (message?: string) => void;
   onBackToLogin: () => void;
 }
 
@@ -72,31 +73,42 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
     setLoading(true);
     try {
       // Crear usuario
-      await AuthService.register({
+      const response = await AuthService.register({
         email: formData.email.trim().toLowerCase(),
         password: formData.password,
       });
 
-      // Después del registro exitoso, hacer login automáticamente
-      await AuthService.login({
-        email: formData.email.trim().toLowerCase(),
-        password: formData.password,
-      });
-
+      // Verificar que el registro fue exitoso (status 201)
+      console.log('Registration successful with status 201');
+      
+      // Registro exitoso - redirigir al login con mensaje de verificación
       Alert.alert(
-        '¡Bienvenido!',
-        'Tu cuenta ha sido creada exitosamente',
-        [{ text: 'Continuar', onPress: onRegisterSuccess }]
+        '¡Cuenta creada exitosamente! 🎉',
+        'Hemos enviado un correo de verificación a tu email. Por favor verifica tu correo antes de iniciar sesión.',
+        [
+          { 
+            text: 'Ir a iniciar sesión', 
+            onPress: () => onRegisterSuccess('Por favor verifica tu correo electrónico antes de iniciar sesión.')
+          }
+        ]
       );
     } catch (error: any) {
       console.log('Registration error:', error);
+      console.log('Error status:', error.response?.status);
       
       let errorMessage = 'Error al crear la cuenta. Intenta de nuevo.';
       
+      // Manejar diferentes códigos de estado
       if (error.response?.status === 400) {
         errorMessage = 'Email ya registrado o datos inválidos';
       } else if (error.response?.status === 422) {
         errorMessage = 'Por favor verifica que todos los datos sean correctos';
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Este correo electrónico ya se encuentra registrado. Intenta iniciar sesión o usa otro email.';
+      } else if (error.response?.status === 409) {
+        errorMessage = 'Este correo electrónico ya está en uso. Por favor usa otro email.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
       }
       
       Alert.alert('Error', errorMessage);
@@ -231,9 +243,19 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
         <View style={styles.termsContainer}>
           <Text style={styles.termsText}>
             Al crear una cuenta, aceptas nuestros{' '}
-            <Text style={styles.termsLink}>Términos de Servicio</Text>
+            <Text 
+              style={styles.termsLink}
+              onPress={() => Linking.openURL('https://coach.recomiendameapp.cl/terms')}
+            >
+              Términos de Servicio
+            </Text>
             {' '}y{' '}
-            <Text style={styles.termsLink}>Política de Privacidad</Text>
+            <Text 
+              style={styles.termsLink}
+              onPress={() => Linking.openURL('https://coach.recomiendameapp.cl/privacy')}
+            >
+              Política de Privacidad
+            </Text>
           </Text>
         </View>
       </ScrollView>

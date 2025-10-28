@@ -34,8 +34,19 @@ export class AuthService {
   }
 
   static async register(userData: RegisterRequest): Promise<User> {
+    console.log('🚀 Starting registration with:', userData.email);
+    
     // Tu endpoint es /users, no /auth/register
     const response = await api.post<User>('/users', userData);
+    
+    // Debug: Log para ver qué devuelve la API
+    console.log('Registration response status:', response.status);
+    console.log('Registration response data:', response.data);
+    
+    // Verificar que el status sea 201 (Created)
+    if (response.status === 201) {
+      console.log('✅ User created successfully with status 201');
+    }
     
     // El endpoint de registro solo crea el usuario, no devuelve token
     // Necesitaremos hacer login después del registro
@@ -88,5 +99,35 @@ export class AuthService {
     await StorageService.setItem('userData', JSON.stringify(response.data));
     
     return response.data;
+  }
+
+  static async resendVerification(email: string): Promise<void> {
+    console.log('🚀 Resending email verification for:', email);
+    
+    // Endpoint correcto para reenviar verificación de email
+    const response = await api.post('/auth/resend-email-verification', { email });
+    
+    // Debug: Log para ver qué devuelve la API
+    console.log('Resend verification response status:', response.status);
+    console.log('Resend verification response data:', response.data);
+    
+    if (response.status === 200 || response.status === 201) {
+      console.log('✅ Email verification resent successfully');
+    }
+  }
+
+  static async requestPasswordReset(email: string): Promise<void> {
+    console.log('🚀 Requesting password reset for:', email);
+    
+    // Endpoint para solicitar reset de contraseña
+    const response = await api.post('/auth/request-reset', { email });
+    
+    // Debug: Log para ver qué devuelve la API
+    console.log('Password reset request response status:', response.status);
+    console.log('Password reset request response data:', response.data);
+    
+    if (response.status === 200 || response.status === 201) {
+      console.log('✅ Password reset email sent successfully');
+    }
   }
 }

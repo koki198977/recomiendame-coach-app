@@ -17,6 +17,8 @@ interface PostCardProps {
   onCommentPress?: (post: Post) => void;
   isMyPost?: boolean; // Indica si es del feed "Míos"
   showFollowButton?: boolean; // Mostrar botón seguir
+  isFollowingAuthor?: boolean; // Si ya sigo al autor
+  onFollowChange?: (authorId: string, isFollowing: boolean) => void; // Callback cuando cambia el seguimiento
 }
 
 export const PostCard: React.FC<PostCardProps> = ({
@@ -25,10 +27,12 @@ export const PostCard: React.FC<PostCardProps> = ({
   onCommentPress,
   isMyPost = false,
   showFollowButton = false,
+  isFollowingAuthor = false,
+  onFollowChange,
 }) => {
   const [isLiking, setIsLiking] = useState(false);
   const [currentPost, setCurrentPost] = useState(post);
-  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(isFollowingAuthor);
   const [followingUser, setFollowingUser] = useState(false);
 
   // Sincronizar el estado local cuando el prop cambie
@@ -36,6 +40,11 @@ export const PostCard: React.FC<PostCardProps> = ({
     setCurrentPost(post);
     console.log('PostCard - Full post data:', post);
   }, [post]);
+
+  // Sincronizar el estado de seguimiento
+  useEffect(() => {
+    setIsFollowing(isFollowingAuthor);
+  }, [isFollowingAuthor]);
 
   const handleLike = async () => {
     if (isLiking) return;
@@ -185,9 +194,11 @@ export const PostCard: React.FC<PostCardProps> = ({
       if (isFollowing) {
         await SocialService.unfollowUser(currentPost.authorId);
         setIsFollowing(false);
+        onFollowChange?.(currentPost.authorId, false);
       } else {
         await SocialService.followUser(currentPost.authorId);
         setIsFollowing(true);
+        onFollowChange?.(currentPost.authorId, true);
       }
     } catch (error) {
       console.log('Error following/unfollowing user:', error);

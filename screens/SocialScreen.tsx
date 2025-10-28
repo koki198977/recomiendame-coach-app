@@ -32,12 +32,14 @@ export const SocialScreen: React.FC = () => {
   const [feedType, setFeedType] = useState<'all' | 'following' | 'mine'>('all');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set());
 
   const POSTS_PER_PAGE = 10;
 
   useEffect(() => {
     loadCurrentUser();
     loadFeed();
+    loadFollowingUsers();
   }, []);
 
   useEffect(() => {
@@ -68,6 +70,22 @@ export const SocialScreen: React.FC = () => {
       }
     } catch (error) {
       console.log('Error in loadCurrentUser:', error);
+    }
+  };
+
+  const loadFollowingUsers = async () => {
+    try {
+      // Obtener mi ID de usuario
+      const userId = await getCurrentUserId();
+      if (!userId) return;
+
+      // Cargar la lista de usuarios que sigo
+      const response = await SocialService.getFollowing(userId, 0, 100); // Cargar más usuarios
+      const followingIds = new Set(response.items.map(user => user.id));
+      setFollowingUsers(followingIds);
+      console.log('Following users loaded:', followingIds);
+    } catch (error) {
+      console.log('Error loading following users:', error);
     }
   };
 
@@ -225,6 +243,15 @@ export const SocialScreen: React.FC = () => {
     return false;
   };
 
+  const isFollowingAuthor = (post: Post): boolean => {
+    const authorId = post.authorId || post.author?.id;
+    if (!authorId) return false;
+    
+    const following = followingUsers.has(authorId);
+    console.log(`Following ${authorId}:`, following);
+    return following;
+  };
+
   const handleCommentAdded = (postId: string, newCommentsCount: number) => {
     // Actualizar el contador de comentarios del post específico
     setPosts(prevPosts => 
@@ -321,6 +348,19 @@ export const SocialScreen: React.FC = () => {
                 onCommentPress={handleCommentPress}
                 isMyPost={feedType === 'mine' || isMyPost(post)}
                 showFollowButton={feedType === 'all' && !isMyPost(post)}
+                isFollowingAuthor={isFollowingAuthor(post)}
+                onFollowChange={(authorId, isFollowing) => {
+                  // Actualizar el caché local
+                  setFollowingUsers(prev => {
+                    const newSet = new Set(prev);
+                    if (isFollowing) {
+                      newSet.add(authorId);
+                    } else {
+                      newSet.delete(authorId);
+                    }
+                    return newSet;
+                  });
+                }}
               />
             ))}
             

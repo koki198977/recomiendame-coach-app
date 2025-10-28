@@ -14,6 +14,28 @@ import {
 } from '../types/nutrition';
 
 export class SocialService {
+  // Upload de imagen
+  static async uploadImage(imageUri: string): Promise<{ url: string; publicId: string }> {
+    console.log('🚀 Uploading image:', imageUri);
+    
+    // Crear FormData para la subida de imagen
+    const formData = new FormData();
+    formData.append('image', {
+      uri: imageUri,
+      type: 'image/jpeg',
+      name: 'image.jpg',
+    } as any);
+
+    const response = await api.post('/posts/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    console.log('Upload response:', response.data);
+    return response.data;
+  }
+
   // Posts
   static async createPost(postData: CreatePostRequest): Promise<Post> {
     const response = await api.post<Post>('/posts', postData);

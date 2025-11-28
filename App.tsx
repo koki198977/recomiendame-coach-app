@@ -6,25 +6,28 @@ import { LoginScreen } from './screens/LoginScreen';
 import { RegisterScreen } from './screens/RegisterScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 import { HomeScreen } from './screens/HomeScreen';
-import { PlanScreen } from './screens/PlanScreen';
+import { PlanScreenWithTabs } from './screens/PlanScreenWithTabs';
 import { ProgressScreen } from './screens/ProgressScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { SocialScreen } from './screens/SocialScreen';
 import { Logo } from './components/Logo';
 import { CompleteProfileModal } from './components/CompleteProfileModal';
+import { ChapiBubble } from './components/ChapiBubble';
+import { ChapiChatModal } from './components/ChapiChatModal';
 import { NutritionService } from './services/nutritionService';
 import { UserProfile } from './types/nutrition';
 
 // Componente principal con tabs manuales
 const MainApp: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState('home');
+  const [chapiModalVisible, setChapiModalVisible] = useState(false);
 
   const renderScreen = () => {
     switch (activeTab) {
       case 'home':
         return <HomeScreen />;
       case 'plan':
-        return <PlanScreen />;
+        return <PlanScreenWithTabs />;
       case 'social':
         return <SocialScreen />;
       case 'progress':
@@ -66,7 +69,7 @@ const MainApp: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
               <Text style={[styles.tabIcon, activeTab === 'plan' && styles.activeTabIcon]}>🍎</Text>
             </View>
             <Text style={[styles.tabText, activeTab === 'plan' && styles.activeTabText]}>
-              Mi Plan
+              Mi Programa
             </Text>
           </TouchableOpacity>
 
@@ -108,6 +111,13 @@ const MainApp: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         </View>
       </View>
 
+      {/* Chapi - Asistente Virtual */}
+      <ChapiBubble onPress={() => setChapiModalVisible(true)} />
+      <ChapiChatModal
+        visible={chapiModalVisible}
+        onClose={() => setChapiModalVisible(false)}
+      />
+
       <StatusBar style="dark" />
     </View>
   );
@@ -120,18 +130,39 @@ export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [verificationMessage, setVerificationMessage] = useState<string | undefined>(undefined);
 
+  // Debug: Log cuando cambia el estado del modal
+  React.useEffect(() => {
+    console.log('🔍 showCompleteProfile changed to:', showCompleteProfile);
+  }, [showCompleteProfile]);
+
   useEffect(() => {
     const checkStatus = async () => {
       try {
         const token = await AsyncStorage.getItem('authToken');
-        const onboarding = await AsyncStorage.getItem('onboardingCompleted');
 
         if (token) {
-          if (onboarding === 'true') {
-            setCurrentScreen('home');
-          } else {
-            setCurrentScreen('onboarding');
+          // Verificar si hay perfil guardado localmente primero
+          const localProfile = await AsyncStorage.getItem('userProfile');
+          if (localProfile) {
+            try {
+              const profile = JSON.parse(localProfile);
+              const hasRequiredData = profile.heightCm && profile.weightKg && profile.activityLevel && profile.country;
+              
+              if (hasRequiredData) {
+                console.log('✅ Perfil completo encontrado localmente, ir directo a home');
+                setUserProfile(profile);
+                setShowCompleteProfile(false);
+                setCurrentScreen('home');
+                return;
+              }
+            } catch (error) {
+              console.log('Error parsing local profile:', error);
+            }
           }
+
+          // Si no hay perfil local completo, verificar con la API
+          console.log('🔍 Token encontrado, verificando perfil con API...');
+          await handleLoginSuccess();
         } else {
           setCurrentScreen('login');
         }
@@ -158,26 +189,28 @@ export default function App() {
       const hasRequiredData = profile.heightCm && profile.weightKg && profile.activityLevel && profile.country;
 
       if (hasRequiredData) {
-        console.log('Usuario tiene perfil completo, ir a home');
+        console.log('✅ Usuario tiene perfil completo, ir a home');
         setUserProfile(profile);
+        setShowCompleteProfile(false); // Asegurar que el modal esté cerrado
         setCurrentScreen('home');
       } else {
-        console.log('Usuario necesita completar perfil');
+        console.log('⚠️ Usuario necesita completar perfil');
         setUserProfile(profile);
         setShowCompleteProfile(true);
         setCurrentScreen('home'); // Ir a home pero mostrar modal
       }
     } catch (error: any) {
-      console.log('Error obteniendo perfil:', error.response?.status);
+      console.log('❌ Error obteniendo perfil:', error.response?.status);
       if (error.response?.status === 404) {
         // No tiene perfil, mostrar modal para completar
         console.log('Usuario no tiene perfil, mostrar modal');
         setShowCompleteProfile(true);
         setCurrentScreen('home');
       } else {
-        // Otro error, ir al onboarding como fallback
-        console.log('Error desconocido, ir a onboarding');
-        setCurrentScreen('onboarding');
+        // Otro error, ir directamente a home sin modal
+        console.log('Error desconocido, ir a home sin modal');
+        setShowCompleteProfile(false);
+        setCurrentScreen('home');
       }
     }
   };
@@ -188,18 +221,25 @@ export default function App() {
 
   const handleCompleteProfile = async (profileData: any) => {
     try {
-      console.log('Perfil completado exitosamente:', profileData);
+      console.log('✅ Perfil completado exitosamente:', profileData);
       // Los datos ya fueron guardados en la API por el modal
       setUserProfile(profileData);
+      
+      // Guardar también localmente para evitar mostrar el modal de nuevo
+      await AsyncStorage.setItem('userProfile', JSON.stringify(profileData));
+      console.log('💾 Perfil guardado localmente');
+      
       setShowCompleteProfile(false);
+      console.log('🔒 Modal cerrado después de completar perfil');
     } catch (error) {
-      console.log('Error completando perfil:', error);
+      console.log('❌ Error completando perfil:', error);
     }
   };
 
   const handleSkipProfile = () => {
-    console.log('Usuario omitió completar perfil');
+    console.log('⏭️ Usuario omitió completar perfil');
     setShowCompleteProfile(false);
+    console.log('🔒 Modal cerrado después de omitir perfil');
   };
 
   const handleRegisterSuccess = async (message?: string) => {

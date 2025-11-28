@@ -7,9 +7,14 @@ import {
   StyleSheet,
   Dimensions,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { NutritionService } from '../services/nutritionService';
-import { Checkin } from '../types/nutrition';
+import { SocialService } from '../services/socialService';
+import { AchievementsService } from '../services/achievementsService';
+import { Checkin, Achievement } from '../types/nutrition';
+import { TrophyModal } from '../components/TrophyModal';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
@@ -17,10 +22,20 @@ export const ProgressScreen: React.FC = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('week');
   const [checkins, setCheckins] = useState<Checkin[]>([]);
   const [loading, setLoading] = useState(true);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [showTrophyModal, setShowTrophyModal] = useState(false);
+  const [selectedTrophy, setSelectedTrophy] = useState<Achievement | null>(null);
 
   useEffect(() => {
     loadCheckinHistory();
   }, [selectedPeriod]);
+
+  // Cargar logros cuando cambien los checkins
+  useEffect(() => {
+    if (checkins.length >= 0) { // Ejecutar incluso si no hay checkins (array vacío)
+      loadAchievements();
+    }
+  }, [checkins]);
 
   const loadCheckinHistory = async () => {
     try {
@@ -55,6 +70,227 @@ export const ProgressScreen: React.FC = () => {
       setCheckins([]); // Asegurar que siempre sea un array
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAchievements = async () => {
+    try {
+      // Para logros necesitamos TODOS los checkins históricos, no solo del período seleccionado
+      let allCheckins: Checkin[] = [];
+      
+      try {
+        // Cargar todos los checkins desde hace un año
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+        const today = new Date();
+        
+        allCheckins = await NutritionService.getCheckinHistory(
+          oneYearAgo.toISOString().split('T')[0],
+          today.toISOString().split('T')[0]
+        );
+        
+        console.log('🏆 Calculando logros con TODOS los checkins:', {
+          totalCheckins: allCheckins.length,
+          checkins: allCheckins.map(c => ({ id: c.id, date: c.date }))
+        });
+      } catch (error) {
+        console.log('Error loading all checkins for achievements:', error);
+        // Fallback: usar los checkins del período actual
+        allCheckins = Array.isArray(checkins) ? checkins : [];
+      }
+      
+      // Calcular estadísticas
+      const totalCheckins = allCheckins.length;
+      const streakDays = await getStreakDays();
+      const weightLoss = calculateWeightLoss(allCheckins);
+      const { maxAdherence, avgAdherence } = calculateAdherenceStats(allCheckins);
+      
+      // Datos sociales (simulados por ahora)
+      let socialStats = {
+        postsCount: 0,
+        likesReceived: 0,
+        commentsGiven: 0,
+      };
+      
+      try {
+        const socialProfile = await SocialService.getMySocialProfile();
+        socialStats.postsCount = socialProfile.postsCount || 0;
+      } catch (error) {
+        console.log('Error loading social stats:', error);
+      }
+
+      // Verificar si tiene perfil y planes
+      let hasProfile = false;
+      let hasPlans = false;
+      
+      try {
+        const profile = await NutritionService.getUserProfile();
+        hasProfile = !!(profile.heightCm && profile.weightKg && profile.activityLevel);
+        
+        const currentWeek = NutritionService.getCurrentWeek();
+        const plan = await NutritionService.getWeeklyPlan(currentWeek);
+        hasPlans = !!plan;
+      } catch (error) {
+        console.log('Error checking profile/plans:', error);
+      }
+
+      // Calcular logros
+      const calculatedAchievements = AchievementsService.calculateAchievements({
+        streakDays,
+        totalCheckins,
+        weightLoss,
+        maxAdherence,
+        avgAdherence,
+        postsCount: socialStats.postsCount,
+        likesReceived: socialStats.likesReceived,
+        commentsGiven: socialStats.commentsGiven,
+        hasProfile,
+        hasPlans,
+      });
+
+      // Cargar estado de trofeos compartidos
+      const sharedTrophies = await loadSharedTrophies();
+      
+      // Marcar cuáles ya fueron compartidos
+      const achievementsWithSharedStatus = calculatedAchievements.map(achievement => ({
+        ...achievement,
+        isShared: sharedTrophies.has(achievement.id)
+      }));
+
+      console.log('🏆 Logros calculados:', achievementsWithSharedStatus.map(a => ({
+        id: a.id,
+        title: a.title,
+        isUnlocked: a.isUnlocked,
+        isShared: a.isShared,
+        progress: a.progress,
+        maxProgress: a.maxProgress
+      })));
+
+      setAchievements(achievementsWithSharedStatus);
+    } catch (error) {
+      console.log('Error loading achievements:', error);
+      setAchievements(AchievementsService.getAllAchievements());
+    }
+  };
+
+  const getStreakDays = async (): Promise<number> => {
+    try {
+      const today = new Date();
+      const thirtyDaysAgo = new Date(today);
+      thirtyDaysAgo.setDate(today.getDate() - 30);
+      
+      const recentCheckins = await NutritionService.getCheckinHistory(
+        thirtyDaysAgo.toISOString().split('T')[0],
+        today.toISOString().split('T')[0]
+      );
+      
+      // Calcular racha actual
+      let streak = 0;
+      const sortedCheckins = recentCheckins.sort((a, b) => 
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+      
+      for (let i = 0; i < sortedCheckins.length; i++) {
+        const checkinDate = new Date(sortedCheckins[i].date);
+        const expectedDate = new Date(today);
+        expectedDate.setDate(today.getDate() - i);
+        
+        if (checkinDate.toDateString() === expectedDate.toDateString()) {
+          streak++;
+        } else {
+          break;
+        }
+      }
+      
+      return streak;
+    } catch (error) {
+      console.log('Error calculating streak:', error);
+      return 0;
+    }
+  };
+
+  const calculateWeightLoss = (checkinsArray: Checkin[]): number => {
+    const weightsWithDates = checkinsArray
+      .filter(c => c.weightKg)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    if (weightsWithDates.length < 2) return 0;
+    
+    const initialWeight = weightsWithDates[0].weightKg!;
+    const currentWeight = weightsWithDates[weightsWithDates.length - 1].weightKg!;
+    
+    return Math.max(0, initialWeight - currentWeight);
+  };
+
+  const calculateAdherenceStats = (checkinsArray: Checkin[]): { maxAdherence: number; avgAdherence: number } => {
+    const adherenceData = checkinsArray.filter(c => c.adherencePct !== undefined);
+    
+    if (adherenceData.length === 0) {
+      return { maxAdherence: 0, avgAdherence: 0 };
+    }
+    
+    const maxAdherence = Math.max(...adherenceData.map(c => c.adherencePct!));
+    const avgAdherence = adherenceData.reduce((sum, c) => sum + c.adherencePct!, 0) / adherenceData.length;
+    
+    return { maxAdherence, avgAdherence };
+  };
+
+  // Cargar estado de trofeos compartidos
+  const loadSharedTrophies = async (): Promise<Set<string>> => {
+    try {
+      const sharedTrophies = await AsyncStorage.getItem('sharedTrophies');
+      return sharedTrophies ? new Set(JSON.parse(sharedTrophies)) : new Set();
+    } catch (error) {
+      console.log('Error loading shared trophies:', error);
+      return new Set();
+    }
+  };
+
+  // Guardar que un trofeo fue compartido
+  const markTrophyAsShared = async (achievementId: string) => {
+    try {
+      const sharedTrophies = await loadSharedTrophies();
+      sharedTrophies.add(achievementId);
+      await AsyncStorage.setItem('sharedTrophies', JSON.stringify([...sharedTrophies]));
+      console.log('🏆 Trofeo marcado como compartido:', achievementId);
+      
+      // Actualizar el estado local de achievements
+      setAchievements(prev => prev.map(a => 
+        a.id === achievementId ? { ...a, isShared: true } : a
+      ));
+    } catch (error) {
+      console.log('Error marking trophy as shared:', error);
+    }
+  };
+
+  const handleTrophyPress = (achievement: Achievement) => {
+    setSelectedTrophy(achievement);
+    setShowTrophyModal(true);
+  };
+
+  const handleShareTrophy = async (achievement: Achievement) => {
+    try {
+      const message = AchievementsService.generateTrophyShareMessage(achievement);
+      
+      // Crear post con el trofeo
+      await SocialService.createPost({
+        caption: message,
+        challengeId: null,
+      });
+      
+      // Marcar como compartido
+      await markTrophyAsShared(achievement.id);
+      
+      Alert.alert(
+        '¡Trofeo compartido! 🎉',
+        'Tu logro ha sido publicado en la comunidad',
+        [{ text: 'OK' }]
+      );
+      
+      setShowTrophyModal(false);
+    } catch (error) {
+      console.log('Error sharing trophy:', error);
+      Alert.alert('Error', 'No se pudo compartir el trofeo. Intenta de nuevo.');
     }
   };
 
@@ -211,29 +447,78 @@ export const ProgressScreen: React.FC = () => {
     );
   };
 
-  const renderAchievements = () => (
-    <View style={styles.progressCard}>
-      <Text style={styles.cardTitle}>Logros</Text>
-      <View style={styles.achievementsGrid}>
-        <View style={styles.achievement}>
-          <Text style={styles.achievementIcon}>🏆</Text>
-          <Text style={styles.achievementText}>Primera semana</Text>
+  const renderAchievements = () => {
+    // Mostrar logros desbloqueados primero, luego los bloqueados
+    const sortedAchievements = [...achievements].sort((a, b) => {
+      if (a.isUnlocked && !b.isUnlocked) return -1;
+      if (!a.isUnlocked && b.isUnlocked) return 1;
+      return b.progress - a.progress; // Por progreso descendente
+    });
+
+    return (
+      <View style={styles.progressCard}>
+        <View style={styles.achievementsHeader}>
+          <Text style={styles.cardTitle}>Trofeos</Text>
+          <Text style={styles.achievementsCount}>
+            {achievements.filter(a => a.isUnlocked).length}/{achievements.length}
+          </Text>
         </View>
-        <View style={styles.achievement}>
-          <Text style={styles.achievementIcon}>🥗</Text>
-          <Text style={styles.achievementText}>5 días seguidos</Text>
-        </View>
-        <View style={styles.achievement}>
-          <Text style={styles.achievementIcon}>💪</Text>
-          <Text style={styles.achievementText}>Meta de peso</Text>
-        </View>
-        <View style={[styles.achievement, styles.achievementLocked]}>
-          <Text style={styles.achievementIcon}>🔒</Text>
-          <Text style={styles.achievementText}>Próximo logro</Text>
-        </View>
+        
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.achievementsScroll}
+        >
+          {sortedAchievements.map((achievement) => (
+            <TouchableOpacity
+              key={achievement.id}
+              style={[
+                styles.achievementCard,
+                achievement.isUnlocked ? styles.achievementUnlocked : styles.achievementLocked
+              ]}
+              onPress={() => handleTrophyPress(achievement)}
+            >
+              <View style={styles.achievementIconContainer}>
+                <Text style={[
+                  styles.achievementIcon,
+                  !achievement.isUnlocked && styles.achievementIconLocked
+                ]}>
+                  {achievement.isUnlocked ? achievement.icon : '🔒'}
+                </Text>
+              </View>
+              
+              <Text style={[
+                styles.achievementTitle,
+                !achievement.isUnlocked && styles.achievementTitleLocked
+              ]}>
+                {achievement.title}
+              </Text>
+              
+              {!achievement.isUnlocked && (
+                <View style={styles.progressContainer}>
+                  <View style={styles.progressBarSmall}>
+                    <View 
+                      style={[
+                        styles.progressFillSmall, 
+                        { width: `${(achievement.progress / achievement.maxProgress) * 100}%` }
+                      ]} 
+                    />
+                  </View>
+                  <Text style={styles.progressTextSmall}>
+                    {achievement.progress}/{achievement.maxProgress}
+                  </Text>
+                </View>
+              )}
+              
+              {achievement.isUnlocked && (
+                <Text style={styles.unlockedText}>¡Desbloqueado!</Text>
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -262,6 +547,14 @@ export const ProgressScreen: React.FC = () => {
           </>
         )}
       </ScrollView>
+
+      {/* Trophy Modal */}
+      <TrophyModal
+        visible={showTrophyModal}
+        achievement={selectedTrophy}
+        onClose={() => setShowTrophyModal(false)}
+        onShare={handleShareTrophy}
+      />
     </View>
   );
 };
@@ -527,30 +820,89 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 2,
   },
-  achievementsGrid: {
+  achievementsHeader: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
   },
-  achievement: {
-    width: '48%',
+  achievementsCount: {
+    fontSize: 14,
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+  achievementsScroll: {
+    paddingRight: 20,
+  },
+  achievementCard: {
+    width: 120,
     backgroundColor: '#f8f8f8',
     padding: 15,
-    borderRadius: 10,
+    borderRadius: 15,
+    alignItems: 'center',
+    marginRight: 15,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  achievementUnlocked: {
+    backgroundColor: '#E8F5E8',
+    borderColor: '#4CAF50',
+  },
+  achievementLocked: {
+    backgroundColor: '#f0f0f0',
+    opacity: 0.7,
+  },
+  achievementIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
   },
-  achievementLocked: {
-    opacity: 0.5,
-  },
   achievementIcon: {
     fontSize: 24,
-    marginBottom: 5,
   },
-  achievementText: {
+  achievementIconLocked: {
+    opacity: 0.5,
+  },
+  achievementTitle: {
     fontSize: 12,
     color: '#333',
     textAlign: 'center',
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  achievementTitleLocked: {
+    color: '#666',
+  },
+  progressContainer: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  progressBarSmall: {
+    width: '100%',
+    height: 4,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  progressFillSmall: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+    borderRadius: 2,
+  },
+  progressTextSmall: {
+    fontSize: 10,
+    color: '#666',
     fontWeight: '500',
+  },
+  unlockedText: {
+    fontSize: 10,
+    color: '#4CAF50',
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

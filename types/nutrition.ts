@@ -338,3 +338,119 @@ export interface UsersResponse {
   items: SocialUserProfile[];
   total: number;
 }
+
+// Sistema de logros/trofeos
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  category: "streak" | "weight" | "adherence" | "social" | "milestone";
+  requirement: number;
+  isUnlocked: boolean;
+  unlockedAt?: string;
+  progress: number;
+  maxProgress: number;
+  isShared?: boolean; // Indica si ya fue compartido
+}
+
+export interface TrophyModalData {
+  achievement: Achievement;
+  isNew: boolean;
+}
+
+// Sistema de Chapi - Asistente Virtual de Acompañamiento Emocional
+export type EmotionalState =
+  | "motivated"
+  | "tired"
+  | "burnout"
+  | "sad"
+  | "anxious"
+  | "stressed"
+  | "neutral";
+
+export interface ChapiAction {
+  id: string;
+  label: string;
+  type: "exercise" | "breathing" | "walk" | "shower" | "sunlight" | "routine";
+  duration?: number; // en minutos
+  description: string;
+}
+
+export interface ChapiMessage {
+  id: string;
+  sender: "user" | "chapi";
+  content: string;
+  timestamp: string;
+  emotionalState?: EmotionalState;
+  suggestedActions?: ChapiAction[];
+}
+
+export interface ChapiCheckInRequest {
+  message: string;
+}
+
+// Estructura real de la respuesta del backend
+export interface ChapiBackendAction {
+  title: string;
+  type: 'PHYSICAL' | 'MENTAL';
+  durationMinutes: number;
+}
+
+export interface ChapiCheckInResponse {
+  logId: string;
+  emotion: string;
+  advice: string;
+  actions: ChapiBackendAction[];
+}
+
+export interface ChapiConversation {
+  id: string;
+  userId: string;
+  messages: ChapiMessage[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Sistema de Rutinas de Ejercicio (Workouts)
+export type WorkoutGoal = 'HYPERTROPHY' | 'STRENGTH' | 'ENDURANCE' | 'WEIGHT_LOSS';
+
+export interface GenerateWorkoutRequest {
+  isoWeek: string;
+  daysAvailable: number;
+  goal: WorkoutGoal;
+}
+
+export interface GenerateWorkoutResponse {
+  planId: string;
+  created: boolean;
+}
+
+export interface Exercise {
+  id?: string;
+  name: string;
+  sets: number;
+  reps: string;
+  rest: string;
+  notes?: string;
+  muscleGroup?: string;
+}
+
+export interface WorkoutDay {
+  dayIndex: number; // 1-7 (lunes a domingo)
+  dayName?: string;
+  exercises: Exercise[];
+  duration?: number; // minutos estimados
+}
+
+export interface WorkoutPlan {
+  id: string;
+  userId?: string;
+  isoWeek: string;
+  goal: WorkoutGoal;
+  daysAvailable: number;
+  days: WorkoutDay[];
+  createdAt?: string;
+  notes?: string;
+}
+

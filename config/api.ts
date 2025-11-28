@@ -37,5 +37,13 @@ export const API_CONFIG = {
       CANCEL: (id: string) => `/sessions/${id}/cancel`,
       COMPLETE: (id: string) => `/sessions/${id}/complete`,
     },
+    CHAPI: {
+      CHECK_IN: '/chapi/check-in',
+      CONVERSATION_HISTORY: '/chapi/history',
+    },
+    WORKOUTS: {
+      GENERATE: '/workouts/generate',
+      GET_PLAN: '/workouts',
+    },
   },
 };

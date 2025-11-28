@@ -12,6 +12,8 @@ import { NutritionService } from '../services/nutritionService';
 import { WeeklyPlan, WeeklyPlanMeal, WeeklyPlanIngredient, ShoppingListItem } from '../types/nutrition';
 import { IngredientsModal } from '../components/IngredientsModal';
 import { ShoppingListModal } from '../components/ShoppingListModal';
+import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -354,23 +356,53 @@ export const PlanScreen: React.FC = () => {
     );
   };
 
-  const renderWeekNavigation = () => (
-    <View style={styles.weekNavigation}>
-      <TouchableOpacity style={styles.navButton} onPress={() => navigateWeek('prev')}>
-        <Text style={styles.navButtonText}>‹</Text>
-      </TouchableOpacity>
-      
-      <Text style={styles.weekTitle}>Semana {currentWeek}</Text>
-      
-      <TouchableOpacity 
-        style={[styles.navButton, !canNavigateNext() && styles.navButtonDisabled]} 
-        onPress={() => navigateWeek('next')}
-        disabled={!canNavigateNext()}
-      >
-        <Text style={[styles.navButtonText, !canNavigateNext() && styles.navButtonTextDisabled]}>
-          ›
-        </Text>
-      </TouchableOpacity>
+  const renderPlanHeader = () => (
+    <View style={styles.planInfo}>
+      <View style={styles.planHeaderRow}>
+        {/* Week Navigation */}
+        <View style={styles.weekNavigationContainer}>
+          <TouchableOpacity 
+            style={styles.navButton} 
+            onPress={() => navigateWeek('prev')}
+          >
+            <Text style={styles.navButtonText}>‹</Text>
+          </TouchableOpacity>
+          
+          <View style={styles.weekInfo}>
+            <Text style={styles.weekTitle}>Semana {currentWeek}</Text>
+            {isWeekInPast(currentWeek) && (
+              <Text style={styles.readOnlyTag}>🔒 Solo lectura</Text>
+            )}
+          </View>
+          
+          <TouchableOpacity 
+            style={[styles.navButton, !canNavigateNext() && styles.navButtonDisabled]} 
+            onPress={() => navigateWeek('next')}
+            disabled={!canNavigateNext()}
+          >
+            <Text style={[styles.navButtonText, !canNavigateNext() && styles.navButtonTextDisabled]}>
+              ›
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Action Buttons */}
+        {weeklyPlan && (
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={handleGenerateShoppingList}
+            >
+              <Text style={styles.actionButtonIcon}>🛒</Text>
+            </TouchableOpacity>
+            {/* Share button commented out for now as in original
+            <TouchableOpacity style={styles.actionButton}>
+              <Text style={styles.actionButtonIcon}>📤</Text>
+            </TouchableOpacity>
+            */}
+          </View>
+        )}
+      </View>
     </View>
   );
 
@@ -544,7 +576,7 @@ export const PlanScreen: React.FC = () => {
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color="#4CAF50" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Cargando plan semanal...</Text>
       </View>
     );
@@ -552,35 +584,8 @@ export const PlanScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Mi Plan Semanal</Text>
-          {isWeekInPast(currentWeek) && (
-            <View style={styles.pastWeekBadge}>
-              <Text style={styles.pastWeekBadgeText}>🔒 Solo lectura</Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.headerButtons}>
-          {weeklyPlan && (
-            <>
-              <TouchableOpacity 
-                style={styles.shoppingListButton}
-                onPress={handleGenerateShoppingList}
-              >
-                <Text style={styles.shoppingListButtonText}>🛒</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.shareButton}>
-                <Text style={styles.shareButtonText}>📤</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-      </View>
-
-      {/* Week Navigation */}
-      {renderWeekNavigation()}
+      {/* New Header */}
+      {renderPlanHeader()}
 
       {/* Day Selector */}
       {renderDaySelector()}
@@ -645,7 +650,14 @@ export const PlanScreen: React.FC = () => {
                 style={styles.generateButton}
                 onPress={() => generatePlan(currentWeek)}
               >
-                <Text style={styles.generateButtonText}>🤖 Generar plan con IA</Text>
+                <LinearGradient
+                  colors={GRADIENTS.primary}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={{ paddingVertical: 16, paddingHorizontal: 30, borderRadius: 24 }}
+                >
+                  <Text style={styles.generateButtonText}>🤖 Generar plan con IA</Text>
+                </LinearGradient>
               </TouchableOpacity>
             )}
             {isWeekInPast(currentWeek) && (

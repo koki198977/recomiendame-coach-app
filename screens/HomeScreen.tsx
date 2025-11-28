@@ -14,8 +14,18 @@ import { WeeklyPlan, WeeklyPlanMeal, ShoppingListItem, CheckinResponse, Checkin 
 import { PlanGeneratingModal } from '../components/PlanGeneratingModal';
 import { ShoppingListModal } from '../components/ShoppingListModal';
 import { DailyCheckinModal } from '../components/DailyCheckinModal';
+import { AppHeader } from '../components/AppHeader';
+import { NotificationBadge } from '../components/NotificationBadge';
+import WorkoutService from '../services/workoutService';
+import type { WorkoutPlan, WorkoutDay, Exercise } from '../types/nutrition';
+import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
+import { LinearGradient } from 'expo-linear-gradient';
 
-export const HomeScreen: React.FC = () => {
+interface HomeScreenProps {
+  onNavigateToWorkout: () => void;
+}
+
+export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) => {
   const [user, setUser] = React.useState<any>(null);
   const [userProfile, setUserProfile] = React.useState<any>(null);
   const [weeklyPlan, setWeeklyPlan] = React.useState<WeeklyPlan | null>(null);
@@ -30,6 +40,9 @@ export const HomeScreen: React.FC = () => {
   const [showCheckinModal, setShowCheckinModal] = React.useState(false);
   const [todayCheckin, setTodayCheckin] = React.useState<Checkin | null>(null);
   const [gamificationData, setGamificationData] = React.useState<CheckinResponse['gamification'] | null>(null);
+  const [todayWorkout, setTodayWorkout] = React.useState<WorkoutDay | null>(null);
+  const [hasWorkoutPlan, setHasWorkoutPlan] = React.useState(false);
+  const [loadingWorkout, setLoadingWorkout] = React.useState(false);
 
   const loadData = async () => {
     try {
@@ -50,10 +63,38 @@ export const HomeScreen: React.FC = () => {
       // Cargar checkin del día
       const checkin = await NutritionService.getTodayCheckin();
       setTodayCheckin(checkin);
+
+      // Cargar workout del día
+      loadWorkoutPlan();
     } catch (error) {
       console.log('Error loading data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadWorkoutPlan = async () => {
+    try {
+      setLoadingWorkout(true);
+      const week = WorkoutService.getCurrentISOWeek();
+      const workoutPlan = await WorkoutService.getWorkoutPlan(week);
+      
+      if (workoutPlan) {
+        setHasWorkoutPlan(true);
+        // Obtener workout del día actual
+        const today = new Date().getDay();
+        const todayDayIndex = today === 0 ? 7 : today;
+        const todayWorkoutDay = workoutPlan.days.find(day => day.dayIndex === todayDayIndex);
+        setTodayWorkout(todayWorkoutDay || null);
+      } else {
+        setHasWorkoutPlan(false);
+        setTodayWorkout(null);
+      }
+    } catch (error) {
+      console.log('Error loading workout:', error);
+      setHasWorkoutPlan(false);
+    } finally {
+      setLoadingWorkout(false);
     }
   };
 
@@ -238,14 +279,13 @@ export const HomeScreen: React.FC = () => {
   return (
     <>
       <ScrollView style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.greeting}>¡Hola, {user?.name || 'Usuario'}!</Text>
-          <Text style={styles.subtitle}>
-            {weeklyPlan ? 'Tu plan nutricional de hoy' : 'Crea tu plan nutricional'}
-          </Text>
-          <Text style={styles.weekInfo}>Semana {currentWeek}</Text>
-        </View>
+        {/* Modern Header with Logo */}
+        <AppHeader
+          title={`¡Hola, ${user?.name || 'Usuario'}!`}
+          subtitle={weeklyPlan ? `Semana ${currentWeek}` : 'Crea tu plan nutricional'}
+          showLogo={true}
+          rightComponent={<NotificationBadge count={0} />}
+        />
 
         {weeklyPlan ? (
           <>
@@ -351,6 +391,73 @@ export const HomeScreen: React.FC = () => {
               </View>
             </View>
 
+            {/* Workout Card */}
+            <View style={styles.workoutSection}>
+              <Text style={styles.sectionTitle}>Entrenamiento de hoy</Text>
+              
+              {!hasWorkoutPlan ? (
+                <View style={styles.createPlanCard}>
+                  <Text style={styles.createPlanEmoji}>🏋️</Text>
+                  <View style={styles.createPlanContent}>
+                    <Text style={styles.createPlanTitle}>Sin rutina activa</Text>
+                    <Text style={styles.createPlanText}>Genera tu plan personalizado con IA</Text>
+                  </View>
+                  <TouchableOpacity 
+                    style={styles.createPlanButton}
+                    onPress={onNavigateToWorkout}
+                  >
+                    <Text style={styles.createPlanButtonText}>Crear</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : todayWorkout ? (
+                <View style={styles.workoutCard}>
+                  <View style={styles.workoutHeader}>
+                    <Text style={styles.workoutTitle}>
+                      💪 {todayWorkout.exercises.length} ejercicios
+                    </Text>
+                    {todayWorkout.duration && (
+                      <Text style={styles.workoutDuration}>⏱️ {todayWorkout.duration} min</Text>
+                    )}
+                  </View>
+                  
+                  <View style={styles.workoutPreview}>
+                    {todayWorkout.exercises.slice(0, 2).map((ex, idx) => (
+                      <Text key={idx} style={styles.workoutPreviewText}>
+                        • {ex.name} ({ex.sets}x{ex.reps})
+                      </Text>
+                    ))}
+                    {todayWorkout.exercises.length > 2 && (
+                      <Text style={styles.workoutMoreText}>
+                        + {todayWorkout.exercises.length - 2} ejercicios más
+                      </Text>
+                    )}
+                  </View>
+
+                  <TouchableOpacity 
+                    style={styles.viewWorkoutButton}
+                    onPress={onNavigateToWorkout}
+                  >
+                    <LinearGradient
+                      colors={GRADIENTS.primary}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.viewWorkoutButtonGradient}
+                    >
+                      <Text style={styles.viewWorkoutButtonText}>Ver rutina completa</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.restDayCard}>
+                  <Text style={styles.restDayEmoji}>😴</Text>
+                  <View>
+                    <Text style={styles.restDayTitle}>Día de descanso</Text>
+                    <Text style={styles.restDayText}>¡Recupérate para mañana!</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
             {/* Comidas del día */}
             <View style={styles.mealsSection}>
               <Text style={styles.sectionTitle}>Comidas de hoy</Text>
@@ -387,7 +494,14 @@ export const HomeScreen: React.FC = () => {
 
             {/* Botón de lista de compras */}
             <TouchableOpacity style={styles.shoppingButtonFull} onPress={handleGenerateShoppingList}>
-              <Text style={styles.shoppingButtonText}>🛒 Lista de compras</Text>
+              <LinearGradient
+                colors={GRADIENTS.primary}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.shoppingButtonGradient}
+              >
+                <Text style={styles.shoppingButtonText}>🛒 Lista de compras</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </>
         ) : (
@@ -435,7 +549,7 @@ export const HomeScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
   },
   centered: {
     justifyContent: 'center',
@@ -444,48 +558,137 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#666',
+    color: COLORS.textLight,
   },
-  header: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 30,
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
-  },
-  greeting: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 5,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#E8F5E8',
-    marginBottom: 5,
-  },
-  weekInfo: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+  // Cards
+  checkinCard: {
+    backgroundColor: COLORS.card,
+    margin: 20,
+    padding: 24,
+    borderRadius: 24,
+    ...SHADOWS.card,
+    borderLeftWidth: 0, // Remove old border
+    // New futuristic border
+    borderWidth: 1,
+    borderColor: 'rgba(67, 233, 123, 0.2)',
   },
   progressCard: {
-    backgroundColor: '#fff',
-    margin: 20,
+    backgroundColor: COLORS.card,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    padding: 24,
+    borderRadius: 24,
+    ...SHADOWS.card,
+    borderWidth: 1,
+    borderColor: 'rgba(67, 233, 123, 0.2)',
+  },
+  macrosCard: {
+    backgroundColor: COLORS.card,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    padding: 24,
+    borderRadius: 24,
+    ...SHADOWS.card,
+    borderWidth: 1,
+    borderColor: 'rgba(67, 233, 123, 0.2)',
+  },
+  workoutSection: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  workoutCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 24,
+    padding: 24,
+    ...SHADOWS.glow, // Glow for workout
+    shadowColor: COLORS.primaryStart,
+    shadowOpacity: 0.15,
+    borderWidth: 1,
+    borderColor: 'rgba(67, 233, 123, 0.3)',
+  },
+  mealsSection: {
+    paddingHorizontal: 20,
+    paddingBottom: 100, // Space for bottom tabs
+  },
+  mealCard: {
+    backgroundColor: COLORS.card,
     padding: 20,
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    borderRadius: 20,
+    marginBottom: 16,
+    ...SHADOWS.card,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.primaryStart,
+  },
+  
+  // Text Styles
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: COLORS.text,
+    marginBottom: 16,
+    letterSpacing: 0.5,
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 15,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 16,
   },
+  
+  // Checkin Specific
+  checkinHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  checkinBadge: {
+    backgroundColor: 'rgba(67, 233, 123, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(67, 233, 123, 0.3)',
+  },
+  checkinBadgeText: {
+    fontSize: 12,
+    color: '#00C853', // Darker green for text
+    fontWeight: '700',
+  },
+  checkinRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 16,
+  },
+  checkinItem: {
+    alignItems: 'center',
+  },
+  checkinValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: COLORS.text,
+  },
+  checkinLabel: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  updateCheckinButton: {
+    backgroundColor: COLORS.background,
+    paddingVertical: 12,
+    borderRadius: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  updateCheckinButtonText: {
+    color: COLORS.primary,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  
+  // Progress Specific
   progressRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -496,111 +699,26 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   progressNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#4CAF50',
+    fontSize: 28,
+    fontWeight: '800',
+    color: COLORS.primary,
   },
   progressLabel: {
     fontSize: 12,
-    color: '#666',
-    marginTop: 5,
-  },
-  remaining: {
-    color: '#FF9800',
+    color: COLORS.textLight,
+    marginTop: 4,
+    fontWeight: '600',
   },
   progressDivider: {
     width: 1,
     height: 40,
-    backgroundColor: '#E0E0E0',
-    marginHorizontal: 10,
+    backgroundColor: COLORS.divider,
   },
-  mealsSection: {
-    paddingHorizontal: 20,
+  remaining: {
+    color: COLORS.warning,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
-  },
-  mealCard: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  mealHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  mealTime: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  mealCalories: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#4CAF50',
-  },
-  mealDescription: {
-    fontSize: 14,
-    color: '#666',
-  },
-  profileCard: {
-    backgroundColor: '#fff',
-    margin: 20,
-    padding: 20,
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  profileText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 5,
-  },
-  shoppingButtonFull: {
-    backgroundColor: '#4CAF50',
-    marginHorizontal: 20,
-    marginVertical: 20,
-    paddingVertical: 15,
-    borderRadius: 25,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  shoppingButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  // Nuevos estilos
-  macrosCard: {
-    backgroundColor: '#fff',
-    margin: 20,
-    marginTop: 10,
-    padding: 20,
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
+
+  // Macros Specific
   macrosRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -610,216 +728,289 @@ const styles = StyleSheet.create({
   },
   macroNumber: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FF9800',
+    fontWeight: '700',
+    color: COLORS.text,
   },
   macroLabel: {
     fontSize: 12,
-    color: '#666',
-    marginTop: 5,
+    color: COLORS.textLight,
+    marginTop: 4,
+  },
+
+  // Workout Specific
+  workoutHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  workoutTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  workoutDuration: {
+    fontSize: 13,
+    color: COLORS.textLight,
+    backgroundColor: COLORS.background,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    fontWeight: '600',
+  },
+  workoutPreview: {
+    marginBottom: 20,
+  },
+  workoutPreviewText: {
+    fontSize: 15,
+    color: COLORS.text,
+    marginBottom: 8,
+    lineHeight: 22,
+  },
+  workoutMoreText: {
+    fontSize: 13,
+    color: COLORS.textLight,
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  viewWorkoutButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  viewWorkoutButtonGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  viewWorkoutButtonText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 15,
+    letterSpacing: 0.5,
+  },
+
+  // Create Plan Card
+  createPlanCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 24,
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    ...SHADOWS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  createPlanEmoji: {
+    fontSize: 32,
+    marginRight: 16,
+  },
+  createPlanContent: {
+    flex: 1,
+  },
+  createPlanTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  createPlanText: {
+    fontSize: 13,
+    color: COLORS.textLight,
+  },
+  createPlanButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 14,
+    marginLeft: 12,
+    ...SHADOWS.glow,
+    shadowOpacity: 0.2,
+  },
+  createPlanButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+
+  // Rest Day
+  restDayCard: {
+    backgroundColor: 'rgba(67, 233, 123, 0.1)',
+    borderRadius: 24,
+    padding: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(67, 233, 123, 0.2)',
+  },
+  restDayEmoji: {
+    fontSize: 36,
+    marginRight: 20,
+  },
+  restDayTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2E7D32',
+  },
+  restDayText: {
+    fontSize: 14,
+    color: '#4CAF50',
+    marginTop: 4,
+  },
+
+  // Meal Specific
+  mealHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  mealTime: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  mealCalories: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.primary,
+    backgroundColor: 'rgba(67, 233, 123, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  mealDescription: {
+    fontSize: 15,
+    color: COLORS.text,
+    marginBottom: 12,
+    lineHeight: 22,
   },
   mealMacros: {
     flexDirection: 'row',
-    marginTop: 8,
-    gap: 15,
+    gap: 16,
   },
   mealMacroText: {
-    fontSize: 12,
-    color: '#888',
-    fontWeight: '500',
+    fontSize: 13,
+    color: COLORS.textLight,
+    fontWeight: '600',
   },
+
+  // Empty States
   noMealsCard: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    padding: 30,
+    borderRadius: 24,
     alignItems: 'center',
+    borderStyle: 'dashed',
+    borderWidth: 2,
+    borderColor: COLORS.border,
   },
   noMealsText: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 15,
+    color: COLORS.textLight,
     textAlign: 'center',
   },
+  noCheckinContainer: {
+    alignItems: 'center',
+  },
+  noCheckinText: {
+    fontSize: 15,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 22,
+  },
+  checkinButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 16,
+    ...SHADOWS.glow,
+  },
+  checkinButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+
+  // Gamification
+  gamificationInfo: {
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+  },
+  gamificationTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 12,
+  },
+  gamificationRow: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  gamificationText: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    fontWeight: '600',
+  },
+
+  // Notes
   notesCard: {
-    backgroundColor: '#fff',
-    margin: 20,
-    marginTop: 10,
+    backgroundColor: '#FFF9C4', // Soft yellow
+    marginHorizontal: 20,
     padding: 20,
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    borderRadius: 24,
+    alignItems: 'center',
+    ...SHADOWS.card,
   },
   notesText: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 15,
+    color: '#F57F17',
     fontStyle: 'italic',
     textAlign: 'center',
+    lineHeight: 22,
   },
+
+  // No Plan
   noPlanContainer: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 40,
+    padding: 20,
   },
   noPlanCard: {
-    backgroundColor: '#fff',
-    padding: 30,
-    borderRadius: 20,
+    backgroundColor: COLORS.card,
+    padding: 32,
+    borderRadius: 32,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    ...SHADOWS.card,
   },
   noPlanTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
+    fontWeight: '800',
+    color: COLORS.text,
+    marginBottom: 12,
     textAlign: 'center',
   },
   noPlanDescription: {
     fontSize: 16,
-    color: '#666',
+    color: COLORS.textLight,
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 30,
+    marginBottom: 32,
   },
-  createPlanButton: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+  shoppingButtonFull: {
+    marginHorizontal: 20,
+    marginVertical: 24,
+    borderRadius: 24,
+    overflow: 'hidden',
+    ...SHADOWS.glow,
   },
-  createPlanButtonText: {
+  shoppingButtonGradient: {
+    paddingVertical: 18,
+    alignItems: 'center',
+  },
+  shoppingButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
-  },
-  // Estilos para checkin
-  checkinCard: {
-    backgroundColor: '#fff',
-    margin: 20,
-    padding: 20,
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  checkinHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  checkinBadge: {
-    backgroundColor: '#E8F5E8',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
-  },
-  checkinBadgeText: {
-    fontSize: 12,
-    color: '#2E7D32',
-    fontWeight: '600',
-  },
-  checkinSummary: {
-    marginTop: 10,
-  },
-  checkinRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 15,
-  },
-  checkinItem: {
-    alignItems: 'center',
-  },
-  checkinValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#4CAF50',
-  },
-  checkinLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 5,
-  },
-  checkinNotes: {
-    fontSize: 14,
-    color: '#666',
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginBottom: 15,
-    paddingHorizontal: 10,
-  },
-  updateCheckinButton: {
-    backgroundColor: '#f0f0f0',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    alignSelf: 'center',
-  },
-  updateCheckinButtonText: {
-    color: '#666',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  noCheckinContainer: {
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  noCheckinText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 15,
-    lineHeight: 22,
-  },
-  checkinButton: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-    borderRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  checkinButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  gamificationInfo: {
-    backgroundColor: '#FFF3E0',
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 15,
-  },
-  gamificationTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#E65100',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  gamificationRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  gamificationText: {
-    fontSize: 14,
-    color: '#F57C00',
-    fontWeight: '600',
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
 });

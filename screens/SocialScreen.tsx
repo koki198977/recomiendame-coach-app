@@ -16,6 +16,7 @@ import { CreatePostModal } from "../components/CreatePostModal";
 import { CommentsModal } from "../components/CommentsModal";
 import { UsersScreen } from "./UsersScreen";
 import { getCurrentUserId, getCurrentUserEmail } from "../utils/userUtils";
+import { AppHeader } from "../components/AppHeader";
 
 export const SocialScreen: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -286,24 +287,28 @@ export const SocialScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Comunidad</Text>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            style={styles.searchButton}
-            onPress={() => setShowUsersModal(true)}
-          >
-            <Text style={styles.searchButtonText}>🔍</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.createButton}
-            onPress={() => setShowCreateModal(true)}
-          >
-            <Text style={styles.createButtonText}>✨ Crear</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      {/* Modern Header with Logo */}
+      <AppHeader
+        title="Comunidad"
+        subtitle="Comparte tu progreso"
+        showLogo={true}
+        rightComponent={
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.searchButton}
+              onPress={() => setShowUsersModal(true)}
+            >
+              <Text style={styles.searchButtonText}>🔍</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.createButton}
+              onPress={() => setShowCreateModal(true)}
+            >
+              <Text style={styles.createButtonText}>✨</Text>
+            </TouchableOpacity>
+          </View>
+        }
+      />
 
       {/* Feed Type Selector */}
       <View style={styles.feedSelector}>

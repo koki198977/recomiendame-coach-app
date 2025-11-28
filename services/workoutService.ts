@@ -57,9 +57,13 @@ class WorkoutService {
 
       console.log('🏋️ Generando plan de entrenamiento:', request);
 
+      // Usar timeout largo para generación (60 segundos)
       const response = await api.post<GenerateWorkoutResponse>(
         API_CONFIG.ENDPOINTS.WORKOUTS.GENERATE,
-        request
+        request,
+        {
+          timeout: API_CONFIG.LONG_TIMEOUT || 60000
+        }
       );
 
       console.log('✅ Plan de entrenamiento generado:', response.data);

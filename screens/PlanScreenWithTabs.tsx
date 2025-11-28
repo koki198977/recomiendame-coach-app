@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,32 +7,53 @@ import {
 } from 'react-native';
 import { PlanScreen as NutritionTab } from './PlanScreen';
 import { WorkoutsTab } from './WorkoutsTab';
+import { AppHeader } from '../components/AppHeader';
+import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
+import { LinearGradient } from 'expo-linear-gradient';
 
-export const PlanScreenWithTabs: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'nutrition' | 'workouts'>('nutrition');
+interface PlanScreenWithTabsProps {
+  initialTab?: 'nutrition' | 'workouts';
+}
+
+export const PlanScreenWithTabs: React.FC<PlanScreenWithTabsProps> = ({ initialTab = 'nutrition' }) => {
+  const [activeTab, setActiveTab] = useState<'nutrition' | 'workouts'>(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   return (
     <View style={styles.container}>
+      <AppHeader 
+        title="Mi Plan" 
+        subtitle="Nutrición y Entrenamiento"
+        showLogo={true}
+      />
+
       {/* Tabs Header */}
       <View style={styles.tabsContainer}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'nutrition' && styles.tabActive]}
+          style={styles.tabWrapper}
           onPress={() => setActiveTab('nutrition')}
         >
-          <Text style={[styles.tabText, activeTab === 'nutrition' && styles.tabTextActive]}>
-            🍎 Nutrición
-          </Text>
-          {activeTab === 'nutrition' && <View style={styles.tabIndicator} />}
+          <View style={[styles.tab, activeTab === 'nutrition' && styles.tabActive]}>
+            <Text style={[styles.tabText, activeTab === 'nutrition' && styles.tabTextActive]}>
+              🍎 Nutrición
+            </Text>
+          </View>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'workouts' && styles.tabActive]}
+          style={styles.tabWrapper}
           onPress={() => setActiveTab('workouts')}
         >
-          <Text style={[styles.tabText, activeTab === 'workouts' && styles.tabTextActive]}>
-            💪 Rutinas
-          </Text>
-          {activeTab === 'workouts' && <View style={styles.tabIndicator} />}
+          <View style={[styles.tab, activeTab === 'workouts' && styles.tabActive]}>
+            <Text style={[styles.tabText, activeTab === 'workouts' && styles.tabTextActive]}>
+              💪 Rutinas
+            </Text>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -47,41 +68,39 @@ export const PlanScreenWithTabs: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
   },
   tabsContainer: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 0,
+    paddingVertical: 16,
+    gap: 16,
+  },
+  tabWrapper: {
+    flex: 1,
   },
   tab: {
-    flex: 1,
-    paddingVertical: 15,
+    paddingVertical: 12,
     alignItems: 'center',
-    position: 'relative',
+    borderRadius: 16,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    ...SHADOWS.card,
   },
   tabActive: {
-    // Active state handled by indicator
+    backgroundColor: COLORS.primary, // Fallback
+    borderColor: 'rgba(255,255,255,0.2)',
+    ...SHADOWS.glow,
   },
   tabText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#999',
+    color: COLORS.textLight,
   },
   tabTextActive: {
-    color: '#333',
-  },
-  tabIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    backgroundColor: '#4CAF50',
-    borderTopLeftRadius: 3,
-    borderTopRightRadius: 3,
+    color: '#fff',
+    fontWeight: '700',
   },
   tabContent: {
     flex: 1,

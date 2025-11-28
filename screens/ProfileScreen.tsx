@@ -17,6 +17,10 @@ import { EditPreferencesModal } from "../components/EditPreferencesModal";
 import { FollowersModal } from "../components/FollowersModal";
 import { getCurrentUserId } from "../utils/userUtils";
 
+import { AppHeader } from '../components/AppHeader';
+import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+
 interface ProfileScreenProps {
   onLogout?: () => void;
 }
@@ -387,7 +391,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color="#4CAF50" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Cargando perfil...</Text>
       </View>
     );
@@ -395,13 +399,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Mi Perfil</Text>
-        <TouchableOpacity style={styles.editButton} onPress={loadUserData}>
-          <Text style={styles.editButtonText}>🔄 Actualizar</Text>
-        </TouchableOpacity>
-      </View>
+      {/* App Header */}
+      <AppHeader 
+        title="Mi Perfil" 
+        subtitle="Gestiona tu cuenta"
+        showLogo={true}
+        rightComponent={
+          <TouchableOpacity style={styles.editButton} onPress={loadUserData}>
+            <Text style={styles.editButtonText}>🔄</Text>
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView style={styles.content}>
         {renderProfileInfo()}
@@ -411,7 +419,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
 
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
+          <LinearGradient
+            colors={['#FF5252', '#D32F2F']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.logoutButtonGradient}
+          >
+            <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
+          </LinearGradient>
         </TouchableOpacity>
 
         {/* Version */}
@@ -578,7 +593,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
   },
   centered: {
     justifyContent: "center",
@@ -587,21 +602,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: "#666",
-  },
-  header: {
-    backgroundColor: "#4CAF50",
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#fff",
+    color: COLORS.textLight,
   },
   editButton: {
     backgroundColor: "rgba(255,255,255,0.2)",
@@ -611,32 +612,30 @@ const styles = StyleSheet.create({
   },
   editButtonText: {
     color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 16,
   },
   content: {
     flex: 1,
   },
   profileCard: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.card,
     margin: 20,
     padding: 30,
-    borderRadius: 15,
+    borderRadius: 24,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    ...SHADOWS.glow,
+    shadowColor: COLORS.primaryStart,
+    shadowOpacity: 0.15,
   },
   avatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#4CAF50",
+    backgroundColor: COLORS.primary,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 15,
+    ...SHADOWS.glow,
   },
   avatarText: {
     fontSize: 32,
@@ -645,29 +644,27 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
+    fontWeight: "800",
+    color: COLORS.text,
     marginBottom: 5,
   },
   userEmail: {
     fontSize: 16,
-    color: "#666",
+    color: COLORS.textLight,
   },
   section: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.card,
     marginHorizontal: 20,
     marginBottom: 20,
-    borderRadius: 15,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    borderRadius: 24,
+    ...SHADOWS.card,
+    borderWidth: 1,
+    borderColor: 'rgba(67, 233, 123, 0.2)',
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
+    fontWeight: "800",
+    color: COLORS.text,
     padding: 20,
     paddingBottom: 10,
   },
@@ -676,9 +673,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.divider,
   },
   dataLeft: {
     flexDirection: "row",
@@ -690,55 +687,42 @@ const styles = StyleSheet.create({
   },
   dataLabel: {
     fontSize: 16,
-    color: "#333",
+    color: COLORS.text,
+    fontWeight: '500',
   },
   dataValue: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#4CAF50",
+    fontWeight: "700",
+    color: COLORS.primary,
   },
   dataRight: {
     flexDirection: "row",
     alignItems: "center",
   },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  menuIcon: {
-    fontSize: 20,
-    marginRight: 15,
-    width: 25,
-  },
-  menuLabel: {
-    flex: 1,
-    fontSize: 16,
-    color: "#333",
-  },
   menuArrow: {
     fontSize: 20,
-    color: "#ccc",
+    color: COLORS.textLight,
+    marginLeft: 8,
   },
   logoutButton: {
-    backgroundColor: "#ff4444",
     marginHorizontal: 20,
     marginVertical: 20,
-    paddingVertical: 15,
-    borderRadius: 25,
+    borderRadius: 24,
+    overflow: 'hidden',
+    ...SHADOWS.card,
+  },
+  logoutButtonGradient: {
+    paddingVertical: 16,
     alignItems: "center",
   },
   logoutButtonText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "800",
   },
   version: {
     textAlign: "center",
-    color: "#999",
+    color: COLORS.textLight,
     fontSize: 12,
     marginBottom: 30,
   },
@@ -751,11 +735,12 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContainer: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
+    backgroundColor: COLORS.card,
+    borderRadius: 24,
     width: "100%",
     maxHeight: "80%",
     minHeight: 300,
+    ...SHADOWS.floating,
   },
   modalHeader: {
     flexDirection: "row",
@@ -763,24 +748,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.divider,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
+    fontWeight: "800",
+    color: COLORS.text,
   },
   modalCloseButton: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: COLORS.background,
     justifyContent: "center",
     alignItems: "center",
   },
   modalCloseText: {
     fontSize: 16,
-    color: "#666",
+    color: COLORS.textLight,
     fontWeight: "bold",
   },
   modalContent: {
@@ -789,53 +774,54 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   preferenceItem: {
-    backgroundColor: "#f8f9fa",
+    backgroundColor: COLORS.background,
     padding: 15,
-    borderRadius: 10,
+    borderRadius: 16,
     marginBottom: 10,
     borderLeftWidth: 4,
-    borderLeftColor: "#4CAF50",
+    borderLeftColor: COLORS.primary,
   },
   preferenceText: {
     fontSize: 16,
-    color: "#333",
-    fontWeight: "500",
+    color: COLORS.text,
+    fontWeight: '500',
   },
   noPreferencesText: {
-    fontSize: 16,
-    color: "#666",
     textAlign: "center",
-    fontStyle: "italic",
+    color: COLORS.textLight,
     marginTop: 20,
+    fontStyle: "italic",
   },
   modalButtons: {
     flexDirection: "row",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    padding: 20,
     gap: 10,
   },
   modalEditButton: {
     flex: 1,
-    backgroundColor: "#FF9800",
-    paddingVertical: 15,
-    borderRadius: 25,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    borderRadius: 16,
     alignItems: "center",
+    ...SHADOWS.glow,
   },
   modalEditButtonText: {
     color: "#fff",
+    fontWeight: "700",
     fontSize: 16,
-    fontWeight: "600",
   },
   modalButton: {
     flex: 1,
-    backgroundColor: "#4CAF50",
-    paddingVertical: 15,
-    borderRadius: 25,
+    backgroundColor: COLORS.background,
+    paddingVertical: 12,
+    borderRadius: 16,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   modalButtonText: {
-    color: "#fff",
-    fontSize: 16,
+    color: COLORS.text,
     fontWeight: "600",
+    fontSize: 16,
   },
 });

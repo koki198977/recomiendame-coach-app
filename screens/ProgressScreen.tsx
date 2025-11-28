@@ -15,6 +15,9 @@ import { AchievementsService } from '../services/achievementsService';
 import { Checkin, Achievement } from '../types/nutrition';
 import { TrophyModal } from '../components/TrophyModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AppHeader } from '../components/AppHeader';
+import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
@@ -522,13 +525,17 @@ export const ProgressScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Mi Progreso</Text>
-        <TouchableOpacity style={styles.photoButton}>
-          <Text style={styles.photoButtonText}>📸 Foto</Text>
-        </TouchableOpacity>
-      </View>
+      {/* App Header */}
+      <AppHeader 
+        title="Mi Progreso" 
+        subtitle="Seguimiento detallado"
+        showLogo={true}
+        rightComponent={
+          <TouchableOpacity style={styles.photoButton}>
+            <Text style={styles.photoButtonText}>📸</Text>
+          </TouchableOpacity>
+        }
+      />
 
       {/* Period Selector */}
       {renderPeriodSelector()}
@@ -536,7 +543,7 @@ export const ProgressScreen: React.FC = () => {
       <ScrollView style={styles.content}>
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4CAF50" />
+            <ActivityIndicator size="large" color={COLORS.primary} />
             <Text style={styles.loadingText}>Cargando progreso...</Text>
           </View>
         ) : (
@@ -562,21 +569,7 @@ export const ProgressScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
+    backgroundColor: COLORS.background,
   },
   photoButton: {
     backgroundColor: 'rgba(255,255,255,0.2)',
@@ -586,53 +579,57 @@ const styles = StyleSheet.create({
   },
   photoButtonText: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
   },
   periodSelector: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    margin: 20,
-    borderRadius: 25,
-    padding: 5,
+    backgroundColor: 'transparent',
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 8,
+    gap: 10,
   },
   periodButton: {
     flex: 1,
     paddingVertical: 10,
     alignItems: 'center',
     borderRadius: 20,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    ...SHADOWS.card,
   },
   periodButtonActive: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: COLORS.primary,
+    ...SHADOWS.glow,
   },
   periodText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
+    color: COLORS.textLight,
   },
   periodTextActive: {
     color: '#fff',
+    fontWeight: '700',
   },
   content: {
     flex: 1,
   },
   progressCard: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     marginHorizontal: 20,
     marginBottom: 20,
     padding: 20,
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    borderRadius: 24,
+    ...SHADOWS.card,
+    borderWidth: 1,
+    borderColor: 'rgba(67, 233, 123, 0.2)',
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
+    fontWeight: '800',
+    color: COLORS.text,
+    marginBottom: 16,
   },
   weightStats: {
     flexDirection: 'row',
@@ -644,44 +641,48 @@ const styles = StyleSheet.create({
   },
   weightNumber: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#4CAF50',
+    fontWeight: '800',
+    color: COLORS.primary,
   },
   weightLabel: {
     fontSize: 12,
-    color: '#666',
-    marginTop: 5,
+    color: COLORS.textLight,
+    marginTop: 4,
+    fontWeight: '500',
   },
   weightLoss: {
-    color: '#4CAF50',
+    color: COLORS.primary,
   },
   weightGain: {
-    color: '#FF9800',
+    color: COLORS.warning,
   },
   weightHistory: {
     marginTop: 15,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
   },
   weightHistoryTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 10,
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 12,
   },
   weightHistoryItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: COLORS.divider,
   },
   weightHistoryDate: {
     fontSize: 14,
-    color: '#666',
+    color: COLORS.textLight,
   },
   weightHistoryValue: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '700',
+    color: COLORS.text,
   },
   adherenceStats: {
     flexDirection: 'row',
@@ -693,58 +694,65 @@ const styles = StyleSheet.create({
   },
   adherenceNumber: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#4CAF50',
+    fontWeight: '800',
+    color: COLORS.primary,
   },
   adherenceLabel: {
     fontSize: 12,
-    color: '#666',
-    marginTop: 5,
+    color: COLORS.textLight,
+    marginTop: 4,
+    fontWeight: '500',
   },
   adherenceHistory: {
     marginTop: 15,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
   },
   adherenceHistoryTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 10,
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 12,
   },
   adherenceHistoryItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: COLORS.divider,
   },
   adherenceHistoryDate: {
     fontSize: 14,
-    color: '#666',
+    color: COLORS.textLight,
     width: 80,
   },
   adherenceBar: {
     flex: 1,
-    height: 20,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 10,
-    marginLeft: 10,
+    height: 8,
+    backgroundColor: COLORS.background,
+    borderRadius: 4,
+    marginLeft: 12,
     position: 'relative',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   adherenceBarFill: {
     position: 'absolute',
     left: 0,
     top: 0,
     height: '100%',
-    backgroundColor: '#4CAF50',
-    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    borderRadius: 4,
   },
   adherenceHistoryValue: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#333',
-    textAlign: 'center',
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.text,
+    position: 'absolute',
+    right: 0,
+    top: -14,
   },
   noDataContainer: {
     alignItems: 'center',
@@ -752,14 +760,16 @@ const styles = StyleSheet.create({
   },
   noDataText: {
     fontSize: 16,
-    color: '#666',
+    color: COLORS.textLight,
     textAlign: 'center',
+    fontWeight: '600',
   },
   noDataSubtext: {
     fontSize: 14,
-    color: '#999',
+    color: COLORS.textLight,
     textAlign: 'center',
-    marginTop: 5,
+    marginTop: 8,
+    opacity: 0.7,
   },
   loadingContainer: {
     alignItems: 'center',
@@ -768,114 +778,70 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#666',
-  },
-  chartPlaceholder: {
-    backgroundColor: '#f8f8f8',
-    padding: 30,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  chartText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  chartSubtext: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 5,
-  },
-  caloriesGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    height: 100,
-    marginBottom: 15,
-  },
-  calorieDay: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  calorieBar: {
-    backgroundColor: '#4CAF50',
-    width: 20,
-    borderRadius: 10,
-    marginBottom: 5,
-  },
-  calorieDayText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  caloriesStats: {
-    alignItems: 'center',
-  },
-  caloriesAverage: {
-    fontSize: 14,
-    color: '#333',
-    fontWeight: '600',
-  },
-  caloriesTarget: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
+    color: COLORS.textLight,
   },
   achievementsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 16,
   },
   achievementsCount: {
     fontSize: 14,
-    color: '#4CAF50',
-    fontWeight: '600',
+    fontWeight: '700',
+    color: COLORS.primary,
+    backgroundColor: 'rgba(67, 233, 123, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   achievementsScroll: {
     paddingRight: 20,
   },
   achievementCard: {
-    width: 120,
-    backgroundColor: '#f8f8f8',
-    padding: 15,
-    borderRadius: 15,
+    width: 140,
+    backgroundColor: COLORS.background,
+    borderRadius: 20,
+    padding: 16,
+    marginRight: 12,
     alignItems: 'center',
-    marginRight: 15,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: 'transparent',
   },
   achievementUnlocked: {
-    backgroundColor: '#E8F5E8',
-    borderColor: '#4CAF50',
+    borderColor: COLORS.primary,
+    backgroundColor: 'rgba(67, 233, 123, 0.05)',
   },
   achievementLocked: {
-    backgroundColor: '#f0f0f0',
     opacity: 0.7,
+    borderColor: COLORS.border,
   },
   achievementIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: COLORS.card,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
+    ...SHADOWS.card,
   },
   achievementIcon: {
-    fontSize: 24,
+    fontSize: 30,
   },
   achievementIconLocked: {
     opacity: 0.5,
   },
   achievementTitle: {
-    fontSize: 12,
-    color: '#333',
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.text,
     textAlign: 'center',
-    fontWeight: '600',
     marginBottom: 8,
+    height: 40,
   },
   achievementTitleLocked: {
-    color: '#666',
+    color: COLORS.textLight,
   },
   progressContainer: {
     width: '100%',
@@ -884,25 +850,24 @@ const styles = StyleSheet.create({
   progressBarSmall: {
     width: '100%',
     height: 4,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: COLORS.border,
     borderRadius: 2,
-    overflow: 'hidden',
     marginBottom: 4,
+    overflow: 'hidden',
   },
   progressFillSmall: {
     height: '100%',
-    backgroundColor: '#4CAF50',
+    backgroundColor: COLORS.primary,
     borderRadius: 2,
   },
   progressTextSmall: {
     fontSize: 10,
-    color: '#666',
-    fontWeight: '500',
+    color: COLORS.textLight,
   },
   unlockedText: {
     fontSize: 10,
-    color: '#4CAF50',
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: '700',
+    color: COLORS.primary,
+    marginTop: 4,
   },
 });

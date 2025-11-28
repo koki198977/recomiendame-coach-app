@@ -20,14 +20,18 @@ import { UserProfile } from './types/nutrition';
 // Componente principal con tabs manuales
 const MainApp: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState('home');
+  const [planInitialTab, setPlanInitialTab] = useState<'nutrition' | 'workouts'>('nutrition');
   const [chapiModalVisible, setChapiModalVisible] = useState(false);
 
   const renderScreen = () => {
     switch (activeTab) {
       case 'home':
-        return <HomeScreen />;
+        return <HomeScreen onNavigateToWorkout={() => {
+          setPlanInitialTab('workouts');
+          setActiveTab('plan');
+        }} />;
       case 'plan':
-        return <PlanScreenWithTabs />;
+        return <PlanScreenWithTabs initialTab={planInitialTab} />;
       case 'social':
         return <SocialScreen />;
       case 'progress':
@@ -35,7 +39,10 @@ const MainApp: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       case 'profile':
         return <ProfileScreen onLogout={onLogout} />;
       default:
-        return <HomeScreen />;
+        return <HomeScreen onNavigateToWorkout={() => {
+          setPlanInitialTab('workouts');
+          setActiveTab('plan');
+        }} />;
     }
   };
 

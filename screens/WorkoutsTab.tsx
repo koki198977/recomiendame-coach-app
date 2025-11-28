@@ -7,11 +7,14 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import WorkoutService from '../services/workoutService';
 import { WorkoutPlan, WorkoutGoal, WorkoutDay, Exercise } from '../types/nutrition';
 import { GenerateWorkoutModal } from '../components/GenerateWorkoutModal';
 import { PlanGeneratingModal } from '../components/PlanGeneratingModal';
+import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
 
 export const WorkoutsTab: React.FC = () => {
   const [workoutPlan, setWorkoutPlan] = useState<WorkoutPlan | null>(null);
@@ -49,31 +52,127 @@ export const WorkoutsTab: React.FC = () => {
 
   const handleGeneratePlan = async (daysAvailable: number, goal: WorkoutGoal) => {
     try {
+      console.warn('🏋️ Starting workout plan generation...');
       setShowGenerateModal(false);
       setIsGenerating(true);
       setGenerationProgress(10);
 
+      // Iniciar la generación del plan
       const response = await WorkoutService.generateWorkoutPlan(daysAvailable, goal);
+      
+      console.warn('📋 Generation response:', JSON.stringify(response));
 
-      if (response.created) {
-        setGenerationProgress(50);
-        // Esperar un momento y recargar
-        setTimeout(async () => {
-          setGenerationProgress(90);
-          await loadWorkoutPlan();
-          setGenerationProgress(100);
-          setTimeout(() => {
-            setIsGenerating(false);
-            setGenerationProgress(0);
-            Alert.alert('¡Listo! 🎉', 'Tu rutina de entrenamiento ha sido generada exitosamente.');
-          }, 500);
-        }, 2000);
+      if (response.created && response.planId) {
+        console.warn(`✅ Plan creation initiated with ID: ${response.planId}`);
+        setGenerationProgress(30);
+        
+        // Iniciar polling para verificar si el plan está listo
+        // Esperar 30 segundos antes del primer intento (la API tarda ~35 segundos)
+        console.warn('⏰ Waiting 30 seconds before first check...');
+        setTimeout(() => {
+          console.warn('🔍 Starting polling now...');
+          pollForWorkoutPlan(response.planId, 0);
+        }, 30000);
+      } else {
+        console.warn('❌ Invalid response from API:', response);
+        throw new Error('Invalid response from API');
       }
-    } catch (error) {
-      console.log('Error generating workout plan:', error);
+    } catch (error: any) {
+      console.error('❌ Error generating workout plan:', error);
       setIsGenerating(false);
       setGenerationProgress(0);
-      Alert.alert('Error', 'No se pudo generar la rutina. Intenta de nuevo.');
+
+      let errorMessage = 'No se pudo generar la rutina. Intenta de nuevo.';
+
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errorMessage = 'La generación de la rutina está tardando más de lo esperado. La rutina se está creando en segundo plano, puedes refrescar en unos minutos.';
+      }
+
+      Alert.alert('Error', errorMessage);
+    }
+  };
+
+  const pollForWorkoutPlan = async (planId: string, attempts: number = 0) => {
+    const maxAttempts = 15; // 15 intentos
+    
+    // Estrategia de polling adaptativa:
+    // - Primer intento: esperar 30 segundos (la API tarda ~35 segundos)
+    // - Siguientes intentos: cada 5 segundos
+    const getPollingInterval = (attempt: number) => {
+      if (attempt === 0) return 30000; // 30 segundos para el primer intento
+      return 5000; // 5 segundos para los siguientes
+    };
+
+    // Actualizar progreso basado en intentos
+    const progress = Math.min((attempts / maxAttempts) * 100, 95);
+    setGenerationProgress(progress);
+
+    console.warn(`🔄 Polling attempt ${attempts + 1}/${maxAttempts} for workout plan ${planId}`);
+
+    try {
+      // Intentar obtener el plan actualizado
+      const plan = await WorkoutService.getWorkoutPlan(currentWeek);
+
+      console.warn('📋 Plan received:', plan ? `ID: ${plan.id}, Days: ${plan.days?.length}` : 'null');
+
+      // Verificar si el plan existe y tiene datos válidos
+      if (plan && plan.days && plan.days.length > 0) {
+        // El plan está listo (verificamos que tenga días, no solo el ID)
+        console.warn('✅ Workout plan is ready!');
+        setGenerationProgress(100);
+        setTimeout(() => {
+          setWorkoutPlan(plan);
+          setIsGenerating(false);
+          setGenerationProgress(0);
+          Alert.alert('¡Listo! 🎉', 'Tu rutina de entrenamiento ha sido generada exitosamente.');
+        }, 1000); // Pequeña pausa para mostrar 100%
+        return;
+      }
+
+      // Si no está listo y no hemos alcanzado el máximo de intentos
+      if (attempts < maxAttempts) {
+        const nextInterval = getPollingInterval(attempts);
+        console.warn(`⏳ Plan not ready yet, will retry in ${nextInterval/1000} seconds...`);
+        setTimeout(() => {
+          pollForWorkoutPlan(planId, attempts + 1);
+        }, nextInterval);
+      } else {
+        // Timeout - el plan tardó demasiado
+        console.warn('⏰ Polling timeout reached');
+        setIsGenerating(false);
+        setGenerationProgress(0);
+        Alert.alert(
+          'Rutina en proceso',
+          'Tu rutina se está generando y estará lista pronto. Puedes refrescar la pantalla en unos minutos.',
+          [
+            {
+              text: 'Refrescar ahora',
+              onPress: () => {
+                loadWorkoutPlan();
+              }
+            },
+            {
+              text: 'OK',
+              style: 'cancel'
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      console.log('❌ Error polling for workout plan:', error);
+
+      // Si no hemos alcanzado el máximo de intentos, continuar
+      if (attempts < maxAttempts) {
+        const nextInterval = getPollingInterval(attempts);
+        console.log(`🔄 Retrying after error in ${nextInterval/1000} seconds...`);
+        setTimeout(() => {
+          pollForWorkoutPlan(planId, attempts + 1);
+        }, nextInterval);
+      } else {
+        setIsGenerating(false);
+        setGenerationProgress(0);
+        Alert.alert('Error', 'Hubo un problema verificando tu rutina. Intenta refrescar la pantalla.');
+      }
     }
   };
 
@@ -86,6 +185,20 @@ export const WorkoutsTab: React.FC = () => {
     return workoutPlan.days.find(day => day.dayIndex === todayDayIndex) || null;
   };
 
+  const handleOpenVideo = async (query: string) => {
+    try {
+      // Usar directamente el enlace web para mayor compatibilidad
+      const searchQuery = encodeURIComponent(query);
+      const webUrl = `https://www.youtube.com/results?search_query=${searchQuery}`;
+      
+      console.log('Opening video URL:', webUrl);
+      await Linking.openURL(webUrl);
+    } catch (error) {
+      console.log('Error opening video:', error);
+      Alert.alert('Error', 'No se pudo abrir YouTube');
+    }
+  };
+
   const renderExercise = (exercise: Exercise, index: number) => (
     <View key={index} style={styles.exerciseCard}>
       <View style={styles.exerciseHeader}>
@@ -96,6 +209,14 @@ export const WorkoutsTab: React.FC = () => {
             <Text style={styles.muscleGroup}>🎯 {exercise.muscleGroup}</Text>
           )}
         </View>
+        {exercise.videoQuery && (
+          <TouchableOpacity 
+            style={styles.videoButton}
+            onPress={() => handleOpenVideo(exercise.videoQuery!)}
+          >
+            <Text style={styles.videoButtonText}>📺 Ver video</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.exerciseDetails}>
@@ -109,9 +230,18 @@ export const WorkoutsTab: React.FC = () => {
         </View>
         <View style={styles.exerciseDetail}>
           <Text style={styles.detailLabel}>Descanso</Text>
-          <Text style={styles.detailValue}>{exercise.rest}</Text>
+          <Text style={styles.detailValue}>
+            {exercise.restSeconds ? `${exercise.restSeconds}s` : exercise.rest}
+          </Text>
         </View>
       </View>
+
+      {exercise.instructions && (
+        <View style={styles.instructionsContainer}>
+          <Text style={styles.instructionsTitle}>Instrucciones:</Text>
+          <Text style={styles.instructionsText}>{exercise.instructions}</Text>
+        </View>
+      )}
 
       {exercise.notes && (
         <Text style={styles.exerciseNotes}>💡 {exercise.notes}</Text>
@@ -252,7 +382,14 @@ export const WorkoutsTab: React.FC = () => {
               style={styles.generateButton}
               onPress={() => setShowGenerateModal(true)}
             >
-              <Text style={styles.generateButtonText}>🤖 Generar rutina con IA</Text>
+              <LinearGradient
+                colors={GRADIENTS.primary}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{ paddingVertical: 16, paddingHorizontal: 30, borderRadius: 24 }}
+              >
+                <Text style={styles.generateButtonText}>🤖 Generar rutina con IA</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         )}
@@ -276,7 +413,7 @@ export const WorkoutsTab: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
   },
   centered: {
     justifyContent: 'center',
@@ -285,13 +422,17 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#666',
+    color: COLORS.textLight,
   },
   planInfo: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: COLORS.card,
     padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#45a049',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    ...SHADOWS.glow,
+    shadowColor: COLORS.primaryStart,
+    shadowOpacity: 0.1,
+    zIndex: 10,
   },
   planHeader: {
     flexDirection: 'row',
@@ -301,50 +442,55 @@ const styles = StyleSheet.create({
   },
   planGoal: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '800',
+    color: COLORS.text,
   },
   planWeek: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: COLORS.textLight,
+    fontWeight: '600',
   },
   planDays: {
     fontSize: 14,
-    color: '#fff',
-    fontWeight: '600',
+    color: COLORS.primary,
+    fontWeight: '700',
   },
   daySelector: {
-    backgroundColor: '#fff',
+    backgroundColor: 'transparent',
     paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
   },
   dayButton: {
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
     marginHorizontal: 5,
-    borderRadius: 15,
+    borderRadius: 20,
     minWidth: 50,
-    position: 'relative',
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    ...SHADOWS.card,
   },
   dayButtonActive: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: COLORS.primary,
+    ...SHADOWS.glow,
   },
   dayButtonToday: {
+    borderColor: COLORS.warning,
     borderWidth: 2,
-    borderColor: '#FF9800',
   },
   dayButtonDisabled: {
-    opacity: 0.3,
+    opacity: 0.5,
+    backgroundColor: '#f0f0f0',
   },
   dayText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
+    color: COLORS.textLight,
   },
   dayTextActive: {
     color: '#fff',
+    fontWeight: '700',
   },
   dayTextDisabled: {
     color: '#ccc',
@@ -353,7 +499,7 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#fff',
     marginTop: 4,
   },
   workoutContainer: {
@@ -365,8 +511,8 @@ const styles = StyleSheet.create({
   },
   workoutTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '800',
+    color: COLORS.text,
     marginBottom: 8,
   },
   workoutMeta: {
@@ -374,81 +520,86 @@ const styles = StyleSheet.create({
   },
   workoutMetaText: {
     fontSize: 14,
-    color: '#666',
+    color: COLORS.textLight,
     marginRight: 8,
+    fontWeight: '500',
   },
   exercisesList: {
     flex: 1,
   },
   exerciseCard: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 15,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: COLORS.card,
+    padding: 20,
+    borderRadius: 24,
+    marginBottom: 16,
+    ...SHADOWS.card,
+    borderWidth: 1,
+    borderColor: 'rgba(67, 233, 123, 0.2)',
   },
   exerciseHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   exerciseNumber: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    backgroundColor: '#4CAF50',
-    color: '#fff',
+    borderRadius: 12,
+    backgroundColor: 'rgba(67, 233, 123, 0.15)',
+    color: COLORS.primary,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '800',
     textAlign: 'center',
     lineHeight: 32,
     marginRight: 12,
+    overflow: 'hidden',
   },
   exerciseInfo: {
     flex: 1,
   },
   exerciseName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORS.text,
     marginBottom: 4,
   },
   muscleGroup: {
     fontSize: 13,
-    color: '#666',
+    color: COLORS.textLight,
+    fontWeight: '500',
   },
   exerciseDetails: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: COLORS.divider,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+    marginBottom: 12,
   },
   exerciseDetail: {
     alignItems: 'center',
   },
   detailLabel: {
     fontSize: 12,
-    color: '#888',
+    color: COLORS.textLight,
     marginBottom: 4,
+    fontWeight: '600',
   },
   detailValue: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#4CAF50',
+    fontWeight: '800',
+    color: COLORS.primary,
   },
   exerciseNotes: {
-    fontSize: 13,
-    color: '#666',
+    fontSize: 14,
+    color: COLORS.textLight,
     fontStyle: 'italic',
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: 'rgba(255, 249, 196, 0.3)', // Very light yellow
+    borderRadius: 12,
   },
   noWorkoutContainer: {
     flex: 1,
@@ -462,7 +613,7 @@ const styles = StyleSheet.create({
   },
   noWorkoutText: {
     fontSize: 16,
-    color: '#666',
+    color: COLORS.textLight,
     textAlign: 'center',
   },
   noPlanContainer: {
@@ -477,32 +628,65 @@ const styles = StyleSheet.create({
   },
   noPlanTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '800',
+    color: COLORS.text,
     marginBottom: 12,
     textAlign: 'center',
   },
   noPlanText: {
     fontSize: 16,
-    color: '#666',
+    color: COLORS.textLight,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 30,
   },
   generateButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 30,
     paddingVertical: 16,
-    borderRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    borderRadius: 24,
+    ...SHADOWS.glow,
   },
   generateButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  videoButton: {
+    backgroundColor: '#FF0000', // YouTube red
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginLeft: 10,
+    shadowColor: '#FF0000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  videoButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  instructionsContainer: {
+    marginTop: 12,
+    padding: 16,
+    backgroundColor: COLORS.background,
+    borderRadius: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
+  },
+  instructionsTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 6,
+  },
+  instructionsText: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    lineHeight: 20,
   },
 });

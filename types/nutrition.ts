@@ -431,9 +431,16 @@ export interface Exercise {
   name: string;
   sets: number;
   reps: string;
-  rest: string;
+  weight?: number | null;
+  rpe?: number;
+  restSeconds?: number; // Backend devuelve restSeconds, no rest string
+  rest?: string; // Mantener compatibilidad si es necesario o convertir
   notes?: string;
   muscleGroup?: string;
+  equipment?: string;
+  instructions?: string;
+  videoQuery?: string;
+  order?: number;
 }
 
 export interface WorkoutDay {

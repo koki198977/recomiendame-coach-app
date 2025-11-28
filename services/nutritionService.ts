@@ -1,4 +1,5 @@
 import api from './api';
+import { API_CONFIG } from '../config/api';
 import { 
   UserProfile, 
   NutritionPlan, 
@@ -9,6 +10,7 @@ import {
   Meal,
   Food,
   WeeklyPlan,
+  WeeklyPlanMeal,
   GeneratePlanResponse,
   ShoppingListResponse,
   Cuisine,
@@ -38,20 +40,7 @@ export class NutritionService {
     return response.data;
   }
 
-  // Crear perfil completo (datos básicos)
-  static async createUserProfile(profileData: {
-    sex: string;
-    birthDate?: string;
-    heightCm: number;
-    weightKg: number;
-    activityLevel: string;
-    country: string;
-    budgetLevel?: number;
-    cookTimePerMeal?: number;
-  }): Promise<UserProfile> {
-    const response = await api.post<UserProfile>('/me/profile', profileData);
-    return response.data;
-  }
+  // Actualizar preferencias (alergias, condiciones, cuisines)
 
   // Actualizar preferencias (alergias, condiciones, cuisines)
   static async updateUserPreferences(preferences: {
@@ -181,7 +170,7 @@ export class NutritionService {
       `/plans/generate?week=${currentWeek}`, 
       {},
       {
-        timeout: 120000, // 2 minutos para la generación de plan
+        timeout: API_CONFIG.LONG_TIMEOUT,
       }
     );
     return response.data;

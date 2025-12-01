@@ -6,12 +6,15 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Image,
+  Alert,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { WorkoutGoal } from '../types/nutrition';
 
 interface GenerateWorkoutModalProps {
   visible: boolean;
-  onGenerate: (daysAvailable: number, goal: WorkoutGoal) => void;
+  onGenerate: (daysAvailable: number, goal: WorkoutGoal, equipmentImages?: string[]) => void;
   onClose: () => void;
 }
 
@@ -22,6 +25,7 @@ export const GenerateWorkoutModal: React.FC<GenerateWorkoutModalProps> = ({
 }) => {
   const [selectedDays, setSelectedDays] = useState<number>(3);
   const [selectedGoal, setSelectedGoal] = useState<WorkoutGoal>('HYPERTROPHY');
+  const [equipmentImages, setEquipmentImages] = useState<string[]>([]);
 
   const goals: { value: WorkoutGoal; label: string; emoji: string; description: string }[] = [
     {
@@ -50,8 +54,58 @@ export const GenerateWorkoutModal: React.FC<GenerateWorkoutModalProps> = ({
     },
   ];
 
+  const pickImage = async () => {
+    // Solicitar permisos
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    if (status !== 'granted') {
+      Alert.alert('Permiso denegado', 'Necesitamos acceso a tu galería para subir fotos de tus máquinas.');
+      return;
+    }
+
+    // Abrir selector de imágenes con calidad muy reducida
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 0.3, // Calidad muy baja para reducir tamaño
+      allowsEditing: false,
+      aspect: undefined,
+    });
+
+    if (!result.canceled && result.assets) {
+      // Limitar a máximo 5 imágenes para evitar payloads muy grandes
+      const maxImages = 5;
+      const currentTotal = equipmentImages.length;
+      const availableSlots = maxImages - currentTotal;
+      
+      if (availableSlots <= 0) {
+        Alert.alert(
+          'Límite alcanzado',
+          `Solo puedes subir hasta ${maxImages} imágenes de equipamiento.`
+        );
+        return;
+      }
+      
+      const newImages = result.assets.slice(0, availableSlots).map(asset => asset.uri);
+      setEquipmentImages([...equipmentImages, ...newImages]);
+      
+      if (result.assets.length > availableSlots) {
+        Alert.alert(
+          'Límite de imágenes',
+          `Solo se agregaron ${availableSlots} de ${result.assets.length} imágenes seleccionadas.`
+        );
+      }
+      
+      console.log(`📸 Added ${newImages.length} images (total: ${equipmentImages.length + newImages.length})`);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setEquipmentImages(equipmentImages.filter((_, i) => i !== index));
+  };
+
   const handleGenerate = () => {
-    onGenerate(selectedDays, selectedGoal);
+    onGenerate(selectedDays, selectedGoal, equipmentImages.length > 0 ? equipmentImages : undefined);
   };
 
   return (
@@ -126,6 +180,40 @@ export const GenerateWorkoutModal: React.FC<GenerateWorkoutModalProps> = ({
                   )}
                 </TouchableOpacity>
               ))}
+            </View>
+
+            {/* Equipamiento disponible */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Equipamiento disponible (opcional)</Text>
+              <Text style={styles.sectionDescription}>
+                Sube fotos de tus máquinas y equipos para una rutina más personalizada
+              </Text>
+              
+              {/* Botón para agregar fotos */}
+              <TouchableOpacity 
+                style={styles.addPhotoButton} 
+                onPress={pickImage}
+              >
+                <Text style={styles.addPhotoIcon}>📸</Text>
+                <Text style={styles.addPhotoText}>Agregar fotos de equipamiento</Text>
+              </TouchableOpacity>
+
+              {/* Galería de fotos */}
+              {equipmentImages.length > 0 && (
+                <View style={styles.imageGallery}>
+                  {equipmentImages.map((uri, index) => (
+                    <View key={index} style={styles.imageContainer}>
+                      <Image source={{ uri }} style={styles.equipmentImage} />
+                      <TouchableOpacity
+                        style={styles.removeImageButton}
+                        onPress={() => removeImage(index)}
+                      >
+                        <Text style={styles.removeImageText}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
 
             {/* Botón generar */}
@@ -281,6 +369,70 @@ const styles = StyleSheet.create({
   generateButtonText: {
     color: '#fff',
     fontSize: 18,
+    fontWeight: 'bold',
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 15,
+    lineHeight: 20,
+  },
+  addPhotoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f5f5f5',
+    padding: 15,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
+    borderStyle: 'dashed',
+  },
+  addPhotoIcon: {
+    fontSize: 24,
+    marginRight: 10,
+  },
+  addPhotoText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '600',
+  },
+  imageGallery: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 15,
+  },
+  imageContainer: {
+    position: 'relative',
+    width: 100,
+    height: 100,
+  },
+  equipmentImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 10,
+    backgroundColor: '#f5f5f5',
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FF5252',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  removeImageText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: 'bold',
   },
 });

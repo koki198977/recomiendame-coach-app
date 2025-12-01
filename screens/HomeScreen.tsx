@@ -143,21 +143,31 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
 
   const pollForPlan = async (planId: string, attempts: number = 0) => {
     const maxAttempts = 20; // 20 intentos = ~2 minutos
-    const pollInterval = 6000; // 6 segundos entre intentos
+    
+    // Si el planId contiene la semana, es un ID temporal (viene de 504)
+    const is504Timeout = planId.includes(currentWeek);
+    
+    // Intervalo adaptativo: 10s para 504, 6s para normal
+    const pollInterval = is504Timeout ? 10000 : 6000;
 
     // Actualizar progreso basado en intentos
     const progress = Math.min(20 + (attempts / maxAttempts) * 75, 95);
     setGenerationProgress(progress);
 
+    console.log(`🔄 Polling attempt ${attempts + 1}/${maxAttempts} for nutrition plan`);
+
     try {
       // Intentar obtener el plan actualizado
       const plan = await NutritionService.getWeeklyPlan(currentWeek);
+
+      console.log('📋 Plan received:', plan ? `ID: ${plan.id}, Days: ${plan.days?.length}` : 'null');
 
       // Verificar si el plan existe (sin importar el ID si fue un 504)
       const isPlanReady = plan && (plan.id === planId || planId.includes(currentWeek));
       
       if (isPlanReady) {
         // El plan está listo
+        console.log('✅ Nutrition plan is ready!');
         setGenerationProgress(100);
         setTimeout(() => {
           setWeeklyPlan(plan);
@@ -170,11 +180,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
 
       // Si no está listo y no hemos alcanzado el máximo de intentos
       if (attempts < maxAttempts) {
+        console.log(`⏳ Plan not ready yet, will retry in ${pollInterval/1000} seconds...`);
         setTimeout(() => {
           pollForPlan(planId, attempts + 1);
         }, pollInterval);
       } else {
         // Timeout - el plan tardó demasiado
+        console.log('⏰ Polling timeout reached');
         setIsGenerating(false);
         setGenerationProgress(0);
         Alert.alert(
@@ -195,7 +207,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
         );
       }
     } catch (error) {
-      console.log('Error polling for plan:', error);
+      console.log('❌ Error polling for plan:', error);
 
       // Si no hemos alcanzado el máximo de intentos, continuar
       if (attempts < maxAttempts) {

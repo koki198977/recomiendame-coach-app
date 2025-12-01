@@ -14,12 +14,42 @@ const { width } = Dimensions.get('window');
 interface PlanGeneratingModalProps {
   visible: boolean;
   progress?: number; // 0-100
+  type?: 'nutrition' | 'workout'; // Tipo de plan
+  title?: string; // Título personalizado
+  description?: string; // Descripción personalizada
 }
 
 export const PlanGeneratingModal: React.FC<PlanGeneratingModalProps> = ({
   visible,
   progress = 0,
+  type = 'nutrition',
+  title,
+  description,
 }) => {
+  // Textos por defecto según el tipo
+  const defaultTitle = type === 'workout' 
+    ? 'Generando tu rutina personalizada'
+    : 'Generando tu plan personalizado';
+  
+  const defaultDescription = type === 'workout'
+    ? 'Nuestra IA está analizando tus objetivos y creando una rutina de ejercicios única para ti'
+    : 'Nuestra IA está analizando tus preferencias y creando un plan nutricional único para ti';
+
+  // Mensajes de estado según el tipo
+  const getStatusMessage = () => {
+    if (type === 'workout') {
+      if (progress < 30) return '🔍 Analizando tu perfil de entrenamiento...';
+      if (progress < 60) return '💪 Seleccionando ejercicios ideales...';
+      if (progress < 90) return '📊 Calculando series y repeticiones...';
+      return '✨ Finalizando tu rutina personalizada...';
+    } else {
+      if (progress < 30) return '🔍 Analizando tu perfil nutricional...';
+      if (progress < 60) return '🍎 Seleccionando alimentos ideales...';
+      if (progress < 90) return '📊 Calculando macronutrientes...';
+      return '✨ Finalizando tu plan personalizado...';
+    }
+  };
+
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
@@ -40,11 +70,11 @@ export const PlanGeneratingModal: React.FC<PlanGeneratingModalProps> = ({
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>Generando tu plan personalizado</Text>
+          <Text style={styles.title}>{title || defaultTitle}</Text>
           
           {/* Description */}
           <Text style={styles.description}>
-            Nuestra IA está analizando tus preferencias y creando un plan nutricional único para ti
+            {description || defaultDescription}
           </Text>
 
           {/* Progress Bar */}
@@ -57,18 +87,7 @@ export const PlanGeneratingModal: React.FC<PlanGeneratingModalProps> = ({
 
           {/* Status Messages */}
           <View style={styles.statusContainer}>
-            {progress < 30 && (
-              <Text style={styles.statusText}>🔍 Analizando tu perfil nutricional...</Text>
-            )}
-            {progress >= 30 && progress < 60 && (
-              <Text style={styles.statusText}>🍎 Seleccionando alimentos ideales...</Text>
-            )}
-            {progress >= 60 && progress < 90 && (
-              <Text style={styles.statusText}>📊 Calculando macronutrientes...</Text>
-            )}
-            {progress >= 90 && (
-              <Text style={styles.statusText}>✨ Finalizando tu plan personalizado...</Text>
-            )}
+            <Text style={styles.statusText}>{getStatusMessage()}</Text>
           </View>
 
           {/* Time Estimate */}

@@ -50,15 +50,21 @@ export const WorkoutsTab: React.FC = () => {
     }
   };
 
-  const handleGeneratePlan = async (daysAvailable: number, goal: WorkoutGoal) => {
+  const handleGeneratePlan = async (daysAvailable: number, goal: WorkoutGoal, equipmentImages?: string[]) => {
+    console.log('📸 Equipment images:', equipmentImages?.length || 0);
     try {
       console.warn('🏋️ Starting workout plan generation...');
       setShowGenerateModal(false);
       setIsGenerating(true);
       setGenerationProgress(10);
 
-      // Iniciar la generación del plan
-      const response = await WorkoutService.generateWorkoutPlan(daysAvailable, goal);
+      // Iniciar la generación del plan (con imágenes si las hay)
+      const response = await WorkoutService.generateWorkoutPlan(
+        daysAvailable, 
+        goal, 
+        undefined, // isoWeek (usa la actual por defecto)
+        equipmentImages
+      );
       
       console.warn('📋 Generation response:', JSON.stringify(response));
 
@@ -217,6 +223,15 @@ export const WorkoutsTab: React.FC = () => {
     }
   };
 
+  // Función para formatear instrucciones con saltos de línea
+  const formatInstructions = (text: string): string[] => {
+    // Dividir por números seguidos de punto (1. 2. 3. etc.)
+    const steps = text.split(/(?=\d+\.\s)/);
+    return steps
+      .map(step => step.trim())
+      .filter(step => step.length > 0);
+  };
+
   const renderExercise = (exercise: Exercise, index: number) => (
     <View key={index} style={styles.exerciseCard}>
       <View style={styles.exerciseHeader}>
@@ -257,12 +272,23 @@ export const WorkoutsTab: React.FC = () => {
       {exercise.instructions && (
         <View style={styles.instructionsContainer}>
           <Text style={styles.instructionsTitle}>Instrucciones:</Text>
-          <Text style={styles.instructionsText}>{exercise.instructions}</Text>
+          {formatInstructions(exercise.instructions).map((instruction, idx) => (
+            <Text key={idx} style={styles.instructionsText}>
+              {instruction}
+            </Text>
+          ))}
         </View>
       )}
 
       {exercise.notes && (
-        <Text style={styles.exerciseNotes}>💡 {exercise.notes}</Text>
+        <View style={styles.notesContainer}>
+          <Text style={styles.exerciseNotes}>💡 Notas:</Text>
+          {formatInstructions(exercise.notes).map((note, idx) => (
+            <Text key={idx} style={styles.noteText}>
+              {note}
+            </Text>
+          ))}
+        </View>
       )}
     </View>
   );
@@ -423,6 +449,7 @@ export const WorkoutsTab: React.FC = () => {
       <PlanGeneratingModal
         visible={isGenerating}
         progress={generationProgress}
+        type="workout"
       />
     </>
   );
@@ -610,14 +637,24 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: COLORS.primary,
   },
-  exerciseNotes: {
-    fontSize: 14,
-    color: COLORS.textLight,
-    fontStyle: 'italic',
+  notesContainer: {
     marginTop: 12,
     padding: 12,
     backgroundColor: 'rgba(255, 249, 196, 0.3)', // Very light yellow
     borderRadius: 12,
+  },
+  exerciseNotes: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  noteText: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    lineHeight: 20,
+    marginBottom: 4,
+    paddingLeft: 8,
   },
   noWorkoutContainer: {
     flex: 1,
@@ -705,6 +742,8 @@ const styles = StyleSheet.create({
   instructionsText: {
     fontSize: 14,
     color: COLORS.textLight,
-    lineHeight: 20,
+    lineHeight: 22,
+    marginBottom: 8,
+    paddingLeft: 4,
   },
 });

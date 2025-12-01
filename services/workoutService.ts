@@ -12,6 +12,54 @@ import {
  */
 class WorkoutService {
   /**
+   * Subir imagen de equipamiento al servidor
+   */
+  async uploadEquipmentImage(imageUri: string): Promise<string> {
+    try {
+      console.log('📸 Uploading equipment image:', imageUri);
+      
+      // Detectar plataforma
+      const { Platform } = await import('react-native');
+      
+      // Crear FormData para la subida de imagen
+      const formData = new FormData();
+      
+      if (Platform.OS === 'web') {
+        // En web, necesitamos convertir el blob
+        console.log('🌐 Uploading from web');
+        const response = await fetch(imageUri);
+        const blob = await response.blob();
+        formData.append('image', blob, 'equipment.jpg');
+      } else {
+        // En móvil, usar el formato estándar
+        console.log('📱 Uploading from mobile');
+        formData.append('image', {
+          uri: imageUri,
+          type: 'image/jpeg',
+          name: 'equipment.jpg',
+        } as any);
+      }
+
+      console.log('📤 Sending FormData to /media/equipment/upload');
+      
+      // Subir al endpoint específico de equipamiento
+      const uploadResponse = await api.post('/media/equipment/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      console.log('✅ Equipment image uploaded:', uploadResponse.data.url);
+      return uploadResponse.data.url; // Retornar solo la URL
+    } catch (error: any) {
+      console.error('❌ Error uploading equipment image:', error);
+      console.error('❌ Error response:', error.response?.data);
+      console.error('❌ Error status:', error.response?.status);
+      throw error;
+    }
+  }
+
+  /**
    * Calcular la semana ISO actual (formato: YYYY-Www)
    * Ejemplo: "2023-W49"
    */
@@ -44,10 +92,19 @@ class WorkoutService {
   async generateWorkoutPlan(
     daysAvailable: number,
     goal: WorkoutGoal,
-    isoWeek?: string
+    isoWeek?: string,
+    equipmentImageUris?: string[]
   ): Promise<GenerateWorkoutResponse> {
     try {
       const week = isoWeek || this.getCurrentISOWeek();
+      
+      console.log('🏋️ [GENERATE] Input parameters:', {
+        daysAvailable,
+        goal,
+        week,
+        equipmentImageUris: equipmentImageUris?.length || 0,
+        hasImages: !!equipmentImageUris && equipmentImageUris.length > 0
+      });
       
       const request: GenerateWorkoutRequest = {
         isoWeek: week,
@@ -55,14 +112,39 @@ class WorkoutService {
         goal,
       };
 
-      console.log('🏋️ Generando plan de entrenamiento:', request);
+      // Si hay imágenes locales, subirlas y obtener URLs
+      if (equipmentImageUris && equipmentImageUris.length > 0) {
+        console.log(`📸 [GENERATE] Subiendo ${equipmentImageUris.length} imágenes de equipamiento...`);
+        
+        try {
+          // Subir todas las imágenes en paralelo
+          const uploadPromises = equipmentImageUris.map(uri => this.uploadEquipmentImage(uri));
+          const imageUrls = await Promise.all(uploadPromises);
+          
+          console.log(`✅ [GENERATE] ${imageUrls.length} imágenes subidas exitosamente`);
+          console.log(`📋 [GENERATE] Image URLs:`, imageUrls);
+          
+          // Agregar URLs al request
+          (request as any).equipmentImageUrls = imageUrls;
+        } catch (uploadError: any) {
+          console.error('❌ [GENERATE] Error subiendo imágenes:', uploadError);
+          console.warn('⚠️ [GENERATE] Continuando sin imágenes de equipamiento');
+        }
+      }
 
-      // Usar timeout largo para generación (60 segundos)
+      console.log('🏋️ Generando plan de entrenamiento:', {
+        ...request,
+        equipmentImages: (request as any).equipmentImageUrls?.length || 0
+      });
+
+      // Usar timeout largo para generación (2 minutos)
+      const timeout = API_CONFIG.LONG_TIMEOUT || 120000;
+
       const response = await api.post<GenerateWorkoutResponse>(
         API_CONFIG.ENDPOINTS.WORKOUTS.GENERATE,
         request,
         {
-          timeout: API_CONFIG.LONG_TIMEOUT || 60000
+          timeout
         }
       );
 

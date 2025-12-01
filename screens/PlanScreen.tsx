@@ -12,6 +12,7 @@ import { NutritionService } from '../services/nutritionService';
 import { WeeklyPlan, WeeklyPlanMeal, WeeklyPlanIngredient, ShoppingListItem } from '../types/nutrition';
 import { IngredientsModal } from '../components/IngredientsModal';
 import { ShoppingListModal } from '../components/ShoppingListModal';
+import { PlanGeneratingModal } from '../components/PlanGeneratingModal';
 import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -39,6 +40,8 @@ export const PlanScreen: React.FC = () => {
   const [shoppingListItems, setShoppingListItems] = useState<ShoppingListItem[]>([]);
   const [loadingShoppingList, setLoadingShoppingList] = useState(false);
   const [shoppingListTotal, setShoppingListTotal] = useState(0);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
 
   useEffect(() => {
     loadWeeklyPlan();
@@ -100,16 +103,131 @@ export const PlanScreen: React.FC = () => {
 
   const generatePlan = async (week: string) => {
     try {
-      setLoading(true);
-      await NutritionService.generatePlanWithAI(week);
-      // Recargar después de generar
-      setTimeout(() => {
-        loadWeeklyPlan(week);
-      }, 2000);
-    } catch (error) {
-      console.log('Error generating plan:', error);
-      Alert.alert('Error', 'No se pudo generar el plan');
-      setLoading(false);
+      setLoading(false); // Quitar el loading general
+      setIsGenerating(true); // Activar modal de generación
+      setGenerationProgress(10);
+
+      const generateResponse = await NutritionService.generatePlanWithAI(week);
+      
+      if (generateResponse.created) {
+        // Iniciar polling para verificar si el plan está listo
+        pollForPlan(generateResponse.planId, week);
+      }
+    } catch (error: any) {
+      console.log('❌ [GENERATE] Error generating plan');
+      console.log('❌ [GENERATE] Error status:', error.response?.status);
+      console.log('❌ [GENERATE] Error code:', error.code);
+      console.log('❌ [GENERATE] Error message:', error.message);
+      console.log('❌ [GENERATE] Full error object:', JSON.stringify(error, null, 2));
+      
+      // Detectar 504 Gateway Timeout o cualquier timeout
+      const is504 = error.response?.status === 504;
+      const isNetworkError = error.message?.toLowerCase().includes('network');
+      const isTimeout = error.code === 'ECONNABORTED' || 
+                       error.code === 'ETIMEDOUT' ||
+                       error.message?.toLowerCase().includes('timeout') || 
+                       error.message?.includes('504');
+      
+      if (is504 || isTimeout || isNetworkError) {
+        console.log('⏰ [GENERATE] 504/Timeout/Network error detected');
+        console.log('✅ [GENERATE] Plan is being created in background');
+        console.log('🔄 [GENERATE] Starting polling...');
+        setGenerationProgress(20);
+        // Iniciar polling inmediatamente - el plan se está creando en el backend
+        pollForPlan(`temp-${week}`, week);
+        return;
+      }
+
+      // Si es otro tipo de error, cerrar el modal y mostrar error
+      console.log('❌ [GENERATE] Unknown error type, closing modal');
+      setIsGenerating(false);
+      setGenerationProgress(0);
+      Alert.alert('Error', 'No se pudo generar el plan. Intenta de nuevo.');
+    }
+  };
+
+  const pollForPlan = async (planId: string, week: string, attempts: number = 0) => {
+    const maxAttempts = 30; // 30 intentos = ~2.5 minutos con intervalos de 5s
+    const pollInterval = 5000; // 5 segundos entre cada intento
+
+    // Actualizar progreso basado en intentos
+    const progress = Math.min(20 + (attempts / maxAttempts) * 75, 95);
+    setGenerationProgress(progress);
+
+    console.log(`🔄 [POLLING ${attempts + 1}/${maxAttempts}] Checking nutrition plan for week: ${week}`);
+
+    try {
+      // Intentar obtener el plan actualizado
+      const plan = await NutritionService.getWeeklyPlan(week);
+
+      if (plan) {
+        console.log('📋 [POLLING] Plan received - ID:', plan.id);
+        console.log('📋 [POLLING] Plan days:', plan.days?.length || 0);
+        console.log('📋 [POLLING] Plan structure:', JSON.stringify(plan, null, 2));
+      } else {
+        console.log('📋 [POLLING] No plan received yet');
+      }
+
+      // Verificar si el plan existe y tiene contenido
+      const isPlanReady = plan && plan.days && plan.days.length > 0;
+      
+      if (isPlanReady) {
+        // El plan está listo
+        console.log('✅ [POLLING] Nutrition plan is ready!');
+        console.log('✅ [POLLING] Closing modal and showing plan');
+        setGenerationProgress(100);
+        setTimeout(() => {
+          setWeeklyPlan(plan);
+          setIsGenerating(false);
+          setGenerationProgress(0);
+          Alert.alert('¡Listo! 🎉', 'Tu plan nutricional personalizado ha sido creado exitosamente.');
+        }, 1000); // Pequeña pausa para mostrar 100%
+        return;
+      }
+
+      // Si no está listo y no hemos alcanzado el máximo de intentos
+      if (attempts < maxAttempts) {
+        console.log(`⏳ [POLLING] Plan not ready yet, will retry in ${pollInterval/1000} seconds...`);
+        setTimeout(() => {
+          pollForPlan(planId, week, attempts + 1);
+        }, pollInterval);
+      } else {
+        // Timeout - el plan tardó demasiado
+        console.log('⏰ [POLLING] Max attempts reached');
+        setIsGenerating(false);
+        setGenerationProgress(0);
+        Alert.alert(
+          'Plan en proceso',
+          'Tu plan se está generando y estará listo pronto. Puedes refrescar la pantalla en unos minutos.',
+          [
+            {
+              text: 'Refrescar ahora',
+              onPress: () => {
+                loadWeeklyPlan(week);
+              }
+            },
+            {
+              text: 'OK',
+              style: 'cancel'
+            }
+          ]
+        );
+      }
+    } catch (error: any) {
+      console.log('❌ [POLLING] Error polling for plan:', error.message);
+
+      // Si no hemos alcanzado el máximo de intentos, continuar intentando
+      if (attempts < maxAttempts) {
+        console.log(`🔄 [POLLING] Error but continuing, retry in ${pollInterval/1000}s...`);
+        setTimeout(() => {
+          pollForPlan(planId, week, attempts + 1);
+        }, pollInterval);
+      } else {
+        console.log('❌ [POLLING] Max attempts reached after errors');
+        setIsGenerating(false);
+        setGenerationProgress(0);
+        Alert.alert('Error', 'Hubo un problema verificando tu plan. Intenta refrescar la pantalla.');
+      }
     }
   };
 
@@ -250,10 +368,23 @@ export const PlanScreen: React.FC = () => {
   };
 
   const handleRegenerateDay = async () => {
-    if (!weeklyPlan || !weekDays[selectedDay]) return;
+    console.log('🔄 [REGENERATE] Button pressed');
+    console.log('🔄 [REGENERATE] weeklyPlan:', weeklyPlan ? 'exists' : 'null');
+    console.log('🔄 [REGENERATE] selectedDay:', selectedDay);
+    console.log('🔄 [REGENERATE] weekDays[selectedDay]:', weekDays[selectedDay]);
+    
+    if (!weeklyPlan || !weekDays[selectedDay]) {
+      console.log('❌ [REGENERATE] Missing weeklyPlan or weekDays');
+      return;
+    }
 
     // Verificar si se puede modificar esta semana
-    if (!canModifyWeek(currentWeek)) {
+    const canModify = canModifyWeek(currentWeek);
+    console.log('🔄 [REGENERATE] canModifyWeek:', canModify);
+    console.log('🔄 [REGENERATE] currentWeek:', currentWeek);
+    
+    if (!canModify) {
+      console.log('❌ [REGENERATE] Cannot modify past week');
       Alert.alert(
         'Semana pasada',
         'No puedes modificar planes de semanas anteriores. Solo puedes ver el contenido.',
@@ -262,42 +393,57 @@ export const PlanScreen: React.FC = () => {
       return;
     }
 
-    Alert.alert(
-      'Regenerar día completo',
-      '¿Estás seguro? Esto cambiará todas las comidas de este día.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Regenerar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setRegeneratingDay(true);
-              const dayIndex = weekDays[selectedDay].dayIndex;
-              const regeneratedDay = await NutritionService.regenerateDay(weeklyPlan.id, dayIndex);
-              
-              // Actualizar el plan existente con el día regenerado
-              const updatedPlan = {
-                ...weeklyPlan,
-                days: weeklyPlan.days.map(day => 
-                  day.dayIndex === regeneratedDay.dayIndex 
-                    ? { ...day, meals: regeneratedDay.meals }
-                    : day
-                )
-              };
-              
-              setWeeklyPlan(updatedPlan);
-              Alert.alert('¡Listo!', 'El día ha sido regenerado exitosamente');
-            } catch (error) {
-              console.log('Error regenerating day:', error);
-              Alert.alert('Error', 'No se pudo regenerar el día. Intenta de nuevo.');
-            } finally {
-              setRegeneratingDay(false);
+    console.log('✅ [REGENERATE] Showing confirmation alert');
+    
+    // Usar setTimeout para asegurar que el Alert se muestre después del render
+    setTimeout(() => {
+      Alert.alert(
+        'Regenerar día completo',
+        '¿Estás seguro? Esto cambiará todas las comidas de este día.',
+        [
+          { 
+            text: 'Cancelar', 
+            style: 'cancel',
+            onPress: () => console.log('❌ [REGENERATE] User cancelled')
+          },
+          {
+            text: 'Regenerar',
+            style: 'destructive',
+            onPress: async () => {
+              console.log('🔄 [REGENERATE] User confirmed, starting regeneration');
+              try {
+                setRegeneratingDay(true);
+                const dayIndex = weekDays[selectedDay].dayIndex;
+                console.log('🔄 [REGENERATE] Regenerating day index:', dayIndex);
+                console.log('🔄 [REGENERATE] Plan ID:', weeklyPlan.id);
+                
+                const regeneratedDay = await NutritionService.regenerateDay(weeklyPlan.id, dayIndex);
+                console.log('✅ [REGENERATE] Day regenerated successfully');
+                
+                // Actualizar el plan existente con el día regenerado
+                const updatedPlan = {
+                  ...weeklyPlan,
+                  days: weeklyPlan.days.map(day => 
+                    day.dayIndex === regeneratedDay.dayIndex 
+                      ? { ...day, meals: regeneratedDay.meals }
+                      : day
+                  )
+                };
+                
+                setWeeklyPlan(updatedPlan);
+                Alert.alert('¡Listo!', 'El día ha sido regenerado exitosamente');
+              } catch (error: any) {
+                console.log('❌ [REGENERATE] Error regenerating day:', error);
+                console.log('❌ [REGENERATE] Error message:', error.message);
+                Alert.alert('Error', 'No se pudo regenerar el día. Intenta de nuevo.');
+              } finally {
+                setRegeneratingDay(false);
+              }
             }
           }
-        }
-      ]
-    );
+        ]
+      );
+    }, 100);
   };
 
   const handleSwapMeal = async (mealIndex: number, mealTitle: string) => {
@@ -472,6 +618,16 @@ export const PlanScreen: React.FC = () => {
       mealsByType[meal.slot].push(meal);
     });
 
+    const canModify = canModifyWeek(currentWeek);
+    const isButtonDisabled = regeneratingDay || !canModify;
+    
+    console.log('🔘 [RENDER] Regenerate button state:', {
+      currentWeek,
+      canModify,
+      regeneratingDay,
+      isButtonDisabled
+    });
+
     return (
       <View style={styles.mealPlan}>
         {/* Botón para regenerar día completo */}
@@ -479,16 +635,19 @@ export const PlanScreen: React.FC = () => {
           <TouchableOpacity 
             style={[
               styles.regenerateDayButton, 
-              (regeneratingDay || !canModifyWeek(currentWeek)) && styles.buttonDisabled
+              isButtonDisabled && styles.buttonDisabled
             ]}
-            onPress={handleRegenerateDay}
-            disabled={regeneratingDay || !canModifyWeek(currentWeek)}
+            onPress={() => {
+              console.log('🔘 [BUTTON] Regenerate button pressed');
+              handleRegenerateDay();
+            }}
+            disabled={isButtonDisabled}
           >
             {regeneratingDay ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <Text style={styles.regenerateDayButtonText}>
-                {!canModifyWeek(currentWeek) ? '🔒 Semana pasada' : '🔄 Regenerar día completo'}
+                {!canModify ? '🔒 Semana pasada' : '🔄 Regenerar día completo'}
               </Text>
             )}
           </TouchableOpacity>
@@ -687,6 +846,13 @@ export const PlanScreen: React.FC = () => {
         loading={loadingShoppingList}
         total={shoppingListTotal}
         planId={weeklyPlan?.id}
+      />
+
+      {/* Modal de generación de plan */}
+      <PlanGeneratingModal
+        visible={isGenerating}
+        progress={generationProgress}
+        type="nutrition"
       />
     </View>
   );

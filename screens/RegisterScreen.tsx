@@ -136,8 +136,15 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
         keyboardShouldPersistTaps="handled"
       >
         {/* Logo */}
-        <View style={styles.logoContainer}>
-          <Logo size="large" showText={true} />
+        <View style={styles.logoSection}>
+          {/* Logo con efecto mejorado */}
+          <View style={styles.logoContainer}>
+            <View style={styles.logoGlow} />
+            <View style={styles.logoWrapper}>
+              <Logo size="large" showText={false} />
+            </View>
+          </View>
+          <Text style={styles.brandName}>Recomiéndame Coach</Text>
         </View>
 
         {/* Welcome Text */}
@@ -280,9 +287,56 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 40,
   },
-  logoContainer: {
+  logoSection: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 30,
+  },
+  logoContainer: {
+    position: 'relative',
+    marginBottom: 20,
+  },
+  logoGlow: {
+    position: 'absolute',
+    top: -8,
+    left: -8,
+    right: -8,
+    bottom: -8,
+    backgroundColor: '#4CAF50',
+    borderRadius: 50,
+    opacity: 0.4,
+    shadowColor: '#4CAF50',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.8,
+    shadowRadius: 20,
+    elevation: 15,
+  },
+  logoWrapper: {
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+    borderRadius: 40,
+    borderWidth: 4,
+    borderColor: 'rgba(255, 255, 255, 0.9)',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 20,
+  },
+  brandName: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#fff',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   welcomeContainer: {
     alignItems: 'center',

@@ -4,7 +4,7 @@ export const API_CONFIG = {
   BASE_URL: 'https://api-coach.recomiendameapp.cl',
   
   TIMEOUT: 30000, // 30 segundos por defecto
-  LONG_TIMEOUT: 300000, // 5 minutos para operaciones largas (generación de planes)
+  LONG_TIMEOUT: 120000, // 2 minutos para operaciones largas (generación de planes)
   
   // Endpoints principales
   ENDPOINTS: {

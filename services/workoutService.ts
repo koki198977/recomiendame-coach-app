@@ -1,4 +1,5 @@
 import api from './api';
+import { Platform } from 'react-native';
 import { API_CONFIG } from '../config/api';
 import { 
   GenerateWorkoutRequest, 
@@ -17,9 +18,6 @@ class WorkoutService {
   async uploadEquipmentImage(imageUri: string): Promise<string> {
     try {
       console.log('📸 Uploading equipment image:', imageUri);
-      
-      // Detectar plataforma
-      const { Platform } = await import('react-native');
       
       // Crear FormData para la subida de imagen
       const formData = new FormData();

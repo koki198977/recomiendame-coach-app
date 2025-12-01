@@ -14,6 +14,7 @@ import { WeeklyPlan, WeeklyPlanMeal, ShoppingListItem, CheckinResponse, Checkin 
 import { PlanGeneratingModal } from '../components/PlanGeneratingModal';
 import { ShoppingListModal } from '../components/ShoppingListModal';
 import { DailyCheckinModal } from '../components/DailyCheckinModal';
+import { LogMealModal } from '../components/LogMealModal';
 import { AppHeader } from '../components/AppHeader';
 import { NotificationBadge } from '../components/NotificationBadge';
 import WorkoutService from '../services/workoutService';
@@ -43,6 +44,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
   const [todayWorkout, setTodayWorkout] = React.useState<WorkoutDay | null>(null);
   const [hasWorkoutPlan, setHasWorkoutPlan] = React.useState(false);
   const [loadingWorkout, setLoadingWorkout] = React.useState(false);
+  const [todayMealsConsumed, setTodayMealsConsumed] = React.useState<any>(null);
+  const [showLogMealModal, setShowLogMealModal] = React.useState(false);
 
   const loadData = async () => {
     try {
@@ -63,6 +66,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
       // Cargar checkin del día
       const checkin = await NutritionService.getTodayCheckin();
       setTodayCheckin(checkin);
+
+      // Cargar comidas consumidas del día
+      const mealsConsumed = await NutritionService.getTodayMeals();
+      setTodayMealsConsumed(mealsConsumed);
 
       // Cargar workout del día
       loadWorkoutPlan();
@@ -235,7 +242,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
   };
 
   const todayMeals = getTodayMeals();
-  const totalConsumedToday = todayMeals.reduce((sum, meal) => sum + meal.kcal, 0);
+  const totalPlannedToday = todayMeals.reduce((sum, meal) => sum + meal.kcal, 0);
+  const totalConsumedToday = todayMealsConsumed?.totals?.kcal || 0;
   const caloriesTarget = weeklyPlan?.macros.kcalTarget || 2000;
   const remainingCalories = Math.max(0, caloriesTarget - totalConsumedToday);
 
@@ -292,6 +300,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
 
   const closeCheckinModal = () => {
     setShowCheckinModal(false);
+  };
+
+  const handleLogMealSuccess = async () => {
+    // Recargar comidas consumidas
+    try {
+      const mealsConsumed = await NutritionService.getTodayMeals();
+      setTodayMealsConsumed(mealsConsumed);
+    } catch (error) {
+      console.log('Error reloading meals:', error);
+    }
   };
 
   if (loading) {
@@ -384,7 +402,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
               <View style={styles.progressRow}>
                 <View style={styles.progressItem}>
                   <Text style={styles.progressNumber}>{totalConsumedToday}</Text>
-                  <Text style={styles.progressLabel}>Planificadas</Text>
+                  <Text style={styles.progressLabel}>Consumidas</Text>
                 </View>
                 <View style={styles.progressDivider} />
                 <View style={styles.progressItem}>
@@ -397,6 +415,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
                   <Text style={styles.progressLabel}>Restantes</Text>
                 </View>
               </View>
+              {totalConsumedToday === 0 && (
+                <Text style={styles.progressHint}>
+                  💡 Marca las comidas que consumas para ver tu progreso real
+                </Text>
+              )}
             </View>
 
             {/* Macros del plan */}
@@ -485,28 +508,55 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
               )}
             </View>
 
-            {/* Comidas del día */}
+            {/* Comidas consumidas del día */}
             <View style={styles.mealsSection}>
-              <Text style={styles.sectionTitle}>Comidas de hoy</Text>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Comidas consumidas hoy</Text>
+                {todayMealsConsumed?.logs?.length > 0 && (
+                  <Text style={styles.sectionCount}>{todayMealsConsumed.logs.length}</Text>
+                )}
+              </View>
 
-              {todayMeals.length > 0 ? (
-                todayMeals.map((meal, index) => (
-                  <TouchableOpacity key={index} style={styles.mealCard}>
+              {todayMealsConsumed?.logs && todayMealsConsumed.logs.length > 0 ? (
+                todayMealsConsumed.logs.map((log: any, index: number) => (
+                  <View key={index} style={styles.mealCard}>
                     <View style={styles.mealHeader}>
-                      <Text style={styles.mealTime}>{getMealTypeLabel(meal.slot)}</Text>
-                      <Text style={styles.mealCalories}>{meal.kcal} kcal</Text>
+                      <View style={styles.mealHeaderLeft}>
+                        <Text style={styles.mealTime}>{getMealTypeLabel(log.slot)}</Text>
+                        {log.fromPlan && (
+                          <View style={styles.fromPlanBadge}>
+                            <Text style={styles.fromPlanText}>Plan</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.mealCalories}>{log.kcal} kcal</Text>
                     </View>
-                    <Text style={styles.mealDescription}>{meal.title}</Text>
+                    <Text style={styles.mealDescription}>{log.title}</Text>
                     <View style={styles.mealMacros}>
-                      <Text style={styles.mealMacroText}>P: {meal.protein_g}g</Text>
-                      <Text style={styles.mealMacroText}>C: {meal.carbs_g}g</Text>
-                      <Text style={styles.mealMacroText}>G: {meal.fat_g}g</Text>
+                      <Text style={styles.mealMacroText}>P: {log.protein_g}g</Text>
+                      <Text style={styles.mealMacroText}>C: {log.carbs_g}g</Text>
+                      <Text style={styles.mealMacroText}>G: {log.fat_g}g</Text>
                     </View>
-                  </TouchableOpacity>
+                    {log.imageUrl && (
+                      <View style={styles.mealImageContainer}>
+                        <Text style={styles.mealImageIcon}>📸</Text>
+                        <Text style={styles.mealImageText}>Con foto</Text>
+                      </View>
+                    )}
+                    {log.notes && (
+                      <Text style={styles.mealNotes}>💡 {log.notes}</Text>
+                    )}
+                  </View>
                 ))
               ) : (
                 <View style={styles.noMealsCard}>
-                  <Text style={styles.noMealsText}>No hay comidas planificadas para hoy</Text>
+                  <Text style={styles.noMealsEmoji}>🍽️</Text>
+                  <Text style={styles.noMealsText}>
+                    No has registrado comidas hoy
+                  </Text>
+                  <Text style={styles.noMealsHint}>
+                    Marca las comidas de tu plan o agrega nuevas con el botón 📸
+                  </Text>
                 </View>
               )}
             </View>
@@ -569,6 +619,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
         onClose={closeCheckinModal}
         onSuccess={handleCheckinSuccess}
       />
+
+      {/* Modal de registrar comida */}
+      <LogMealModal
+        visible={showLogMealModal}
+        onClose={() => setShowLogMealModal(false)}
+        onSuccess={handleLogMealSuccess}
+      />
+
+      {/* Botón flotante para agregar comida */}
+      {weeklyPlan && (
+        <TouchableOpacity
+          style={styles.floatingButton}
+          onPress={() => setShowLogMealModal(true)}
+        >
+          <Text style={styles.floatingButtonText}>📸</Text>
+        </TouchableOpacity>
+      )}
     </>
   );
 };
@@ -735,6 +802,32 @@ const styles = StyleSheet.create({
     color: COLORS.textLight,
     marginTop: 4,
     fontWeight: '600',
+  },
+  progressHint: {
+    fontSize: 13,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    marginTop: 12,
+    fontStyle: 'italic',
+  },
+  floatingButton: {
+    position: 'absolute',
+    right: 20,
+    bottom: 90,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  floatingButtonText: {
+    fontSize: 28,
   },
   progressDivider: {
     width: 1,
@@ -920,6 +1013,60 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
+  // Section Header
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionCount: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.primary,
+    backgroundColor: 'rgba(67, 233, 123, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  mealHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  fromPlanBadge: {
+    backgroundColor: 'rgba(67, 233, 123, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  fromPlanText: {
+    fontSize: 10,
+    color: COLORS.primary,
+    fontWeight: '700',
+  },
+  mealImageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 4,
+  },
+  mealImageIcon: {
+    fontSize: 14,
+  },
+  mealImageText: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    fontWeight: '600',
+  },
+  mealNotes: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    marginTop: 8,
+    fontStyle: 'italic',
+    lineHeight: 16,
+  },
+  
   // Empty States
   noMealsCard: {
     backgroundColor: COLORS.card,
@@ -930,10 +1077,22 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.border,
   },
+  noMealsEmoji: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
   noMealsText: {
-    fontSize: 15,
+    fontSize: 16,
+    color: COLORS.text,
+    textAlign: 'center',
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  noMealsHint: {
+    fontSize: 13,
     color: COLORS.textLight,
     textAlign: 'center',
+    lineHeight: 18,
   },
   noCheckinContainer: {
     alignItems: 'center',

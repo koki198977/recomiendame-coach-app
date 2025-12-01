@@ -1,4 +1,5 @@
 import api from './api';
+import { Platform } from 'react-native';
 import { 
   Post, 
   PostsResponse,
@@ -20,20 +21,31 @@ export class SocialService {
     
     // Crear FormData para la subida de imagen
     const formData = new FormData();
-    formData.append('image', {
-      uri: imageUri,
-      type: 'image/jpeg',
-      name: 'image.jpg',
-    } as any);
+    
+    if (Platform.OS === 'web') {
+      // En web, necesitamos convertir el blob
+      console.log('🌐 Uploading from web');
+      const response = await fetch(imageUri);
+      const blob = await response.blob();
+      formData.append('image', blob, 'image.jpg');
+    } else {
+      // En móvil, usar el formato estándar
+      console.log('📱 Uploading from mobile');
+      formData.append('image', {
+        uri: imageUri,
+        type: 'image/jpeg',
+        name: 'image.jpg',
+      } as any);
+    }
 
-    const response = await api.post('/posts/upload', formData, {
+    const uploadResponse = await api.post('/posts/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
 
-    console.log('Upload response:', response.data);
-    return response.data;
+    console.log('✅ Upload response:', uploadResponse.data);
+    return uploadResponse.data;
   }
 
   // Posts

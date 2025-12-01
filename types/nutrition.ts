@@ -461,3 +461,62 @@ export interface WorkoutPlan {
   notes?: string;
 }
 
+
+// Meal Logging Types
+export interface AnalyzeMealRequest {
+  imageUrl: string;
+  description?: string;
+}
+
+export interface AnalyzeMealResponse {
+  title: string;
+  kcal: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  confidence: 'high' | 'medium' | 'low';
+  notes?: string;
+}
+
+export interface LogMealRequest {
+  slot: 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
+  title: string;
+  kcal: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  notes?: string;
+  imageUrl?: string;
+}
+
+export interface LogMealResponse {
+  id: string;
+  message: string;
+}
+
+export interface MealLog {
+  id: string;
+  mealId?: string;
+  slot: 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
+  title: string;
+  kcal: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  notes?: string;
+  imageUrl?: string;
+  date: string;
+  fromPlan: boolean;
+  ingredients?: any[];
+}
+
+export interface TodayMealsResponse {
+  date: string;
+  logs: MealLog[];
+  totals: {
+    kcal: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+  };
+}

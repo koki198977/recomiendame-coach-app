@@ -20,7 +20,12 @@ import {
   CheckinResponse,
   Checkin,
   TodayCheckinResponse,
-  CheckinHistoryResponse
+  CheckinHistoryResponse,
+  AnalyzeMealRequest,
+  AnalyzeMealResponse,
+  LogMealRequest,
+  LogMealResponse,
+  TodayMealsResponse
 } from '../types/nutrition';
 
 export class NutritionService {
@@ -343,5 +348,44 @@ export class NutritionService {
       });
       return response.data;
     }
+  }
+
+  // Meal Logging - Tracking de comidas consumidas
+  
+  /**
+   * Analizar imagen de comida con IA
+   */
+  static async analyzeMeal(imageUrl: string, description?: string): Promise<AnalyzeMealResponse> {
+    const response = await api.post<AnalyzeMealResponse>('/meals/analyze', {
+      imageUrl,
+      description
+    });
+    return response.data;
+  }
+
+  /**
+   * Registrar comida consumida
+   */
+  static async logMeal(mealData: LogMealRequest): Promise<LogMealResponse> {
+    const response = await api.post<LogMealResponse>('/meals/log', mealData);
+    return response.data;
+  }
+
+  /**
+   * Obtener comidas consumidas del día
+   */
+  static async getTodayMeals(date?: string): Promise<TodayMealsResponse> {
+    const params = date ? { date } : {};
+    const response = await api.get<TodayMealsResponse>('/meals/today', { params });
+    return response.data;
+  }
+
+  /**
+   * Marcar comida del plan como consumida
+   */
+  static async markMealAsConsumed(mealId: string, date?: string): Promise<LogMealResponse> {
+    const params = date ? { date } : {};
+    const response = await api.patch<LogMealResponse>(`/meals/${mealId}/consumed`, {}, { params });
+    return response.data;
   }
 }

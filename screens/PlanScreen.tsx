@@ -42,6 +42,8 @@ export const PlanScreen: React.FC = () => {
   const [shoppingListTotal, setShoppingListTotal] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
+  const [markingMeal, setMarkingMeal] = useState<string | null>(null); // "dayIndex-mealIndex"
+  const [consumedMeals, setConsumedMeals] = useState<Set<string>>(new Set()); // Set de "dayIndex-mealIndex"
 
   useEffect(() => {
     loadWeeklyPlan();
@@ -446,6 +448,44 @@ export const PlanScreen: React.FC = () => {
     }, 100);
   };
 
+  const handleMarkMealAsConsumed = async (meal: WeeklyPlanMeal, dayIndex: number, mealIndex: number) => {
+    if (!weeklyPlan) return;
+
+    const markKey = `${dayIndex}-${mealIndex}`;
+    
+    // Verificar si ya fue marcada
+    if (consumedMeals.has(markKey)) {
+      Alert.alert('Ya registrada', 'Esta comida ya fue marcada como consumida.');
+      return;
+    }
+    
+    try {
+      setMarkingMeal(markKey);
+      console.log('✅ [MARK] Marking meal as consumed:', { planId: weeklyPlan.id, dayIndex, mealIndex });
+      
+      // Registrar la comida directamente usando logMeal
+      await NutritionService.logMeal({
+        slot: meal.slot,
+        title: meal.title,
+        kcal: meal.kcal,
+        protein_g: meal.protein_g,
+        carbs_g: meal.carbs_g,
+        fat_g: meal.fat_g,
+        notes: `Del plan semanal - ${weekDays[selectedDay]?.dayName}`,
+      });
+      
+      // Agregar al set de comidas consumidas
+      setConsumedMeals(prev => new Set(prev).add(markKey));
+      
+      Alert.alert('¡Registrado! ✅', `"${meal.title}" ha sido marcada como consumida.`);
+    } catch (error: any) {
+      console.log('❌ [MARK] Error marking meal:', error);
+      Alert.alert('Error', 'No se pudo marcar la comida. Intenta de nuevo.');
+    } finally {
+      setMarkingMeal(null);
+    }
+  };
+
   const handleSwapMeal = async (mealIndex: number, mealTitle: string) => {
     if (!weeklyPlan || !weekDays[selectedDay]) return;
 
@@ -678,23 +718,48 @@ export const PlanScreen: React.FC = () => {
                       </Text>
                     </View>
                     
-                    {/* Botón para cambiar comida individual */}
-                    <TouchableOpacity 
-                      style={[
-                        styles.swapMealButton, 
-                        (isSwapping || !canModifyWeek(currentWeek)) && styles.buttonDisabled
-                      ]}
-                      onPress={() => handleSwapMeal(globalMealIndex, meal.title)}
-                      disabled={isSwapping || !canModifyWeek(currentWeek)}
-                    >
-                      {isSwapping ? (
-                        <ActivityIndicator size="small" color="#4CAF50" />
-                      ) : (
-                        <Text style={styles.swapMealButtonText}>
-                          {!canModifyWeek(currentWeek) ? '🔒' : '🔄'}
-                        </Text>
-                      )}
-                    </TouchableOpacity>
+                    {/* Botones de acción */}
+                    <View style={styles.mealActions}>
+                      {/* Botón para marcar como consumida */}
+                      <TouchableOpacity 
+                        style={[
+                          styles.consumedButton,
+                          consumedMeals.has(`${dayIndex}-${globalMealIndex}`) && styles.consumedButtonMarked,
+                          markingMeal === `${dayIndex}-${globalMealIndex}` && styles.buttonDisabled
+                        ]}
+                        onPress={() => handleMarkMealAsConsumed(meal, dayIndex, globalMealIndex)}
+                        disabled={markingMeal === `${dayIndex}-${globalMealIndex}` || consumedMeals.has(`${dayIndex}-${globalMealIndex}`)}
+                      >
+                        {markingMeal === `${dayIndex}-${globalMealIndex}` ? (
+                          <ActivityIndicator size="small" color="#4CAF50" />
+                        ) : (
+                          <Text style={[
+                            styles.consumedButtonText,
+                            consumedMeals.has(`${dayIndex}-${globalMealIndex}`) && styles.consumedButtonTextMarked
+                          ]}>
+                            ✓
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+
+                      {/* Botón para cambiar comida individual */}
+                      <TouchableOpacity 
+                        style={[
+                          styles.swapMealButton, 
+                          (isSwapping || !canModifyWeek(currentWeek)) && styles.buttonDisabled
+                        ]}
+                        onPress={() => handleSwapMeal(globalMealIndex, meal.title)}
+                        disabled={isSwapping || !canModifyWeek(currentWeek)}
+                      >
+                        {isSwapping ? (
+                          <ActivityIndicator size="small" color="#4CAF50" />
+                        ) : (
+                          <Text style={styles.swapMealButtonText}>
+                            {!canModifyWeek(currentWeek) ? '🔒' : '🔄'}
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
                   </View>
 
                   {meal.ingredients.length > 0 && (
@@ -1236,6 +1301,32 @@ const styles = StyleSheet.create({
   mealInfo: {
     flex: 1,
     marginRight: 10,
+  },
+  mealActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  consumedButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E8F5E9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#4CAF50',
+  },
+  consumedButtonMarked: {
+    backgroundColor: '#4CAF50',
+    opacity: 0.7,
+  },
+  consumedButtonText: {
+    fontSize: 18,
+    color: '#4CAF50',
+    fontWeight: 'bold',
+  },
+  consumedButtonTextMarked: {
+    color: '#fff',
   },
   swapMealButton: {
     width: 36,

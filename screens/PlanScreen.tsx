@@ -706,61 +706,60 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
-  header: {
-    backgroundColor: '#4CAF50',
+  // Estilos del nuevo header
+  planInfo: {
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 20,
+  },
+  planHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  headerTitleContainer: {
+  weekNavigationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
-  headerTitle: {
-    fontSize: 24,
+  weekInfo: {
+    marginHorizontal: 15,
+  },
+  weekTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
   },
-  pastWeekBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginTop: 5,
-    alignSelf: 'flex-start',
-  },
-  pastWeekBadgeText: {
-    color: '#fff',
+  readOnlyTag: {
     fontSize: 12,
-    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginTop: 4,
   },
-  headerButtons: {
+  headerActions: {
     flexDirection: 'row',
     gap: 10,
   },
-  shoppingListButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  actionButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
-  shoppingListButtonText: {
-    fontSize: 18,
-  },
-  shareButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  shareButtonText: {
-    fontSize: 16,
+  actionButtonIcon: {
+    fontSize: 20,
   },
   weekNavigation: {
     backgroundColor: '#fff',
@@ -791,11 +790,6 @@ const styles = StyleSheet.create({
   },
   navButtonTextDisabled: {
     color: '#ccc',
-  },
-  weekTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
   },
   daySelector: {
     backgroundColor: '#fff',

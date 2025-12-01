@@ -105,7 +105,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
   const handleGeneratePlan = async () => {
     try {
       setIsGenerating(true);
-      setGenerationProgress(0);
+      setGenerationProgress(10);
 
       // Iniciar la generación del plan
       const generateResponse = await NutritionService.generatePlanWithAI(currentWeek);
@@ -116,6 +116,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
       }
     } catch (error: any) {
       console.log('Error generating plan:', error);
+      
+      // Si es un 504 Gateway Timeout, el plan se está creando en background
+      if (error.response?.status === 504) {
+        console.log('⏰ 504 Gateway Timeout - Plan creating in background, starting polling...');
+        setGenerationProgress(20);
+        // Generar un planId temporal basado en la semana
+        const tempPlanId = `${currentWeek}-${Date.now()}`;
+        // Iniciar polling de todas formas
+        pollForPlan(tempPlanId);
+        return;
+      }
+
       setIsGenerating(false);
       setGenerationProgress(0);
 
@@ -134,14 +146,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
     const pollInterval = 6000; // 6 segundos entre intentos
 
     // Actualizar progreso basado en intentos
-    const progress = Math.min((attempts / maxAttempts) * 100, 95);
+    const progress = Math.min(20 + (attempts / maxAttempts) * 75, 95);
     setGenerationProgress(progress);
 
     try {
       // Intentar obtener el plan actualizado
       const plan = await NutritionService.getWeeklyPlan(currentWeek);
 
-      if (plan && plan.id === planId) {
+      // Verificar si el plan existe (sin importar el ID si fue un 504)
+      const isPlanReady = plan && (plan.id === planId || planId.includes(currentWeek));
+      
+      if (isPlanReady) {
         // El plan está listo
         setGenerationProgress(100);
         setTimeout(() => {

@@ -79,6 +79,20 @@ export const WorkoutsTab: React.FC = () => {
       }
     } catch (error: any) {
       console.error('❌ Error generating workout plan:', error);
+      console.error('Error status:', error.response?.status);
+      
+      // Si es un 504 Gateway Timeout, el plan se está creando en background
+      if (error.response?.status === 504) {
+        console.warn('⏰ 504 Gateway Timeout - Plan creating in background, starting polling immediately...');
+        setGenerationProgress(20);
+        // Generar un planId temporal basado en la semana
+        const tempPlanId = `${currentWeek}-${Date.now()}`;
+        // Iniciar polling inmediatamente (sin esperar 30 segundos)
+        console.warn('🔍 Starting polling immediately for 504...');
+        pollForWorkoutPlan(tempPlanId, 0);
+        return;
+      }
+
       setIsGenerating(false);
       setGenerationProgress(0);
 
@@ -95,16 +109,20 @@ export const WorkoutsTab: React.FC = () => {
   const pollForWorkoutPlan = async (planId: string, attempts: number = 0) => {
     const maxAttempts = 15; // 15 intentos
     
+    // Si el planId contiene la semana actual, es un ID temporal (viene de 504)
+    const is504Timeout = planId.includes(currentWeek);
+    
     // Estrategia de polling adaptativa:
-    // - Primer intento: esperar 30 segundos (la API tarda ~35 segundos)
-    // - Siguientes intentos: cada 5 segundos
+    // - Si es 504: polling cada 10 segundos desde el inicio
+    // - Si es normal: primer intento a los 30s, luego cada 5s
     const getPollingInterval = (attempt: number) => {
-      if (attempt === 0) return 30000; // 30 segundos para el primer intento
+      if (is504Timeout) return 10000; // 10 segundos para 504
+      if (attempt === 0) return 30000; // 30 segundos para el primer intento normal
       return 5000; // 5 segundos para los siguientes
     };
 
     // Actualizar progreso basado en intentos
-    const progress = Math.min((attempts / maxAttempts) * 100, 95);
+    const progress = Math.min(20 + (attempts / maxAttempts) * 75, 95);
     setGenerationProgress(progress);
 
     console.warn(`🔄 Polling attempt ${attempts + 1}/${maxAttempts} for workout plan ${planId}`);

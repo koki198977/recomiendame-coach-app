@@ -35,8 +35,12 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       <View style={styles.content}>
         <View style={styles.leftSection}>
           {showLogo && (
-            <View style={styles.logoWrapper}>
-              <Logo size="small" showText={false} />
+            <View style={styles.logoContainer}>
+              {/* Glow effect */}
+              <View style={styles.logoGlow} />
+              <View style={styles.logoWrapper}>
+                <Logo size="small" showText={false} />
+              </View>
             </View>
           )}
           <View style={styles.textContainer}>
@@ -108,13 +112,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  logoWrapper: {
+  logoContainer: {
+    position: 'relative',
     marginRight: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    padding: 8,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  logoGlow: {
+    position: 'absolute',
+    top: -4,
+    left: -4,
+    right: -4,
+    bottom: -4,
+    backgroundColor: '#4CAF50',
+    borderRadius: 22,
+    opacity: 0.4,
+    shadowColor: '#4CAF50',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.8,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  logoWrapper: {
+    backgroundColor: '#FFFFFF', // Fondo blanco sólido
+    padding: 10,
+    borderRadius: 18,
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 12,
   },
   textContainer: {
     flex: 1,

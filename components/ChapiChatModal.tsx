@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Keyboard,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ChapiService from '../services/chapiService';
@@ -45,6 +46,22 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
       }, 100);
     }
   }, [messages]);
+
+  // Manejar apertura del teclado
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+    };
+  }, []);
 
   const loadMessages = async () => {
     try {
@@ -220,7 +237,7 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
     >
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         {/* Header */}
@@ -288,6 +305,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+    ...Platform.select({
+      android: {
+        // En Android, dejamos que adjustResize maneje el teclado
+      },
+    }),
   },
   header: {
     flexDirection: 'row',

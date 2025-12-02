@@ -11,11 +11,10 @@ import {
   Alert,
   Image,
 } from 'react-native';
-// TEMPORALMENTE DESHABILITADO - Causa crash en build
-// import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SocialService } from '../services/socialService';
 import { Post, CreatePostRequest } from '../types/nutrition';
-import { LinearGradient } from 'expo-linear-gradient';
 interface CreatePostModalProps {
   visible: boolean;
   onClose: () => void;
@@ -104,22 +103,16 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
   };
 
   const requestPermissions = async () => {
-    try {
-      const ImagePicker = await import('expo-image-picker');
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permisos requeridos',
-          'Necesitamos acceso a tu galería para seleccionar imágenes.',
-          [{ text: 'OK' }]
-        );
-        return false;
-      }
-      return true;
-    } catch (error) {
-      console.error('Error loading ImagePicker:', error);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permisos requeridos',
+        'Necesitamos acceso a tu galería para seleccionar imágenes.',
+        [{ text: 'OK' }]
+      );
       return false;
     }
+    return true;
   };
 
   const selectImageFromGallery = async () => {
@@ -127,7 +120,6 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
     if (!hasPermission) return;
 
     try {
-      const ImagePicker = await import('expo-image-picker');
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -147,18 +139,17 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
   };
 
   const takePhoto = async () => {
-    try {
-      const ImagePicker = await import('expo-image-picker');
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permisos requeridos',
-          'Necesitamos acceso a tu cámara para tomar fotos.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permisos requeridos',
+        'Necesitamos acceso a tu cámara para tomar fotos.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
 
+    try {
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [4, 5],

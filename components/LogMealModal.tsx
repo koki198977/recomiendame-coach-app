@@ -11,7 +11,6 @@ import {
   Alert,
   TextInput,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { NutritionService } from '../services/nutritionService';
 import { SocialService } from '../services/socialService';
 import { COLORS } from '../theme/theme';
@@ -42,41 +41,57 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
   ];
 
   const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert('Permiso denegado', 'Necesitamos acceso a tu galería.');
-      return;
-    }
+    try {
+      // Lazy load para evitar crash al inicio
+      const ImagePicker = await import('expo-image-picker');
+      
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permiso denegado', 'Necesitamos acceso a tu galería.');
+        return;
+      }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.7,
-    });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.7,
+      });
 
-    if (!result.canceled && result.assets[0]) {
-      setImageUri(result.assets[0].uri);
-      setAnalyzed(null);
+      if (!result.canceled && result.assets[0]) {
+        setImageUri(result.assets[0].uri);
+        setAnalyzed(null);
+      }
+    } catch (error) {
+      console.error('Error loading ImagePicker:', error);
+      Alert.alert('Error', 'No se pudo cargar el selector de imágenes');
     }
   };
 
   const takePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert('Permiso denegado', 'Necesitamos acceso a tu cámara.');
-      return;
-    }
+    try {
+      // Lazy load para evitar crash al inicio
+      const ImagePicker = await import('expo-image-picker');
+      
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permiso denegado', 'Necesitamos acceso a tu cámara.');
+        return;
+      }
 
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      quality: 0.7,
-    });
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        quality: 0.7,
+      });
 
-    if (!result.canceled && result.assets[0]) {
-      setImageUri(result.assets[0].uri);
-      setAnalyzed(null);
+      if (!result.canceled && result.assets[0]) {
+        setImageUri(result.assets[0].uri);
+        setAnalyzed(null);
+      }
+    } catch (error) {
+      console.error('Error loading ImagePicker:', error);
+      Alert.alert('Error', 'No se pudo cargar la cámara');
     }
   };
 

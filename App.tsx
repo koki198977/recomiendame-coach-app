@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { LoginScreen } from './screens/LoginScreen';
 import { RegisterScreen } from './screens/RegisterScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
@@ -16,6 +17,10 @@ import { ChapiBubble } from './components/ChapiBubble';
 import { ChapiChatModal } from './components/ChapiChatModal';
 import { NutritionService } from './services/nutritionService';
 import { UserProfile } from './types/nutrition';
+import { setupErrorHandlers } from './utils/errorLogger';
+
+// Configurar handlers de errores al inicio
+setupErrorHandlers();
 
 // Componente principal con tabs manuales
 const MainApp: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
@@ -320,14 +325,14 @@ export default function App() {
 
   // App principal con navegación manual
   return (
-    <>
+    <ErrorBoundary>
       <MainApp onLogout={handleLogout} />
       <CompleteProfileModal
         visible={showCompleteProfile}
         onComplete={handleCompleteProfile}
         onSkip={handleSkipProfile}
       />
-    </>
+    </ErrorBoundary>
   );
 }
 

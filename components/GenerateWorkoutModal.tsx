@@ -9,7 +9,6 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { WorkoutGoal } from '../types/nutrition';
 
 interface GenerateWorkoutModalProps {
@@ -55,45 +54,53 @@ export const GenerateWorkoutModal: React.FC<GenerateWorkoutModalProps> = ({
   ];
 
   const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert('Permiso denegado', 'Necesitamos acceso a tu galería para subir fotos de tus máquinas.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      quality: 0.3,
-      allowsEditing: false,
-      aspect: undefined,
-    });
-
-    if (!result.canceled && result.assets) {
-      const maxImages = 5;
-      const currentTotal = equipmentImages.length;
-      const availableSlots = maxImages - currentTotal;
+    try {
+      // Lazy load para evitar crash al inicio
+      const ImagePicker = await import('expo-image-picker');
       
-      if (availableSlots <= 0) {
-        Alert.alert(
-          'Límite alcanzado',
-          `Solo puedes subir hasta ${maxImages} imágenes de equipamiento.`
-        );
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permiso denegado', 'Necesitamos acceso a tu galería para subir fotos de tus máquinas.');
         return;
       }
-      
-      const newImages = result.assets.slice(0, availableSlots).map(asset => asset.uri);
-      setEquipmentImages([...equipmentImages, ...newImages]);
-      
-      if (result.assets.length > availableSlots) {
-        Alert.alert(
-          'Límite de imágenes',
-          `Solo se agregaron ${availableSlots} de ${result.assets.length} imágenes seleccionadas.`
-        );
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        quality: 0.3,
+        allowsEditing: false,
+        aspect: undefined,
+      });
+
+      if (!result.canceled && result.assets) {
+        const maxImages = 5;
+        const currentTotal = equipmentImages.length;
+        const availableSlots = maxImages - currentTotal;
+        
+        if (availableSlots <= 0) {
+          Alert.alert(
+            'Límite alcanzado',
+            `Solo puedes subir hasta ${maxImages} imágenes de equipamiento.`
+          );
+          return;
+        }
+        
+        const newImages = result.assets.slice(0, availableSlots).map(asset => asset.uri);
+        setEquipmentImages([...equipmentImages, ...newImages]);
+        
+        if (result.assets.length > availableSlots) {
+          Alert.alert(
+            'Límite de imágenes',
+            `Solo se agregaron ${availableSlots} de ${result.assets.length} imágenes seleccionadas.`
+          );
+        }
+        
+        console.log(`📸 Added ${newImages.length} images (total: ${equipmentImages.length + newImages.length})`);
       }
-      
-      console.log(`📸 Added ${newImages.length} images (total: ${equipmentImages.length + newImages.length})`);
+    } catch (error) {
+      console.error('Error loading ImagePicker:', error);
+      Alert.alert('Error', 'No se pudo cargar el selector de imágenes');
     }
   };
 

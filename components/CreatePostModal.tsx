@@ -15,7 +15,7 @@ import {
 // import { LinearGradient } from 'expo-linear-gradient';
 import { SocialService } from '../services/socialService';
 import { Post, CreatePostRequest } from '../types/nutrition';
-
+import { LinearGradient } from 'expo-linear-gradient';
 interface CreatePostModalProps {
   visible: boolean;
   onClose: () => void;

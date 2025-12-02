@@ -11,7 +11,8 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+// TEMPORALMENTE DESHABILITADO - Causa crash en build
+// import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SocialService } from '../services/socialService';
 import { Post, CreatePostRequest } from '../types/nutrition';
@@ -124,14 +125,14 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: [4, 5], // Aspecto similar a Instagram
+        aspect: [4, 5],
         quality: 0.8,
         base64: false,
       });
 
       if (!result.canceled && result.assets[0]) {
         setSelectedImage(result.assets[0].uri);
-        setMediaUrl(''); // Limpiar URL manual si se selecciona imagen
+        setMediaUrl('');
       }
     } catch (error) {
       console.log('Error selecting image:', error);
@@ -160,7 +161,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
 
       if (!result.canceled && result.assets[0]) {
         setSelectedImage(result.assets[0].uri);
-        setMediaUrl(''); // Limpiar URL manual si se toma foto
+        setMediaUrl('');
       }
     } catch (error) {
       console.log('Error taking photo:', error);

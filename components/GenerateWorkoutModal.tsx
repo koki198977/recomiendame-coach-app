@@ -55,7 +55,6 @@ export const GenerateWorkoutModal: React.FC<GenerateWorkoutModalProps> = ({
   ];
 
   const pickImage = async () => {
-    // Solicitar permisos
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     
     if (status !== 'granted') {
@@ -63,17 +62,15 @@ export const GenerateWorkoutModal: React.FC<GenerateWorkoutModalProps> = ({
       return;
     }
 
-    // Abrir selector de imágenes con calidad muy reducida
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: true,
-      quality: 0.3, // Calidad muy baja para reducir tamaño
+      quality: 0.3,
       allowsEditing: false,
       aspect: undefined,
     });
 
     if (!result.canceled && result.assets) {
-      // Limitar a máximo 5 imágenes para evitar payloads muy grandes
       const maxImages = 5;
       const currentTotal = equipmentImages.length;
       const availableSlots = maxImages - currentTotal;

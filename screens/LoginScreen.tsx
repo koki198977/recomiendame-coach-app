@@ -10,6 +10,7 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AuthService } from '../services/authService';
@@ -152,7 +153,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
   return (
     <KeyboardAvoidingView 
       style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Background Gradient */}
       <LinearGradient
@@ -168,7 +169,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
       <View style={styles.decorativeCircle3} />
 
       {/* Content */}
-      <View style={styles.content}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {/* Logo Section */}
         <View style={styles.logoSection}>
           {/* Logo con efecto mejorado */}
@@ -274,13 +280,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
             <Text style={styles.signupButtonText}>Regístrate gratis</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  scrollView: {
     flex: 1,
   },
   backgroundGradient: {
@@ -318,11 +327,10 @@ const styles = StyleSheet.create({
     right: 20,
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: 30,
-    justifyContent: 'space-between',
     paddingTop: 60,
-    paddingBottom: 40,
+    paddingBottom: 60, // Más espacio para la barra de navegación
   },
   logoSection: {
     alignItems: 'center',
@@ -469,6 +477,7 @@ const styles = StyleSheet.create({
   bottomSection: {
     alignItems: 'center',
     marginTop: 40,
+    paddingBottom: 20, // Espacio extra para la barra de navegación
   },
   signupText: {
     color: 'rgba(255, 255, 255, 0.8)',

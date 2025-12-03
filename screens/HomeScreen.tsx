@@ -326,8 +326,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
       <ScrollView style={styles.container}>
         {/* Modern Header with Logo */}
         <AppHeader
-          title={`¡Hola, ${user?.name || 'Usuario'}!`}
-          subtitle={weeklyPlan ? `Semana ${currentWeek}` : 'Crea tu plan nutricional'}
+          title={`¡Hola, ${user?.name || 'Usuario'}! 👋`}
+          subtitle={weeklyPlan ? `Hoy vamos por esa energía 💪` : 'Vamos a crear tu plan nutricional'}
           showLogo={true}
           rightComponent={<NotificationBadge count={0} />}
         />
@@ -424,7 +424,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
 
             {/* Macros del plan */}
             <View style={styles.macrosCard}>
-              <Text style={styles.cardTitle}>Objetivos nutricionales</Text>
+              <View style={styles.macrosHeader}>
+                <Text style={styles.cardTitle}>Objetivos nutricionales</Text>
+                <View style={styles.dailyBadge}>
+                  <Text style={styles.dailyBadgeText}>Diarios</Text>
+                </View>
+              </View>
               <View style={styles.macrosRow}>
                 <View style={styles.macroItem}>
                   <Text style={styles.macroNumber}>{weeklyPlan.macros.protein_g}g</Text>
@@ -839,6 +844,25 @@ const styles = StyleSheet.create({
   },
 
   // Macros Specific
+  macrosHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  dailyBadge: {
+    backgroundColor: 'rgba(255, 152, 0, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 152, 0, 0.3)',
+  },
+  dailyBadgeText: {
+    fontSize: 12,
+    color: '#F57C00',
+    fontWeight: '700',
+  },
   macrosRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',

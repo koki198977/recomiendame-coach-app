@@ -1,66 +1,67 @@
 import { StyleSheet } from 'react-native';
 
 export const COLORS = {
-  // Primary (Neon Green Gradient)
-  primaryStart: '#43E97B',
-  primaryEnd: '#38F9D7',
-  primary: '#00E676', // Fallback solid
+  // Primary - Sage Green (Naturaleza Moderna)
+  primaryStart: '#74B796',
+  primaryEnd: '#8BC9A8',
+  primary: '#74B796', // Sage Green - Calma, crecimiento, salud orgánica
 
-  // Secondary (AI/Tech)
-  secondary: '#6C63FF',
-  secondaryLight: '#E0E0FF',
+  // Secondary - Warm Clay
+  secondary: '#E88D72', // Warm Clay - Energía, calidez, acción
+  secondaryLight: '#F5C4B3',
 
   // Backgrounds
-  background: '#F5F7FA', // Light cool gray
+  background: '#FAFAF6', // Off-White - Reduce fatiga visual
   card: '#FFFFFF',
   
   // Text
-  text: '#1A202C',
-  textLight: '#718096',
+  text: '#2C3E36', // Deep Forest - Legibilidad alta pero menos dura
+  textLight: '#6B7F73',
   textWhite: '#FFFFFF',
 
   // Status
-  success: '#00E676',
-  warning: '#FFB300',
-  error: '#FF5252',
-  info: '#2979FF',
+  success: '#74B796', // Sage Green
+  warning: '#E88D72', // Warm Clay
+  error: '#D97066',
+  info: '#7BA3BC',
 
   // UI Elements
-  border: '#E2E8F0',
-  divider: '#EDF2F7',
+  border: '#E5E8E3',
+  divider: '#F0F2EE',
 };
 
 export const SHADOWS = {
   // Soft shadow for cards
   card: {
-    shadowColor: '#000',
+    shadowColor: '#2C3E36',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 3,
   },
-  // Colored glow for primary elements
+  // Colored glow for primary elements (más suave)
   glow: {
-    shadowColor: '#43E97B',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowColor: '#74B796',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
   },
   // Floating elements
   floating: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowColor: '#2C3E36',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
   },
 };
 
 export const GRADIENTS = {
-  primary: ['#43E97B', '#38F9D7'] as const,
-  header: ['#43E97B', '#38F9D7'] as const,
-  ai: ['#6C63FF', '#38F9D7'] as const, // Purple to Green for AI
+  primary: ['#74B796', '#8BC9A8'] as const, // Sage Green gradient
+  header: ['#74B796', '#8BC9A8'] as const,
+  warm: ['#E88D72', '#F5A88E'] as const, // Warm Clay gradient
+  ai: ['#7BA3BC', '#8BC9A8'] as const, // Soft blue to sage green for AI
 };
 
 export const COMMON_STYLES = StyleSheet.create({

@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   Dimensions,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -28,25 +29,31 @@ export const PlanGeneratingModal: React.FC<PlanGeneratingModalProps> = ({
 }) => {
   // Textos por defecto según el tipo
   const defaultTitle = type === 'workout' 
-    ? 'Generando tu rutina personalizada'
-    : 'Generando tu plan personalizado';
+    ? 'Chapi está diseñando tu rutina perfecta...'
+    : 'Chapi está diseñando tu menú perfecto...';
   
   const defaultDescription = type === 'workout'
-    ? 'Nuestra IA está analizando tus objetivos y creando una rutina de ejercicios única para ti'
-    : 'Nuestra IA está analizando tus preferencias y creando un plan nutricional único para ti';
+    ? 'Estoy analizando tus objetivos y seleccionando los mejores ejercicios para ti'
+    : 'Estoy eligiendo recetas deliciosas que te van a encantar';
 
   // Mensajes de estado según el tipo
   const getStatusMessage = () => {
     if (type === 'workout') {
-      if (progress < 30) return '🔍 Analizando tu perfil de entrenamiento...';
-      if (progress < 60) return '💪 Seleccionando ejercicios ideales...';
-      if (progress < 90) return '📊 Calculando series y repeticiones...';
-      return '✨ Finalizando tu rutina personalizada...';
+      if (progress < 15) return '🔍 Revisando tus objetivos...';
+      if (progress < 30) return '💪 Viendo qué ejercicios te van mejor...';
+      if (progress < 45) return '🎯 Eligiendo los movimientos perfectos...';
+      if (progress < 60) return '📊 Ajustando las repeticiones ideales...';
+      if (progress < 75) return '⚡ Balanceando intensidad y descanso...';
+      if (progress < 90) return '🏋️ Armando tu semana de entrenamiento...';
+      return '✨ ¡Ya casi está listo!';
     } else {
-      if (progress < 30) return '🔍 Analizando tu perfil nutricional...';
-      if (progress < 60) return '🍎 Seleccionando alimentos ideales...';
-      if (progress < 90) return '📊 Calculando macronutrientes...';
-      return '✨ Finalizando tu plan personalizado...';
+      if (progress < 15) return '🔍 Conociendo tus gustos...';
+      if (progress < 30) return '🍎 Buscando recetas que te encantarán...';
+      if (progress < 45) return '🥗 Eligiendo ingredientes frescos...';
+      if (progress < 60) return '📊 Balanceando tus nutrientes...';
+      if (progress < 75) return '⚖️ Organizando tu semana...';
+      if (progress < 90) return '🍽️ Preparando tus comidas diarias...';
+      return '✨ ¡Ya casi está listo!';
     }
   };
 
@@ -61,11 +68,13 @@ export const PlanGeneratingModal: React.FC<PlanGeneratingModalProps> = ({
             end={{ x: 1, y: 1 }}
           />
           
-          {/* AI Animation */}
+          {/* Chapi 3D Character */}
           <View style={styles.aiContainer}>
-            <View style={styles.aiIcon}>
-              <Text style={styles.aiEmoji}>🤖</Text>
-            </View>
+            <Image 
+              source={require('../assets/chapi-3d.png')}
+              style={styles.chapiImage}
+              resizeMode="contain"
+            />
             <ActivityIndicator size="large" color="#fff" style={styles.spinner} />
           </View>
 
@@ -92,10 +101,10 @@ export const PlanGeneratingModal: React.FC<PlanGeneratingModalProps> = ({
 
           {/* Time Estimate */}
           <Text style={styles.timeEstimate}>
-            Tiempo estimado: 1-2 minutos
+            Esto tomará solo 1-2 minutos ⏱️
           </Text>
           <Text style={styles.timeNote}>
-            Por favor mantén la app abierta durante el proceso
+            Mantén la app abierta mientras trabajo en esto
           </Text>
         </View>
       </View>
@@ -127,24 +136,15 @@ const styles = StyleSheet.create({
   aiContainer: {
     position: 'relative',
     marginBottom: 30,
-  },
-  aiIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
   },
-  aiEmoji: {
-    fontSize: 40,
+  chapiImage: {
+    width: 120,
+    height: 120,
+    marginBottom: 20,
   },
   spinner: {
     position: 'absolute',
-    top: -10,
-    left: -10,
-    right: -10,
     bottom: -10,
   },
   title: {

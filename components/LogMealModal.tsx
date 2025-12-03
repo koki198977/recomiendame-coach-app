@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { NutritionService } from '../services/nutritionService';
@@ -126,7 +128,7 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
         imageUrl: analyzed.imageUrl,
       });
 
-      Alert.alert('¡Registrado! ✅', 'Tu comida ha sido registrada exitosamente.');
+      // Cerrar automáticamente sin alert
       onSuccess();
       handleClose();
     } catch (error) {
@@ -144,7 +146,10 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView 
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <View style={styles.container}>
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* Header */}
@@ -285,7 +290,7 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
             )}
           </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -427,6 +432,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     minHeight: 60,
     textAlignVertical: 'top',
+    color: '#000',
   },
   analyzeButton: {
     backgroundColor: '#4CAF50',

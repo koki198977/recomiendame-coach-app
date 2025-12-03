@@ -144,9 +144,9 @@ export const EditPreferencesModal: React.FC<EditPreferencesModalProps> = ({
       }
 
       await NutritionService.updateUserPreferences(preferences);
+      // Guardar y cerrar automáticamente
       onSave(preferences);
       onClose();
-      Alert.alert('¡Guardado!', 'Tus preferencias han sido actualizadas');
     } catch (error) {
       console.log('Error saving preferences:', error);
       Alert.alert('Error', 'No se pudieron guardar las preferencias');

@@ -818,13 +818,7 @@ export const PlanScreen: React.FC = () => {
       <ScrollView style={styles.content}>
         {weeklyPlan ? (
           <>
-            {/* Selected Day Info */}
-            <View style={styles.dayInfo}>
-              <Text style={styles.dayInfoText}>
-                {weekDays[selectedDay]?.dayName} {weekDays[selectedDay]?.dateNumber}
-                {weekDays[selectedDay]?.isToday && ' (Hoy)'}
-              </Text>
-            </View>
+
 
             {/* Meal Plan */}
             {renderMealPlan()}
@@ -837,14 +831,24 @@ export const PlanScreen: React.FC = () => {
               </View>
             )}
 
-            {/* Macros Summary */}
+            {/* Macros Summary con barra de progreso */}
             <View style={styles.macrosSection}>
               <Text style={styles.macrosTitle}>📊 Objetivos nutricionales</Text>
-              <View style={styles.macrosRow}>
-                <View style={styles.macroItem}>
-                  <Text style={styles.macroNumber}>{weeklyPlan.macros.kcalTarget}</Text>
-                  <Text style={styles.macroLabel}>kcal/día</Text>
+              
+              {/* Calorías con barra de progreso */}
+              <View style={styles.macroWithProgress}>
+                <View style={styles.macroHeader}>
+                  <Text style={styles.macroLabelLarge}>Calorías</Text>
+                  <Text style={styles.macroNumberLarge}>{weeklyPlan.macros.kcalTarget} kcal/día</Text>
                 </View>
+                <View style={styles.progressBarContainer}>
+                  <View style={[styles.progressBar, { width: '0%' }]} />
+                </View>
+                <Text style={styles.progressHint}>Marca las comidas que consumas para ver tu progreso</Text>
+              </View>
+
+              {/* Macros en fila */}
+              <View style={styles.macrosRow}>
                 <View style={styles.macroItem}>
                   <Text style={styles.macroNumber}>{weeklyPlan.macros.protein_g}g</Text>
                   <Text style={styles.macroLabel}>Proteína</Text>
@@ -1024,15 +1028,15 @@ const styles = StyleSheet.create({
   },
   daySelector: {
     backgroundColor: '#fff',
-    paddingVertical: 15,
+    paddingVertical: 8,
   },
   dayButton: {
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    marginHorizontal: 5,
-    borderRadius: 15,
-    minWidth: 60,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginHorizontal: 2,
+    borderRadius: 10,
+    minWidth: 42,
   },
   dayButtonActive: {
     backgroundColor: '#4CAF50',
@@ -1042,7 +1046,7 @@ const styles = StyleSheet.create({
     borderColor: '#FF9800',
   },
   dayText: {
-    fontSize: 12,
+    fontSize: 9,
     color: '#666',
     fontWeight: '500',
   },
@@ -1054,10 +1058,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   dayNumber: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: 'bold',
     color: '#333',
-    marginTop: 2,
+    marginTop: 1,
   },
   dayNumberActive: {
     color: '#fff',
@@ -1068,10 +1072,10 @@ const styles = StyleSheet.create({
   },
   todayIndicator: {
     position: 'absolute',
-    bottom: 5,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    bottom: 2,
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
     backgroundColor: '#FF9800',
   },
   content: {
@@ -1236,6 +1240,43 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginTop: 5,
+  },
+  macroWithProgress: {
+    marginBottom: 20,
+  },
+  macroHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  macroLabelLarge: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  macroNumberLarge: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+  },
+  progressBarContainer: {
+    height: 12,
+    backgroundColor: '#E8F5E9',
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+    borderRadius: 6,
+  },
+  progressHint: {
+    fontSize: 11,
+    color: '#999',
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
   noPlanContainer: {
     backgroundColor: '#fff',

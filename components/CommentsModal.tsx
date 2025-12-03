@@ -475,6 +475,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
     maxHeight: 100,
     marginRight: 10,
+    color: '#000',
   },
   sendButton: {
     width: 40,

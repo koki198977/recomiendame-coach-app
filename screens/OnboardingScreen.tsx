@@ -27,28 +27,67 @@ export const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
     activityLevel: '',
   });
 
+  const activityLevels = [
+    { key: 'sedentary', emoji: '🪑', label: 'Sedentario', description: 'Poco o nada de ejercicio' },
+    { key: 'light', emoji: '🚶', label: 'Ligero', description: 'Ejercicio ligero 1-3 días/semana' },
+    { key: 'moderate', emoji: '🏃', label: 'Moderado', description: 'Ejercicio moderado 3-5 días/semana' },
+    { key: 'active', emoji: '💪', label: 'Activo', description: 'Ejercicio intenso 6-7 días/semana' },
+  ];
+
+  const goals = [
+    { key: 'lose', emoji: '📉', label: 'Perder peso', description: 'Reducir grasa corporal' },
+    { key: 'maintain', emoji: '⚖️', label: 'Mantener', description: 'Mantener peso actual' },
+    { key: 'gain', emoji: '📈', label: 'Ganar músculo', description: 'Aumentar masa muscular' },
+  ];
+
   const steps = [
     {
       title: '¡Bienvenido! 👋',
       subtitle: 'Vamos a crear tu perfil nutricional personalizado',
+      type: 'welcome',
       fields: []
     },
     {
-      title: 'Datos básicos',
-      subtitle: 'Cuéntanos sobre ti',
+      title: '¡Hola! Para conocerte mejor...',
+      subtitle: 'Cuéntame un poco sobre ti',
+      type: 'input',
       fields: [
-        { key: 'weight', label: 'Peso (kg)', placeholder: '70', keyboardType: 'numeric' },
-        { key: 'height', label: 'Estatura (cm)', placeholder: '175', keyboardType: 'numeric' },
-        { key: 'age', label: 'Edad', placeholder: '25', keyboardType: 'numeric' },
+        { key: 'weight', label: '¿Cuánto pesas?', placeholder: 'Ej: 70 kg', keyboardType: 'numeric' },
+        { key: 'height', label: '¿Cuál es tu estatura?', placeholder: 'Ej: 175 cm', keyboardType: 'numeric' },
+        { key: 'age', label: '¿Cuántos años tienes?', placeholder: 'Ej: 25', keyboardType: 'numeric' },
       ]
     },
     {
-      title: 'Más información',
-      subtitle: 'Para personalizar tu plan',
+      title: '¿Cómo te identificas?',
+      subtitle: 'Esto me ayuda a personalizar mejor tu plan',
+      type: 'select',
+      key: 'gender',
+      options: [
+        { key: 'male', emoji: '👨', label: 'Masculino' },
+        { key: 'female', emoji: '👩', label: 'Femenino' },
+        { key: 'other', emoji: '🧑', label: 'Otro' },
+      ]
+    },
+    {
+      title: '¿Qué quieres lograr?',
+      subtitle: 'Tu meta es mi prioridad',
+      type: 'select',
+      key: 'goal',
+      options: goals
+    },
+    {
+      title: '¿Cuánto te mueves en tu día a día?',
+      subtitle: 'Esto me ayuda a calcular tu energía perfecta',
+      type: 'select',
+      key: 'activityLevel',
+      options: activityLevels
+    },
+    {
+      title: '¿Hay algún alimento que no te caiga bien?',
+      subtitle: 'Cuéntame sobre alergias o preferencias',
+      type: 'input',
       fields: [
-        { key: 'goal', label: 'Objetivo principal', placeholder: 'Perder peso, ganar músculo, mantener...' },
-        { key: 'activityLevel', label: 'Nivel de actividad', placeholder: 'Sedentario, activo, muy activo...' },
-        { key: 'allergies', label: 'Alergias o restricciones', placeholder: 'Ninguna, gluten, lactosa...' },
+        { key: 'allergies', label: 'Alimentos que prefieres evitar (opcional)', placeholder: 'Ej: Lactosa, gluten, soy vegetariano...' },
       ]
     }
   ];
@@ -108,7 +147,8 @@ export const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
       </View>
 
       <View style={styles.content}>
-        {currentStepData.fields.map((field) => (
+        {/* Campos de texto */}
+        {currentStepData.type === 'input' && currentStepData.fields.map((field) => (
           <View key={field.key} style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>{field.label}</Text>
             <TextInput
@@ -121,7 +161,50 @@ export const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
           </View>
         ))}
 
-        {isFirstStep && (
+        {/* Opciones de selección */}
+        {currentStepData.type === 'select' && currentStepData.options && (
+          <View style={styles.optionsContainer}>
+            {currentStepData.options.map((option) => {
+              const isSelected = formData[currentStepData.key as keyof typeof formData] === option.key;
+              return (
+                <TouchableOpacity
+                  key={option.key}
+                  style={[
+                    styles.optionCard,
+                    isSelected && styles.optionCardSelected
+                  ]}
+                  onPress={() => updateFormData(currentStepData.key, option.key)}
+                >
+                  <Text style={styles.optionEmoji}>{option.emoji}</Text>
+                  <View style={styles.optionTextContainer}>
+                    <Text style={[
+                      styles.optionLabel,
+                      isSelected && styles.optionLabelSelected
+                    ]}>
+                      {option.label}
+                    </Text>
+                    {option.description && (
+                      <Text style={[
+                        styles.optionDescription,
+                        isSelected && styles.optionDescriptionSelected
+                      ]}>
+                        {option.description}
+                      </Text>
+                    )}
+                  </View>
+                  {isSelected && (
+                    <View style={styles.checkmark}>
+                      <Text style={styles.checkmarkText}>✓</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Pantalla de bienvenida */}
+        {currentStepData.type === 'welcome' && (
           <View style={styles.welcomeContent}>
             <Text style={styles.sectionTitle}>
               ¿Qué incluye Recomiéndame Coach?
@@ -223,6 +306,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
+    color: '#000',
   },
   welcomeContent: {
     alignItems: 'center',
@@ -290,5 +374,68 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  optionsContainer: {
+    gap: 12,
+  },
+  optionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  optionCardSelected: {
+    backgroundColor: '#fff',
+    borderColor: '#4CAF50',
+    borderWidth: 3,
+    shadowColor: '#4CAF50',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  optionEmoji: {
+    fontSize: 32,
+    marginRight: 16,
+  },
+  optionTextContainer: {
+    flex: 1,
+  },
+  optionLabel: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 4,
+  },
+  optionLabelSelected: {
+    color: '#2E7D32',
+    fontWeight: '700',
+  },
+  optionDescription: {
+    fontSize: 14,
+    color: '#999',
+  },
+  optionDescriptionSelected: {
+    color: '#4CAF50',
+  },
+  checkmark: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#4CAF50',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  checkmarkText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

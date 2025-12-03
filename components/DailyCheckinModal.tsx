@@ -9,6 +9,8 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NutritionService } from '../services/nutritionService';
@@ -106,27 +108,9 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
       const response = await NutritionService.createCheckin(checkinData);
       
       if (response.ok) {
-        // Llamar onSuccess inmediatamente para actualizar los datos
+        // Llamar onSuccess y cerrar automáticamente
         onSuccess?.(response);
-        
-        // Mostrar el alert de éxito
-        Alert.alert(
-          '¡Excelente! 🎉',
-          `Checkin registrado exitosamente.\n\n` +
-          `🔥 Racha: ${response.gamification.streakDays} días\n` +
-          `⭐ Puntos ganados: ${response.gamification.pointsAdded}\n` +
-          `🏆 Total de puntos: ${response.gamification.totalPoints}` +
-          (response.gamification.unlocked.length > 0 ? 
-            `\n🎖️ Logros desbloqueados: ${response.gamification.unlocked.join(', ')}` : ''),
-          [
-            {
-              text: 'Genial!',
-              onPress: () => {
-                onClose();
-              }
-            }
-          ]
-        );
+        onClose();
       } else {
         Alert.alert('Error', 'Hubo un problema al registrar el checkin');
       }
@@ -169,7 +153,10 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView 
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <View style={styles.container}>
           {/* Header */}
           <LinearGradient
@@ -283,7 +270,7 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -380,6 +367,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     backgroundColor: '#f9f9f9',
+    color: '#000', // Forzar color negro del texto
   },
   textArea: {
     height: 100,

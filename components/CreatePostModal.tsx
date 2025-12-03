@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -71,14 +73,9 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
 
       const newPost = await SocialService.createPost(postData);
       
-      // Cerrar modal inmediatamente y actualizar feed
+      // Cerrar modal inmediatamente y actualizar feed (sin alert)
       onPostCreated?.(newPost);
       handleClose();
-      
-      // Mostrar toast de éxito (opcional, sin bloquear el flujo)
-      setTimeout(() => {
-        Alert.alert('¡Éxito! 🎉', 'Tu post ha sido publicado exitosamente');
-      }, 300);
     } catch (error: any) {
       console.log('Error creating post:', error);
       Alert.alert('Error', 'No se pudo crear el post. Intenta de nuevo.');
@@ -187,7 +184,10 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView 
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <View style={styles.container}>
           {/* Header */}
           <LinearGradient
@@ -335,7 +335,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -416,6 +416,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     backgroundColor: '#f9f9f9',
+    color: '#000',
   },
   textArea: {
     borderWidth: 1,
@@ -427,6 +428,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
     height: 120,
     textAlignVertical: 'top',
+    color: '#000',
   },
   characterCount: {
     fontSize: 12,

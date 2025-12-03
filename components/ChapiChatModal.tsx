@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
   Keyboard,
+  Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ChapiService from '../services/chapiService';
@@ -244,7 +245,11 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View style={styles.chapiAvatar}>
-              <Text style={styles.chapiAvatarIcon}>🧠</Text>
+              <Image 
+                source={require('../assets/chapi-3d.png')}
+                style={styles.chapiAvatarImage}
+                resizeMode="contain"
+              />
             </View>
             <View>
               <Text style={styles.headerTitle}>Chapi</Text>
@@ -334,9 +339,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    overflow: 'hidden',
   },
-  chapiAvatarIcon: {
-    fontSize: 28,
+  chapiAvatarImage: {
+    width: 48,
+    height: 48,
   },
   headerTitle: {
     fontSize: 20,
@@ -472,6 +481,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     maxHeight: 100,
     marginRight: 10,
+    color: '#000', // Forzar color negro del texto
   },
   sendButton: {
     width: 44,

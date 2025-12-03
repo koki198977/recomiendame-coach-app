@@ -228,9 +228,8 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
 
       await AsyncStorage.setItem('userProfile', JSON.stringify(completeProfileData));
 
-      // 4. Notificar éxito
+      // Completar automáticamente sin alert
       onComplete(completeProfileData);
-      Alert.alert('¡Perfecto!', 'Tu perfil ha sido guardado exitosamente');
     } catch (error) {
       console.log('Error guardando perfil:', error);
       Alert.alert('Error', 'No se pudo guardar tu perfil. Intenta de nuevo.');

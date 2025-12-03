@@ -27,16 +27,17 @@
     },
     "android": {
       "package": "cl.recomiendameapp.coach",
-      "versionCode": 10,
+      "versionCode": 11,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#4CAF50"
       },
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "READ_MEDIA_IMAGES"
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -44,9 +45,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "58b4b1c2-116b-4580-b9c2-aa3b1d50491c"
+        "projectId": "b0932931-1a3a-4f83-9a05-6b11a2a6e8e5"
       }
     },
-    "owner": "kokialvarez77"
+    "owner": "kokialvarez78"
   }
 }

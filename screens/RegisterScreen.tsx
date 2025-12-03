@@ -171,6 +171,11 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
+              onFocus={() => {
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollTo({ y: 150, animated: true });
+                }, 100);
+              }}
             />
           </View>
 
@@ -187,6 +192,11 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 autoCorrect={false}
+                onFocus={() => {
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollTo({ y: 250, animated: true });
+                  }, 100);
+                }}
               />
               <TouchableOpacity
                 style={styles.eyeButton}
@@ -210,6 +220,11 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
                 secureTextEntry={!showConfirmPassword}
                 autoCapitalize="none"
                 autoCorrect={false}
+                onFocus={() => {
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollTo({ y: 350, animated: true });
+                  }, 100);
+                }}
               />
               <TouchableOpacity
                 style={styles.eyeButton}

@@ -27,7 +27,7 @@
     },
     "android": {
       "package": "cl.recomiendameapp.coach",
-      "versionCode": 9,
+      "versionCode": 10,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#4CAF50"

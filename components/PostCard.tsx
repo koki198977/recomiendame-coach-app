@@ -277,9 +277,7 @@ export const PostCard: React.FC<PostCardProps> = ({
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton}>
-          <Text style={styles.actionIcon}>📤</Text>
-        </TouchableOpacity>
+
       </View>
     </View>
   );

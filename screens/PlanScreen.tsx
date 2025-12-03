@@ -44,10 +44,21 @@ export const PlanScreen: React.FC = () => {
   const [generationProgress, setGenerationProgress] = useState(0);
   const [markingMeal, setMarkingMeal] = useState<string | null>(null); // "dayIndex-mealIndex"
   const [consumedMeals, setConsumedMeals] = useState<Set<string>>(new Set()); // Set de "dayIndex-mealIndex"
+  const [todayMealsConsumed, setTodayMealsConsumed] = useState<any>(null);
 
   useEffect(() => {
     loadWeeklyPlan();
+    loadTodayMeals();
   }, []);
+
+  const loadTodayMeals = async () => {
+    try {
+      const mealsConsumed = await NutritionService.getTodayMeals();
+      setTodayMealsConsumed(mealsConsumed);
+    } catch (error) {
+      console.log('Error loading today meals:', error);
+    }
+  };
 
   // Función para determinar si una semana es pasada
   const isWeekInPast = (weekString: string): boolean => {
@@ -324,6 +335,43 @@ export const PlanScreen: React.FC = () => {
     return dayPlan?.meals || [];
   };
 
+  // Calcular progreso nutricional del día seleccionado
+  const getDailyProgress = () => {
+    // Si es el día de hoy, usar los datos del backend
+    const selectedDayInfo = weekDays[selectedDay];
+    if (selectedDayInfo?.isToday && todayMealsConsumed?.totals) {
+      return {
+        kcal: todayMealsConsumed.totals.kcal || 0,
+        protein_g: todayMealsConsumed.totals.protein_g || 0,
+        carbs_g: todayMealsConsumed.totals.carbs_g || 0,
+        fat_g: todayMealsConsumed.totals.fat_g || 0,
+      };
+    }
+
+    // Para otros días, usar el tracking local (marcas de consumo)
+    const meals = getSelectedDayMeals();
+    const dayIndex = weekDays[selectedDay]?.dayIndex || 1;
+    
+    let consumed = {
+      kcal: 0,
+      protein_g: 0,
+      carbs_g: 0,
+      fat_g: 0,
+    };
+
+    meals.forEach((meal, mealIndex) => {
+      const markKey = `${dayIndex}-${mealIndex}`;
+      if (consumedMeals.has(markKey)) {
+        consumed.kcal += meal.kcal || 0;
+        consumed.protein_g += meal.protein_g || 0;
+        consumed.carbs_g += meal.carbs_g || 0;
+        consumed.fat_g += meal.fat_g || 0;
+      }
+    });
+
+    return consumed;
+  };
+
   const getMealTypeLabel = (slot: string): string => {
     const labels: { [key: string]: string } = {
       'BREAKFAST': '🌅 Desayuno',
@@ -476,6 +524,9 @@ export const PlanScreen: React.FC = () => {
       
       // Agregar al set de comidas consumidas
       setConsumedMeals(prev => new Set(prev).add(markKey));
+      
+      // Recargar comidas del día para actualizar el progreso
+      await loadTodayMeals();
       
       Alert.alert('¡Registrado! ✅', `"${meal.title}" ha sido marcada como consumida.`);
     } catch (error: any) {
@@ -831,33 +882,75 @@ export const PlanScreen: React.FC = () => {
             <View style={styles.macrosSection}>
               <Text style={styles.macrosTitle}>📊 Objetivos nutricionales</Text>
               
-              {/* Calorías con barra de progreso */}
-              <View style={styles.macroWithProgress}>
-                <View style={styles.macroHeader}>
-                  <Text style={styles.macroLabelLarge}>Calorías</Text>
-                  <Text style={styles.macroNumberLarge}>{weeklyPlan.macros.kcalTarget} kcal/día</Text>
-                </View>
-                <View style={styles.progressBarContainer}>
-                  <View style={[styles.progressBar, { width: '0%' }]} />
-                </View>
-                <Text style={styles.progressHint}>Marca las comidas que consumas para ver tu progreso</Text>
-              </View>
+              {(() => {
+                const progress = getDailyProgress();
+                const kcalPercent = Math.min(100, (progress.kcal / weeklyPlan.macros.kcalTarget) * 100);
+                const proteinPercent = Math.min(100, (progress.protein_g / weeklyPlan.macros.protein_g) * 100);
+                const carbsPercent = Math.min(100, (progress.carbs_g / weeklyPlan.macros.carbs_g) * 100);
+                const fatPercent = Math.min(100, (progress.fat_g / weeklyPlan.macros.fat_g) * 100);
 
-              {/* Macros en fila */}
-              <View style={styles.macrosRow}>
-                <View style={styles.macroItem}>
-                  <Text style={styles.macroNumber}>{weeklyPlan.macros.protein_g}g</Text>
-                  <Text style={styles.macroLabel}>Proteína</Text>
-                </View>
-                <View style={styles.macroItem}>
-                  <Text style={styles.macroNumber}>{weeklyPlan.macros.carbs_g}g</Text>
-                  <Text style={styles.macroLabel}>Carbos</Text>
-                </View>
-                <View style={styles.macroItem}>
-                  <Text style={styles.macroNumber}>{weeklyPlan.macros.fat_g}g</Text>
-                  <Text style={styles.macroLabel}>Grasas</Text>
-                </View>
-              </View>
+                return (
+                  <>
+                    {/* Calorías con barra de progreso */}
+                    <View style={styles.macroWithProgress}>
+                      <View style={styles.macroHeader}>
+                        <Text style={styles.macroLabelLarge}>Calorías</Text>
+                        <Text style={styles.macroNumberLarge}>
+                          {Math.round(progress.kcal)} / {weeklyPlan.macros.kcalTarget} kcal
+                        </Text>
+                      </View>
+                      <View style={styles.progressBarContainer}>
+                        <View style={[styles.progressBar, { width: `${kcalPercent}%` }]} />
+                      </View>
+                      {progress.kcal === 0 && (
+                        <Text style={styles.progressHint}>Marca las comidas que consumas para ver tu progreso</Text>
+                      )}
+                    </View>
+
+                    {/* Macros con barras de progreso */}
+                    <View style={styles.macrosColumn}>
+                      {/* Proteína */}
+                      <View style={styles.macroWithProgressSmall}>
+                        <View style={styles.macroHeaderSmall}>
+                          <Text style={styles.macroLabel}>Proteína</Text>
+                          <Text style={styles.macroNumber}>
+                            {Math.round(progress.protein_g)} / {weeklyPlan.macros.protein_g}g
+                          </Text>
+                        </View>
+                        <View style={styles.progressBarContainer}>
+                          <View style={[styles.progressBar, styles.progressBarProtein, { width: `${proteinPercent}%` }]} />
+                        </View>
+                      </View>
+
+                      {/* Carbohidratos */}
+                      <View style={styles.macroWithProgressSmall}>
+                        <View style={styles.macroHeaderSmall}>
+                          <Text style={styles.macroLabel}>Carbohidratos</Text>
+                          <Text style={styles.macroNumber}>
+                            {Math.round(progress.carbs_g)} / {weeklyPlan.macros.carbs_g}g
+                          </Text>
+                        </View>
+                        <View style={styles.progressBarContainer}>
+                          <View style={[styles.progressBar, styles.progressBarCarbs, { width: `${carbsPercent}%` }]} />
+                        </View>
+                      </View>
+
+                      {/* Grasas */}
+                      <View style={styles.macroWithProgressSmall}>
+                        <View style={styles.macroHeaderSmall}>
+                          <Text style={styles.macroLabel}>Grasas</Text>
+                          <Text style={styles.macroNumber}>
+                            {Math.round(progress.fat_g)} / {weeklyPlan.macros.fat_g}g
+                          </Text>
+                        </View>
+                        <View style={styles.progressBarContainer}>
+                          <View style={[styles.progressBar, styles.progressBarFat, { width: `${fatPercent}%` }]} />
+                        </View>
+                      </View>
+                    </View>
+                  </>
+                );
+              })()}
             </View>
           </>
         ) : (
@@ -1228,8 +1321,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
   },
+  macrosColumn: {
+    gap: 16,
+  },
   macroItem: {
     alignItems: 'center',
+  },
+  macroWithProgressSmall: {
+    marginBottom: 8,
+  },
+  macroHeaderSmall: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  progressBarProtein: {
+    backgroundColor: '#FF6B6B',
+  },
+  progressBarCarbs: {
+    backgroundColor: '#4ECDC4',
+  },
+  progressBarFat: {
+    backgroundColor: '#FFE66D',
   },
   macroNumber: {
     fontSize: 18,

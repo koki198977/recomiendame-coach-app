@@ -31,6 +31,14 @@ api.interceptors.request.use(
   }
 );
 
+// Variable para almacenar el callback de logout
+let onUnauthorizedCallback: (() => void) | null = null;
+
+// Función para registrar el callback de logout
+export const setUnauthorizedCallback = (callback: () => void) => {
+  onUnauthorizedCallback = callback;
+};
+
 // Interceptor para manejar respuestas y errores
 api.interceptors.response.use(
   (response) => {
@@ -42,10 +50,32 @@ api.interceptors.response.use(
     console.log('Full error:', error);
     
     if (error.response?.status === 401) {
-      // Token expirado, limpiar storage y redirigir al login
+      console.log('🔒 Token inválido o expirado - Cerrando sesión');
+      // Token expirado o inválido, limpiar storage
       await StorageService.removeItem('authToken');
       await StorageService.removeItem('userData');
+      await StorageService.removeItem('userProfile');
+      await StorageService.removeItem('onboardingCompleted');
+      
+      // Llamar al callback para redirigir al login
+      if (onUnauthorizedCallback) {
+        onUnauthorizedCallback();
+      }
     }
+    
+    // Si es 500 y el mensaje indica problema de autenticación, también cerrar sesión
+    if (error.response?.status === 500 && error.response?.data?.message?.includes('auth')) {
+      console.log('🔒 Error de autenticación en el servidor - Cerrando sesión');
+      await StorageService.removeItem('authToken');
+      await StorageService.removeItem('userData');
+      await StorageService.removeItem('userProfile');
+      await StorageService.removeItem('onboardingCompleted');
+      
+      if (onUnauthorizedCallback) {
+        onUnauthorizedCallback();
+      }
+    }
+    
     return Promise.reject(error);
   }
 );

@@ -304,7 +304,8 @@ export const SocialScreen: React.FC = () => {
               style={styles.createButton}
               onPress={() => setShowCreateModal(true)}
             >
-              <Text style={styles.createButtonText}>✨</Text>
+              <Text style={styles.createButtonText}>➕</Text>
+              <Text style={styles.createButtonLabel}>Crear</Text>
             </TouchableOpacity>
           </View>
         }
@@ -521,13 +522,20 @@ const styles = StyleSheet.create({
   },
   createButton: {
     backgroundColor: "rgba(255,255,255,0.2)",
-    paddingHorizontal: 15,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 20,
+    alignItems: 'center',
   },
   createButtonText: {
     color: "#fff",
-    fontSize: 14,
+    fontSize: 18,
+  },
+  createButtonLabel: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
     fontWeight: "600",
   },
   feed: {

@@ -10,6 +10,9 @@ import {
   Alert,
   Dimensions,
   ActivityIndicator,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Logo } from './Logo';
@@ -24,12 +27,14 @@ interface CompleteProfileModalProps {
   visible: boolean;
   onComplete: (profileData: any) => void;
   onSkip?: () => void; // Opcional
+  onLogout?: () => void; // Temporal para cerrar sesión
 }
 
 export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
   visible,
   onComplete,
   onSkip,
+  onLogout,
 }) => {
   const [formData, setFormData] = useState({
     sex: '',
@@ -177,6 +182,14 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
     }
   };
 
+  // Seleccionar imagen de Chapi según el paso
+  const getChapiImage = () => {
+    if (currentStep === 0) return require('../assets/chapi-3d-onboarding.png');
+    if (currentStep <= 2) return require('../assets/chapi-3d-onboarding-1.png');
+    if (currentStep <= 3) return require('../assets/chapi-3d-onboarding-2.png');
+    return require('../assets/chapi-3d-onboarding-3.png');
+  };
+
   const handleComplete = async () => {
     // Validar datos básicos requeridos
     if (!formData.heightCm || !formData.weightKg || !formData.activityLevel || !formData.sex) {
@@ -230,9 +243,20 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
 
       // Completar automáticamente sin alert
       onComplete(completeProfileData);
-    } catch (error) {
+    } catch (error: any) {
       console.log('Error guardando perfil:', error);
-      Alert.alert('Error', 'No se pudo guardar tu perfil. Intenta de nuevo.');
+      console.log('Error response:', error.response?.data);
+      console.log('Error status:', error.response?.status);
+      
+      let errorMessage = 'No se pudo guardar tu perfil. Intenta de nuevo.';
+      
+      if (error.response?.status === 500) {
+        errorMessage = 'Error del servidor. Por favor intenta más tarde o contacta a soporte.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -244,7 +268,10 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.container}>
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         {/* Background Gradient */}
         <LinearGradient
           colors={['#4CAF50', '#81C784']}
@@ -255,11 +282,17 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
 
         {/* Header */}
         <View style={styles.header}>
-          {isFirstStep && (
-            <View style={styles.logoContainer}>
-              <Logo size="medium" showText={false} />
+          {/* Chapi Avatar */}
+          <View style={styles.chapiContainer}>
+            <View style={styles.chapiCircle}>
+              <Image 
+                source={getChapiImage()}
+                style={styles.chapiImage}
+                resizeMode="cover"
+              />
             </View>
-          )}
+          </View>
+
           <Text style={styles.title}>{currentStepData.title}</Text>
           <Text style={styles.subtitle}>{currentStepData.subtitle}</Text>
 
@@ -275,6 +308,16 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
               />
             ))}
           </View>
+
+          {/* Botón temporal de cerrar sesión */}
+          {onLogout && (
+            <TouchableOpacity 
+              style={styles.tempLogoutButton}
+              onPress={onLogout}
+            >
+              <Text style={styles.tempLogoutText}>🚪 Cerrar sesión (temporal)</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Content */}
@@ -285,6 +328,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
               <Text style={styles.welcomeText}>
                 Para brindarte la mejor experiencia personalizada, necesitamos conocer un poco más sobre ti.
               </Text>
+              <Text style={styles.featuresTitle}>¿Qué incluye Recomiéndame Coach?</Text>
               <View style={styles.featureList}>
                 <Text style={styles.featureItem}>🎯 Planes nutricionales personalizados</Text>
                 <Text style={styles.featureItem}>📊 Seguimiento de progreso</Text>
@@ -328,7 +372,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                   <TextInput
                     style={styles.input}
                     placeholder={field.placeholder}
-                    placeholderTextColor="rgba(255, 255, 255, 0.7)"
+                    placeholderTextColor="rgba(0, 0, 0, 0.4)"
                     value={formData[field.key as keyof typeof formData] as string}
                     onChangeText={(value) => updateFormData(field.key, value)}
                     keyboardType={field.keyboardType as any || 'default'}
@@ -471,8 +515,16 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
 
         {/* Bottom Buttons */}
         <View style={styles.buttonContainer}>
+          {!isFirstStep && (
+            <TouchableOpacity 
+              style={styles.backButton} 
+              onPress={() => setCurrentStep(currentStep - 1)}
+            >
+              <Text style={styles.backButtonText}>← Atrás</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity 
-            style={[styles.nextButtonFull, loading && styles.nextButtonDisabled]} 
+            style={[styles.nextButtonFull, loading && styles.nextButtonDisabled, !isFirstStep && styles.nextButtonHalf]} 
             onPress={handleNext}
             disabled={loading}
           >
@@ -492,7 +544,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
             </LinearGradient>
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -513,6 +565,33 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 30,
     alignItems: 'center',
+  },
+  chapiContainer: {
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  chapiCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    overflow: 'hidden',
+    borderWidth: 4,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  chapiImage: {
+    width: 100,
+    height: 100,
   },
   logoContainer: {
     marginBottom: 20,
@@ -580,12 +659,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderRadius: 16,
     fontSize: 16,
-    color: '#fff',
+    color: '#333',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
@@ -600,20 +679,22 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginHorizontal: 5,
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   optionButtonActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderColor: '#fff',
+    backgroundColor: '#fff',
+    borderColor: '#FF9800',
+    borderWidth: 3,
   },
   optionText: {
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(255, 255, 255, 0.9)',
     fontSize: 16,
     fontWeight: '600',
   },
   optionTextActive: {
-    color: '#fff',
+    color: '#FF9800',
+    fontWeight: '700',
   },
   activityContainer: {
     gap: 12,
@@ -646,11 +727,13 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
   },
   buttonContainer: {
+    flexDirection: 'row',
     paddingHorizontal: 20,
     paddingBottom: 40,
     paddingTop: 20,
   },
   nextButtonFull: {
+    flex: 1,
     borderRadius: 16,
   },
   nextButton: {
@@ -669,6 +752,46 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  nextButtonHalf: {
+    flex: 1,
+  },
+  backButton: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  featuresTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+    textAlign: 'center',
+    marginTop: 20,
+    marginBottom: 15,
+  },
+  tempLogoutButton: {
+    marginTop: 15,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  tempLogoutText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   fieldSubtitle: {
     fontSize: 14,

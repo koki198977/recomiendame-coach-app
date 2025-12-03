@@ -18,6 +18,7 @@ import { ChapiChatModal } from './components/ChapiChatModal';
 import { NutritionService } from './services/nutritionService';
 import { UserProfile } from './types/nutrition';
 import { setupErrorHandlers } from './utils/errorLogger';
+import { setUnauthorizedCallback } from './services/api';
 
 // Configurar handlers de errores al inicio
 setupErrorHandlers();
@@ -272,10 +273,20 @@ export default function App() {
       setCurrentScreen('login');
       setShowCompleteProfile(false);
       setUserProfile(null);
+      setVerificationMessage(undefined);
+      setRegisteredEmail(undefined);
     } catch (error) {
       console.log('Error during logout:', error);
     }
   };
+
+  // Registrar callback para manejar 401 (token inválido/expirado)
+  React.useEffect(() => {
+    setUnauthorizedCallback(() => {
+      console.log('🔒 Sesión expirada - Redirigiendo al login');
+      handleLogout();
+    });
+  }, []);
 
   if (currentScreen === 'loading') {
     return (
@@ -328,6 +339,7 @@ export default function App() {
       <CompleteProfileModal
         visible={showCompleteProfile}
         onComplete={handleCompleteProfile}
+        onLogout={handleLogout}
       />
     </ErrorBoundary>
   );

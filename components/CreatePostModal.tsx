@@ -191,14 +191,23 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
         <View style={styles.container}>
           {/* Header */}
           <LinearGradient
-            colors={['#4CAF50', '#45A049']}
+            colors={['#4CAF50', '#81C784']}
             style={styles.header}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            <View style={styles.headerContent}>
-              <Text style={styles.title}>✨ Crear Post</Text>
-              <Text style={styles.subtitle}>Comparte tu progreso con la comunidad</Text>
+            <View style={styles.headerLeft}>
+              <View style={styles.chapiContainer}>
+                <Image 
+                  source={require('../assets/chapi-3d-post.png')}
+                  style={styles.chapiImage}
+                  resizeMode="cover"
+                />
+              </View>
+              <View style={styles.headerContent}>
+                <Text style={styles.title}>Crear Post</Text>
+                <Text style={styles.subtitle}>Comparte tu progreso</Text>
+              </View>
             </View>
             <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
               <Text style={styles.closeButtonText}>✕</Text>
@@ -323,12 +332,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
               disabled={submitting || uploading || !caption.trim()}
             >
               {submitting || uploading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color="#fff" />
-                  <Text style={styles.loadingText}>
-                    {uploading ? 'Subiendo...' : 'Publicando...'}
-                  </Text>
-                </View>
+                <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <Text style={styles.submitButtonText}>Publicar</Text>
               )}
@@ -364,6 +368,33 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+  },
+  headerLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  chapiContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    shadowColor: '#4CAF50',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    overflow: 'hidden',
+  },
+  chapiImage: {
+    width: 50,
+    height: 50,
   },
   headerContent: {
     flex: 1,
@@ -557,6 +588,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderRadius: 25,
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#4CAF50',
   },
   submitButtonText: {
@@ -567,14 +599,5 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.6,
   },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  loadingText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
+
 });

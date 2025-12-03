@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Logo } from '../components/Logo';
@@ -121,14 +122,28 @@ export const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
   const isLastStep = currentStep === steps.length - 1;
   const isFirstStep = currentStep === 0;
 
+  // Seleccionar imagen de Chapi según el paso
+  const getChapiImage = () => {
+    if (currentStep === 0) return require('../assets/chapi-3d-onboarding.png');
+    if (currentStep <= 2) return require('../assets/chapi-3d-onboarding-1.png');
+    if (currentStep <= 4) return require('../assets/chapi-3d-onboarding-2.png');
+    return require('../assets/chapi-3d-onboarding-3.png');
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        {isFirstStep && (
-          <View style={styles.logoContainer}>
-            <Logo size="medium" showText={false} />
+        {/* Chapi Avatar */}
+        <View style={styles.chapiContainer}>
+          <View style={styles.chapiCircle}>
+            <Image 
+              source={getChapiImage()}
+              style={styles.chapiImage}
+              resizeMode="cover"
+            />
           </View>
-        )}
+        </View>
+
         <Text style={styles.title}>{currentStepData.title}</Text>
         <Text style={styles.subtitle}>{currentStepData.subtitle}</Text>
         
@@ -255,6 +270,33 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 30,
     alignItems: 'center',
+  },
+  chapiContainer: {
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  chapiCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    overflow: 'hidden',
+    borderWidth: 4,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  chapiImage: {
+    width: 100,
+    height: 100,
   },
   logoContainer: {
     marginBottom: 20,

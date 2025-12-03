@@ -530,11 +530,6 @@ export const ProgressScreen: React.FC = () => {
         title="Mi Progreso" 
         subtitle="Seguimiento detallado"
         showLogo={true}
-        rightComponent={
-          <TouchableOpacity style={styles.photoButton}>
-            <Text style={styles.photoButtonText}>📸</Text>
-          </TouchableOpacity>
-        }
       />
 
       {/* Period Selector */}
@@ -571,16 +566,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  photoButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  photoButtonText: {
-    color: '#fff',
-    fontSize: 16,
-  },
+
   periodSelector: {
     flexDirection: 'row',
     backgroundColor: 'transparent',

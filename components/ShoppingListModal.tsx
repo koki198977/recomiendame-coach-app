@@ -64,7 +64,7 @@ export const ShoppingListModal: React.FC<ShoppingListModalProps> = ({
         <View style={styles.container}>
           {/* Header */}
           <LinearGradient
-            colors={['#FF9800', '#F57C00']}
+            colors={['#4CAF50', '#81C784']}
             style={styles.header}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -93,7 +93,7 @@ export const ShoppingListModal: React.FC<ShoppingListModalProps> = ({
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
             {loading ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#FF9800" />
+                <ActivityIndicator size="large" color="#4CAF50" />
                 <Text style={styles.loadingText}>Generando lista de compras...</Text>
               </View>
             ) : (
@@ -161,26 +161,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   chapiContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 15,
-    shadowColor: '#000',
+    marginRight: 12,
+    shadowColor: '#4CAF50',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
     overflow: 'hidden',
   },
   chapiImage: {
-    width: 60,
-    height: 60,
+    width: 50,
+    height: 50,
   },
   headerContent: {
     flex: 1,
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     paddingBottom: 8,
     borderBottomWidth: 2,
-    borderBottomColor: '#FF9800',
+    borderBottomColor: '#4CAF50',
   },
   shoppingItem: {
     flexDirection: 'row',
@@ -268,14 +268,14 @@ const styles = StyleSheet.create({
     borderTopColor: '#f0f0f0',
   },
   closeFooterButton: {
-    paddingVertical: 16,
+    paddingVertical: 15,
     borderRadius: 25,
     alignItems: 'center',
-    backgroundColor: '#FF9800',
+    backgroundColor: '#4CAF50',
   },
   closeFooterButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });

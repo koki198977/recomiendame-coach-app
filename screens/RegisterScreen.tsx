@@ -33,6 +33,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const scrollViewRef = React.useRef<ScrollView>(null);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -131,6 +132,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
       />
 
       <ScrollView 
+        ref={scrollViewRef}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"

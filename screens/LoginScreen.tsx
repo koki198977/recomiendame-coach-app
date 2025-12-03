@@ -28,6 +28,7 @@ interface LoginScreenProps {
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowRegister, verificationMessage }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const scrollViewRef = React.useRef<ScrollView>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showVerificationMessage, setShowVerificationMessage] = useState(!!verificationMessage);
   const [isResending, setIsResending] = useState(false);
@@ -170,6 +171,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
 
       {/* Content */}
       <ScrollView 
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -228,6 +230,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              onFocus={() => {
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollTo({ y: 200, animated: true });
+                }, 100);
+              }}
             />
           </View>
 
@@ -240,6 +247,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              onFocus={() => {
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollTo({ y: 300, animated: true });
+                }, 100);
+              }}
             />
           </View>
 

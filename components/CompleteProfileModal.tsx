@@ -23,7 +23,7 @@ const { width, height } = Dimensions.get('window');
 interface CompleteProfileModalProps {
   visible: boolean;
   onComplete: (profileData: any) => void;
-  onSkip: () => void;
+  onSkip?: () => void; // Opcional
 }
 
 export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
@@ -472,12 +472,8 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
 
         {/* Bottom Buttons */}
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.skipButton} onPress={onSkip}>
-            <Text style={styles.skipButtonText}>Omitir por ahora</Text>
-          </TouchableOpacity>
-
           <TouchableOpacity 
-            style={[styles.nextButton, loading && styles.nextButtonDisabled]} 
+            style={[styles.nextButtonFull, loading && styles.nextButtonDisabled]} 
             onPress={handleNext}
             disabled={loading}
           >
@@ -651,25 +647,12 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
   },
   buttonContainer: {
-    flexDirection: 'row',
     paddingHorizontal: 20,
     paddingBottom: 40,
     paddingTop: 20,
-    gap: 15,
   },
-  skipButton: {
-    flex: 1,
-    paddingVertical: 16,
+  nextButtonFull: {
     borderRadius: 16,
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  skipButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
   nextButton: {
     flex: 2,

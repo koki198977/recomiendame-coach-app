@@ -123,15 +123,23 @@ export const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
 
         {isFirstStep && (
           <View style={styles.welcomeContent}>
+            <Text style={styles.sectionTitle}>
+              ¿Qué incluye Recomiéndame Coach?
+            </Text>
             <Text style={styles.welcomeText}>
-              Con IA crearemos un plan nutricional personalizado basado en:
+              Para brindarte la mejor experiencia personalizada, necesitamos conocer un poco más sobre ti.
             </Text>
             <View style={styles.featureList}>
-              <Text style={styles.featureItem}>🎯 Tus objetivos personales</Text>
-              <Text style={styles.featureItem}>⚖️ Tu peso y estatura</Text>
-              <Text style={styles.featureItem}>🚫 Tus alergias y restricciones</Text>
-              <Text style={styles.featureItem}>💪 Tu nivel de actividad</Text>
+              <Text style={styles.featureItem}>🎯 Planes nutricionales personalizados</Text>
+              <Text style={styles.featureItem}>📊 Seguimiento de progreso</Text>
+              <Text style={styles.featureItem}>🤖 Recomendaciones con IA</Text>
+              <Text style={styles.featureItem}>🍎 Recetas adaptadas a ti</Text>
+              <Text style={styles.featureItem}>📸 Reconocimiento de comidas con IA</Text>
+              <Text style={styles.featureItem}>💪 Entrenamientos personalizados</Text>
             </View>
+            <Text style={styles.swipeHint}>
+              👆 Desliza para continuar
+            </Text>
           </View>
         )}
       </View>
@@ -220,19 +228,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 20,
   },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+    textAlign: 'center',
+    marginBottom: 15,
+  },
   welcomeText: {
     fontSize: 16,
-    color: '#333',
+    color: '#666',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 25,
+    paddingHorizontal: 10,
   },
   featureList: {
     alignItems: 'flex-start',
+    width: '100%',
+    paddingHorizontal: 20,
   },
   featureItem: {
     fontSize: 16,
     color: '#333',
-    marginBottom: 10,
+    marginBottom: 12,
+    lineHeight: 24,
+  },
+  swipeHint: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 25,
+    fontStyle: 'italic',
   },
   buttonContainer: {
     flexDirection: 'row',

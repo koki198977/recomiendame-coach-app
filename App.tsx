@@ -248,12 +248,6 @@ export default function App() {
     }
   };
 
-  const handleSkipProfile = () => {
-    console.log('⏭️ Usuario omitió completar perfil');
-    setShowCompleteProfile(false);
-    console.log('🔒 Modal cerrado después de omitir perfil');
-  };
-
   const handleRegisterSuccess = async (message?: string) => {
     // Después del registro exitoso, ir al login con mensaje de verificación
     setVerificationMessage(message);
@@ -330,7 +324,6 @@ export default function App() {
       <CompleteProfileModal
         visible={showCompleteProfile}
         onComplete={handleCompleteProfile}
-        onSkip={handleSkipProfile}
       />
     </ErrorBoundary>
   );

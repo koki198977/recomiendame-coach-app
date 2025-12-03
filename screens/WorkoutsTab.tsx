@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import WorkoutService from '../services/workoutService';
@@ -297,7 +298,7 @@ export const WorkoutsTab: React.FC = () => {
     const days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
     return (
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.daySelector}>
+      <View style={styles.daySelector}>
         {days.map((day, index) => {
           const dayIndex = index + 1;
           const hasWorkout = workoutPlan?.days.some(d => d.dayIndex === dayIndex);
@@ -328,7 +329,7 @@ export const WorkoutsTab: React.FC = () => {
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </View>
     );
   };
 
@@ -416,7 +417,13 @@ export const WorkoutsTab: React.FC = () => {
           </>
         ) : (
           <View style={styles.noPlanContainer}>
-            <Text style={styles.noPlanEmoji}>🏋️</Text>
+            <View style={styles.chapiEmptyContainer}>
+              <Image 
+                source={require('../assets/chapi-3d-ejercicio-3.png')}
+                style={styles.chapiEmptyImage}
+                resizeMode="cover"
+              />
+            </View>
             <Text style={styles.noPlanTitle}>¡Crea tu rutina!</Text>
             <Text style={styles.noPlanText}>
               No tienes una rutina de entrenamiento para esta semana.
@@ -461,8 +468,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   centered: {
-    justifyContent: 'center',
     alignItems: 'center',
+    paddingTop: 100,
   },
   loadingText: {
     marginTop: 10,
@@ -503,14 +510,18 @@ const styles = StyleSheet.create({
   daySelector: {
     backgroundColor: 'transparent',
     paddingVertical: 8,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   dayButton: {
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    marginHorizontal: 2,
-    borderRadius: 10,
-    minWidth: 42,
+    justifyContent: 'center',
+    flex: 1,
+    paddingVertical: 8,
+    marginHorizontal: 3,
+    borderRadius: 12,
+    height: 50,
     backgroundColor: COLORS.card,
     borderWidth: 1,
     borderColor: 'transparent',
@@ -529,23 +540,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
   },
   dayText: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: COLORS.textLight,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.text,
   },
   dayTextActive: {
     color: '#fff',
-    fontWeight: '700',
+    fontWeight: '800',
   },
   dayTextDisabled: {
     color: '#ccc',
   },
   dayIndicator: {
-    width: 3,
+    position: 'absolute',
+    bottom: 3,
+    width: 6,
     height: 3,
     borderRadius: 1.5,
     backgroundColor: '#fff',
-    marginTop: 2,
   },
   workoutContainer: {
     flex: 1,
@@ -657,10 +669,9 @@ const styles = StyleSheet.create({
     paddingLeft: 8,
   },
   noWorkoutContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
+    minHeight: 200,
   },
   noWorkoutEmoji: {
     fontSize: 64,
@@ -672,10 +683,31 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   noPlanContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
+    minHeight: 300,
+  },
+  chapiEmptyContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    shadowColor: COLORS.primary,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  chapiEmptyImage: {
+    width: 120,
+    height: 120,
   },
   noPlanEmoji: {
     fontSize: 80,

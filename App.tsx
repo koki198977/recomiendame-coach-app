@@ -141,6 +141,7 @@ export default function App() {
   const [showCompleteProfile, setShowCompleteProfile] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [verificationMessage, setVerificationMessage] = useState<string | undefined>(undefined);
+  const [registeredEmail, setRegisteredEmail] = useState<string | undefined>(undefined);
 
   // Debug: Log cuando cambia el estado del modal
   React.useEffect(() => {
@@ -248,9 +249,10 @@ export default function App() {
     }
   };
 
-  const handleRegisterSuccess = async (message?: string) => {
-    // Después del registro exitoso, ir al login con mensaje de verificación
+  const handleRegisterSuccess = async (message?: string, email?: string) => {
+    // Después del registro exitoso, ir al login con mensaje de verificación y email
     setVerificationMessage(message);
+    setRegisteredEmail(email);
     setCurrentScreen('login');
   };
 
@@ -260,6 +262,7 @@ export default function App() {
 
   const handleBackToLogin = () => {
     setVerificationMessage(undefined); // Limpiar mensaje al volver al login manualmente
+    setRegisteredEmail(undefined); // Limpiar email también
     setCurrentScreen('login');
   };
 
@@ -290,6 +293,7 @@ export default function App() {
           onLoginSuccess={handleLoginSuccess} 
           onShowRegister={handleShowRegister}
           verificationMessage={verificationMessage}
+          initialEmail={registeredEmail}
         />
         <StatusBar style="dark" />
       </>

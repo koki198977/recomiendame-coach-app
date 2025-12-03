@@ -70,11 +70,17 @@ export const PlanGeneratingModal: React.FC<PlanGeneratingModalProps> = ({
           
           {/* Chapi 3D Character */}
           <View style={styles.aiContainer}>
-            <Image 
-              source={require('../assets/chapi-3d.png')}
-              style={styles.chapiImage}
-              resizeMode="contain"
-            />
+            <View style={styles.chapiCircle}>
+              <Image 
+                source={
+                  type === 'workout' 
+                    ? require('../assets/chapi-3d-ejercicio.png')
+                    : require('../assets/chapi-3d-alimento.png')
+                }
+                style={styles.chapiImage}
+                resizeMode="contain"
+              />
+            </View>
             <ActivityIndicator size="large" color="#fff" style={styles.spinner} />
           </View>
 
@@ -138,10 +144,21 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     alignItems: 'center',
   },
-  chapiImage: {
+  chapiCircle: {
     width: 120,
     height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)', // Fondo semi-transparente que se mezcla con el verde
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 20,
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  chapiImage: {
+    width: 110,
+    height: 110,
   },
   spinner: {
     position: 'absolute',

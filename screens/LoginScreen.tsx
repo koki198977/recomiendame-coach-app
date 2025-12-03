@@ -23,10 +23,11 @@ interface LoginScreenProps {
   onLoginSuccess: () => void;
   onShowRegister: () => void;
   verificationMessage?: string;
+  initialEmail?: string;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowRegister, verificationMessage }) => {
-  const [email, setEmail] = useState('');
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowRegister, verificationMessage, initialEmail }) => {
+  const [email, setEmail] = useState(initialEmail || '');
   const [password, setPassword] = useState('');
   const scrollViewRef = React.useRef<ScrollView>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -154,7 +155,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
   return (
     <KeyboardAvoidingView 
       style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {/* Background Gradient */}
       <LinearGradient
@@ -225,7 +226,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
             <TextInput
               style={styles.input}
               placeholder="tu@email.com"
-              placeholderTextColor="rgba(255, 255, 255, 0.7)"
+              placeholderTextColor="rgba(0, 0, 0, 0.4)"
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -243,7 +244,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
             <TextInput
               style={styles.input}
               placeholder="••••••••"
-              placeholderTextColor="rgba(255, 255, 255, 0.7)"
+              placeholderTextColor="rgba(0, 0, 0, 0.4)"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -427,12 +428,12 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderRadius: 16,
     fontSize: 16,
-    color: '#fff',
+    color: '#333',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
     shadowColor: '#000',

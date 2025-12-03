@@ -593,11 +593,7 @@ export const PlanScreen: React.FC = () => {
   );
 
   const renderDaySelector = () => (
-    <ScrollView 
-      horizontal 
-      showsHorizontalScrollIndicator={false}
-      style={styles.daySelector}
-    >
+    <View style={styles.daySelector}>
       {weekDays.map((dayInfo, index) => (
         <TouchableOpacity
           key={index}
@@ -625,7 +621,7 @@ export const PlanScreen: React.FC = () => {
           {dayInfo.isToday && <View style={styles.todayIndicator} />}
         </TouchableOpacity>
       ))}
-    </ScrollView>
+    </View>
   );
 
   const renderMealPlan = () => {
@@ -1029,14 +1025,18 @@ const styles = StyleSheet.create({
   daySelector: {
     backgroundColor: '#fff',
     paddingVertical: 8,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   dayButton: {
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    marginHorizontal: 2,
-    borderRadius: 10,
-    minWidth: 42,
+    justifyContent: 'center',
+    flex: 1,
+    paddingVertical: 8,
+    marginHorizontal: 3,
+    borderRadius: 12,
+    height: 50,
   },
   dayButtonActive: {
     backgroundColor: '#4CAF50',
@@ -1046,37 +1046,37 @@ const styles = StyleSheet.create({
     borderColor: '#FF9800',
   },
   dayText: {
-    fontSize: 9,
-    color: '#666',
+    fontSize: 10,
+    color: '#999',
     fontWeight: '500',
+    marginBottom: 2,
   },
   dayTextActive: {
     color: '#fff',
   },
   dayTextToday: {
-    color: '#FF9800',
-    fontWeight: 'bold',
+    color: '#E88D72',
+    fontWeight: '600',
   },
   dayNumber: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
-    marginTop: 1,
+    color: '#2C3E36',
   },
   dayNumberActive: {
     color: '#fff',
   },
   dayNumberToday: {
-    color: '#FF9800',
+    color: '#E88D72',
     fontWeight: 'bold',
   },
   todayIndicator: {
     position: 'absolute',
-    bottom: 2,
-    width: 3,
+    bottom: 3,
+    width: 6,
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: '#FF9800',
+    backgroundColor: '#E88D72',
   },
   content: {
     flex: 1,

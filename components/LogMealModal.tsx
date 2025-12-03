@@ -154,7 +154,16 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.title}>Registrar Comida</Text>
+              <View style={styles.headerLeft}>
+                <View style={styles.chapiContainer}>
+                  <Image 
+                    source={require('../assets/chapi-3d-foto-alimento.png')}
+                    style={styles.chapiImage}
+                    resizeMode="cover"
+                  />
+                </View>
+                <Text style={styles.title}>Registrar Comida</Text>
+              </View>
               <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
                 <Text style={styles.closeButtonText}>✕</Text>
               </TouchableOpacity>
@@ -315,6 +324,33 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  chapiContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    shadowColor: '#4CAF50',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    overflow: 'hidden',
+  },
+  chapiImage: {
+    width: 50,
+    height: 50,
   },
   title: {
     fontSize: 24,

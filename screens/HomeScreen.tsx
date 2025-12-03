@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NutritionService } from '../services/nutritionService';
@@ -452,7 +453,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
               
               {!hasWorkoutPlan ? (
                 <View style={styles.createPlanCard}>
-                  <Text style={styles.createPlanEmoji}>🏋️</Text>
+                  <Image 
+                    source={require('../assets/chapi-3d-ejercicio-2.png')}
+                    style={styles.createPlanImage}
+                    resizeMode="contain"
+                  />
                   <View style={styles.createPlanContent}>
                     <Text style={styles.createPlanTitle}>Sin rutina activa</Text>
                     <Text style={styles.createPlanText}>Genera tu plan personalizado con IA</Text>
@@ -504,7 +509,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
                 </View>
               ) : (
                 <View style={styles.restDayCard}>
-                  <Text style={styles.restDayEmoji}>😴</Text>
+                  <Image 
+                    source={require('../assets/chapi-3d-descansando.png')}
+                    style={styles.restDayImage}
+                    resizeMode="contain"
+                  />
                   <View>
                     <Text style={styles.restDayTitle}>Día de descanso</Text>
                     <Text style={styles.restDayText}>¡Recupérate para mañana!</Text>
@@ -638,7 +647,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
           style={styles.floatingButton}
           onPress={() => setShowLogMealModal(true)}
         >
-          <Text style={styles.floatingButtonText}>📸</Text>
+          <Image 
+            source={require('../assets/chapi-3d-foto-alimento.png')}
+            style={styles.floatingButtonImage}
+            resizeMode="cover"
+          />
         </TouchableOpacity>
       )}
     </>
@@ -822,14 +835,19 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+    overflow: 'hidden',
+  },
+  floatingButtonImage: {
+    width: 60,
+    height: 60,
   },
   floatingButtonText: {
     fontSize: 28,
@@ -943,8 +961,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  createPlanEmoji: {
-    fontSize: 32,
+  createPlanImage: {
+    width: 60,
+    height: 60,
     marginRight: 16,
   },
   createPlanContent: {
@@ -985,8 +1004,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(67, 233, 123, 0.2)',
   },
-  restDayEmoji: {
-    fontSize: 36,
+  restDayImage: {
+    width: 70,
+    height: 70,
     marginRight: 20,
   },
   restDayTitle: {

@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ShoppingListItem } from '../types/nutrition';
@@ -68,11 +69,20 @@ export const ShoppingListModal: React.FC<ShoppingListModalProps> = ({
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            <View style={styles.headerContent}>
-              <Text style={styles.title}>🛒 Lista de Compras</Text>
-              <Text style={styles.subtitle}>
-                {total} ingredientes para tu plan semanal
-              </Text>
+            <View style={styles.headerLeft}>
+              <View style={styles.chapiContainer}>
+                <Image 
+                  source={require('../assets/chapi-3d-compras.png')}
+                  style={styles.chapiImage}
+                  resizeMode="cover"
+                />
+              </View>
+              <View style={styles.headerContent}>
+                <Text style={styles.title}>Lista de Compras</Text>
+                <Text style={styles.subtitle}>
+                  {total} ingredientes para tu plan semanal
+                </Text>
+              </View>
             </View>
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
               <Text style={styles.closeButtonText}>✕</Text>
@@ -144,6 +154,33 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+  },
+  headerLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  chapiContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    overflow: 'hidden',
+  },
+  chapiImage: {
+    width: 60,
+    height: 60,
   },
   headerContent: {
     flex: 1,

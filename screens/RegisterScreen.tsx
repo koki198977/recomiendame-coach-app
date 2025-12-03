@@ -17,7 +17,7 @@ import { Logo } from '../components/Logo';
 import { AuthService } from '../services/authService';
 
 interface RegisterScreenProps {
-  onRegisterSuccess: (message?: string) => void;
+  onRegisterSuccess: (message?: string, email?: string) => void;
   onBackToLogin: () => void;
 }
 
@@ -89,7 +89,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
         [
           { 
             text: 'Ir a iniciar sesión', 
-            onPress: () => onRegisterSuccess('Por favor verifica tu correo electrónico antes de iniciar sesión.')
+            onPress: () => onRegisterSuccess('Por favor verifica tu correo electrónico antes de iniciar sesión.', formData.email.trim().toLowerCase())
           }
         ]
       );
@@ -121,7 +121,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
   return (
     <KeyboardAvoidingView 
       style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {/* Background Gradient */}
       <LinearGradient
@@ -165,7 +165,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
             <TextInput
               style={styles.input}
               placeholder="tu@email.com"
-              placeholderTextColor="rgba(255, 255, 255, 0.7)"
+              placeholderTextColor="rgba(0, 0, 0, 0.4)"
               value={formData.email}
               onChangeText={(value) => handleInputChange('email', value)}
               keyboardType="email-address"
@@ -186,7 +186,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
               <TextInput
                 style={styles.passwordInput}
                 placeholder="Mínimo 6 caracteres"
-                placeholderTextColor="rgba(255, 255, 255, 0.7)"
+                placeholderTextColor="rgba(0, 0, 0, 0.4)"
                 value={formData.password}
                 onChangeText={(value) => handleInputChange('password', value)}
                 secureTextEntry={!showPassword}
@@ -214,7 +214,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
               <TextInput
                 style={styles.passwordInput}
                 placeholder="Repite tu contraseña"
-                placeholderTextColor="rgba(255, 255, 255, 0.7)"
+                placeholderTextColor="rgba(0, 0, 0, 0.4)"
                 value={formData.confirmPassword}
                 onChangeText={(value) => handleInputChange('confirmPassword', value)}
                 secureTextEntry={!showConfirmPassword}
@@ -385,19 +385,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderRadius: 16,
     fontSize: 16,
-    color: '#fff',
+    color: '#333',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     fontSize: 16,
-    color: '#fff',
+    color: '#333',
   },
   eyeButton: {
     paddingHorizontal: 15,

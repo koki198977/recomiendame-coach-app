@@ -153,11 +153,13 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <KeyboardAvoidingView 
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <View style={styles.container}>
+      <View style={styles.overlay}>
+        <KeyboardAvoidingView 
+          style={styles.keyboardView}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        >
+          <View style={styles.container}>
           {/* Header */}
           <LinearGradient
             colors={['#4CAF50', '#45A049']}
@@ -269,8 +271,9 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
               )}
             </TouchableOpacity>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 };
@@ -281,14 +284,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+  },
+  keyboardView: {
+    width: '100%',
+    maxWidth: 500,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
   },
   container: {
     backgroundColor: '#fff',
     borderRadius: 20,
     width: '100%',
-    maxHeight: '90%',
-    minHeight: 600,
+    maxHeight: '85%',
   },
   header: {
     flexDirection: 'row',
@@ -328,7 +335,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   content: {
-    flex: 1,
+    maxHeight: 400,
     paddingHorizontal: 20,
     paddingVertical: 15,
   },

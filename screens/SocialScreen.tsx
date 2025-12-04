@@ -52,24 +52,20 @@ export const SocialScreen: React.FC = () => {
       try {
         const profileData = await SocialService.getCurrentUser();
         setCurrentUserId(profileData.userId);
-        console.log("SocialScreen - User ID from profile:", profileData.userId);
 
         // También obtener email desde AsyncStorage
         const userEmail = await getCurrentUserEmail();
         setCurrentUserEmail(userEmail);
       } catch (error) {
-        console.log("Error loading profile from API:", error);
-
         // Fallback: obtener desde AsyncStorage
         const userId = await getCurrentUserId();
         const userEmail = await getCurrentUserEmail();
 
         setCurrentUserId(userId);
         setCurrentUserEmail(userEmail);
-        console.log("SocialScreen - Fallback user:", { userId, userEmail });
       }
     } catch (error) {
-      console.log("Error in loadCurrentUser:", error);
+      // Error silencioso
     }
   };
 
@@ -83,9 +79,8 @@ export const SocialScreen: React.FC = () => {
       const response = await SocialService.getFollowing(userId, 0, 100); // Cargar más usuarios
       const followingIds = new Set(response.items.map((user) => user.id));
       setFollowingUsers(followingIds);
-      console.log("Following users loaded:", followingIds);
     } catch (error) {
-      console.log("Error loading following users:", error);
+      // Error silencioso
     }
   };
 
@@ -121,14 +116,9 @@ export const SocialScreen: React.FC = () => {
       setPosts(response.items || []);
       setCurrentPage(0);
       setHasMorePosts((response.items?.length || 0) >= POSTS_PER_PAGE);
-
-      console.log(
-        `Loaded ${response.items?.length || 0} posts for ${feedType} feed`
-      );
     } catch (error) {
-      console.log("Error loading feed:", error);
       setPosts([]); // Asegurar que siempre sea un array
-    } finally {
+    } finally{
       setLoading(false);
       if (isRefresh) setRefreshing(false);
     }
@@ -174,7 +164,7 @@ export const SocialScreen: React.FC = () => {
         setHasMorePosts(false);
       }
     } catch (error) {
-      console.log("Error loading more posts:", error);
+      // Error silencioso
     } finally {
       setLoadingMore(false);
     }
@@ -224,21 +214,12 @@ export const SocialScreen: React.FC = () => {
   };
 
   const isMyPost = (post: Post): boolean => {
-    console.log("Checking if my post:", {
-      currentUserId,
-      currentUserEmail,
-      postAuthorId: post.authorId,
-      postAuthorName: post.authorName,
-      postAuthor: post.author,
-    });
-
     // Verificar por ID
     if (currentUserId) {
       if (
         post.authorId === currentUserId ||
         post.author?.id === currentUserId
       ) {
-        console.log("✅ My post by ID match");
         return true;
       }
     }
@@ -249,22 +230,17 @@ export const SocialScreen: React.FC = () => {
         post.authorName === currentUserEmail ||
         post.author?.email === currentUserEmail
       ) {
-        console.log("✅ My post by email match");
         return true;
       }
     }
 
-    console.log("❌ Not my post");
     return false;
   };
 
   const isFollowingAuthor = (post: Post): boolean => {
     const authorId = post.authorId || post.author?.id;
     if (!authorId) return false;
-
-    const following = followingUsers.has(authorId);
-    console.log(`Following ${authorId}:`, following);
-    return following;
+    return followingUsers.has(authorId);
   };
 
   const handleCommentAdded = (postId: string, newCommentsCount: number) => {

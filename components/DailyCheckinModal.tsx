@@ -63,7 +63,7 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
         setNotes('');
       }
     } catch (error) {
-      console.log('Error loading today checkin:', error);
+      // Error silencioso - no hay checkin previo
     } finally {
       setLoading(false);
     }
@@ -115,7 +115,6 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
         Alert.alert('Error', 'Hubo un problema al registrar el checkin');
       }
     } catch (error: any) {
-      console.log('Error submitting checkin:', error);
       Alert.alert('Error', 'No se pudo registrar el checkin. Intenta de nuevo.');
     } finally {
       setSubmitting(false);

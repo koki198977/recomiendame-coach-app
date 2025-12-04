@@ -45,16 +45,14 @@ export const WorkoutsTab: React.FC = () => {
       setSelectedDay(todayIndex);
 
     } catch (error) {
-      console.log('Error loading workout plan:', error);
+      // Error silencioso
     } finally {
       setLoading(false);
     }
   };
 
   const handleGeneratePlan = async (daysAvailable: number, goal: WorkoutGoal, equipmentImages?: string[]) => {
-    console.log('📸 Equipment images:', equipmentImages?.length || 0);
     try {
-      console.warn('🏋️ Starting workout plan generation...');
       setShowGenerateModal(false);
       setIsGenerating(true);
       setGenerationProgress(10);
@@ -184,12 +182,9 @@ export const WorkoutsTab: React.FC = () => {
         );
       }
     } catch (error) {
-      console.log('❌ Error polling for workout plan:', error);
-
       // Si no hemos alcanzado el máximo de intentos, continuar
       if (attempts < maxAttempts) {
         const nextInterval = getPollingInterval(attempts);
-        console.log(`🔄 Retrying after error in ${nextInterval/1000} seconds...`);
         setTimeout(() => {
           pollForWorkoutPlan(planId, attempts + 1);
         }, nextInterval);
@@ -216,10 +211,8 @@ export const WorkoutsTab: React.FC = () => {
       const searchQuery = encodeURIComponent(query);
       const webUrl = `https://www.youtube.com/results?search_query=${searchQuery}`;
       
-      console.log('Opening video URL:', webUrl);
       await Linking.openURL(webUrl);
     } catch (error) {
-      console.log('Error opening video:', error);
       Alert.alert('Error', 'No se pudo abrir YouTube');
     }
   };

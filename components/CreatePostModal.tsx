@@ -47,14 +47,11 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
 
       // Si hay una imagen seleccionada, subirla primero
       if (selectedImage) {
-        console.log('Uploading selected image...');
         setUploading(true);
         try {
           const uploadResult = await SocialService.uploadImage(selectedImage);
           finalMediaUrl = uploadResult.url;
-          console.log('Image uploaded successfully:', finalMediaUrl);
         } catch (uploadError) {
-          console.log('Error uploading image:', uploadError);
           Alert.alert('Error', 'No se pudo subir la imagen. Intenta de nuevo.');
           return;
         } finally {
@@ -77,7 +74,6 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
       onPostCreated?.(newPost);
       handleClose();
     } catch (error: any) {
-      console.log('Error creating post:', error);
       Alert.alert('Error', 'No se pudo crear el post. Intenta de nuevo.');
     } finally {
       setSubmitting(false);
@@ -130,7 +126,6 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
         setMediaUrl('');
       }
     } catch (error) {
-      console.log('Error selecting image:', error);
       Alert.alert('Error', 'No se pudo seleccionar la imagen');
     }
   };
@@ -159,7 +154,6 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
         setMediaUrl('');
       }
     } catch (error) {
-      console.log('Error taking photo:', error);
       Alert.alert('Error', 'No se pudo tomar la foto');
     }
   };

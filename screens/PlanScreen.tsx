@@ -56,7 +56,7 @@ export const PlanScreen: React.FC = () => {
       const mealsConsumed = await NutritionService.getTodayMeals();
       setTodayMealsConsumed(mealsConsumed);
     } catch (error) {
-      console.log('Error loading today meals:', error);
+      // Error silencioso
     }
   };
 
@@ -107,7 +107,6 @@ export const PlanScreen: React.FC = () => {
         // Si es semana pasada, no mostrar alert, solo mostrar que no hay plan
       }
     } catch (error) {
-      console.log('Error loading weekly plan:', error);
       Alert.alert('Error', 'No se pudo cargar el plan semanal');
     } finally {
       setLoading(false);
@@ -127,12 +126,6 @@ export const PlanScreen: React.FC = () => {
         pollForPlan(generateResponse.planId, week);
       }
     } catch (error: any) {
-      console.log('❌ [GENERATE] Error generating plan');
-      console.log('❌ [GENERATE] Error status:', error.response?.status);
-      console.log('❌ [GENERATE] Error code:', error.code);
-      console.log('❌ [GENERATE] Error message:', error.message);
-      console.log('❌ [GENERATE] Full error object:', JSON.stringify(error, null, 2));
-      
       // Detectar 504 Gateway Timeout o cualquier timeout
       const is504 = error.response?.status === 504;
       const isNetworkError = error.message?.toLowerCase().includes('network');
@@ -142,9 +135,6 @@ export const PlanScreen: React.FC = () => {
                        error.message?.includes('504');
       
       if (is504 || isTimeout || isNetworkError) {
-        console.log('⏰ [GENERATE] 504/Timeout/Network error detected');
-        console.log('✅ [GENERATE] Plan is being created in background');
-        console.log('🔄 [GENERATE] Starting polling...');
         setGenerationProgress(20);
         // Iniciar polling inmediatamente - el plan se está creando en el backend
         pollForPlan(`temp-${week}`, week);
@@ -152,7 +142,6 @@ export const PlanScreen: React.FC = () => {
       }
 
       // Si es otro tipo de error, cerrar el modal y mostrar error
-      console.log('❌ [GENERATE] Unknown error type, closing modal');
       setIsGenerating(false);
       setGenerationProgress(0);
       Alert.alert('Error', 'No se pudo generar el plan. Intenta de nuevo.');
@@ -167,27 +156,15 @@ export const PlanScreen: React.FC = () => {
     const progress = Math.min(20 + (attempts / maxAttempts) * 75, 95);
     setGenerationProgress(progress);
 
-    console.log(`🔄 [POLLING ${attempts + 1}/${maxAttempts}] Checking nutrition plan for week: ${week}`);
-
     try {
       // Intentar obtener el plan actualizado
       const plan = await NutritionService.getWeeklyPlan(week);
-
-      if (plan) {
-        console.log('📋 [POLLING] Plan received - ID:', plan.id);
-        console.log('📋 [POLLING] Plan days:', plan.days?.length || 0);
-        console.log('📋 [POLLING] Plan structure:', JSON.stringify(plan, null, 2));
-      } else {
-        console.log('📋 [POLLING] No plan received yet');
-      }
 
       // Verificar si el plan existe y tiene contenido
       const isPlanReady = plan && plan.days && plan.days.length > 0;
       
       if (isPlanReady) {
         // El plan está listo
-        console.log('✅ [POLLING] Nutrition plan is ready!');
-        console.log('✅ [POLLING] Closing modal and showing plan');
         setGenerationProgress(100);
         setTimeout(() => {
           setWeeklyPlan(plan);
@@ -200,13 +177,11 @@ export const PlanScreen: React.FC = () => {
 
       // Si no está listo y no hemos alcanzado el máximo de intentos
       if (attempts < maxAttempts) {
-        console.log(`⏳ [POLLING] Plan not ready yet, will retry in ${pollInterval/1000} seconds...`);
         setTimeout(() => {
           pollForPlan(planId, week, attempts + 1);
         }, pollInterval);
       } else {
         // Timeout - el plan tardó demasiado
-        console.log('⏰ [POLLING] Max attempts reached');
         setIsGenerating(false);
         setGenerationProgress(0);
         Alert.alert(
@@ -227,16 +202,12 @@ export const PlanScreen: React.FC = () => {
         );
       }
     } catch (error: any) {
-      console.log('❌ [POLLING] Error polling for plan:', error.message);
-
       // Si no hemos alcanzado el máximo de intentos, continuar intentando
       if (attempts < maxAttempts) {
-        console.log(`🔄 [POLLING] Error but continuing, retry in ${pollInterval/1000}s...`);
         setTimeout(() => {
           pollForPlan(planId, week, attempts + 1);
         }, pollInterval);
       } else {
-        console.log('❌ [POLLING] Max attempts reached after errors');
         setIsGenerating(false);
         setGenerationProgress(0);
         Alert.alert('Error', 'Hubo un problema verificando tu plan. Intenta refrescar la pantalla.');
@@ -403,7 +374,6 @@ export const PlanScreen: React.FC = () => {
       setShoppingListItems(response.items);
       setShoppingListTotal(response.total);
     } catch (error) {
-      console.log('Error generating shopping list:', error);
       Alert.alert('Error', 'No se pudo generar la lista de compras');
       setShowShoppingListModal(false);
     } finally {
@@ -418,23 +388,14 @@ export const PlanScreen: React.FC = () => {
   };
 
   const handleRegenerateDay = async () => {
-    console.log('🔄 [REGENERATE] Button pressed');
-    console.log('🔄 [REGENERATE] weeklyPlan:', weeklyPlan ? 'exists' : 'null');
-    console.log('🔄 [REGENERATE] selectedDay:', selectedDay);
-    console.log('🔄 [REGENERATE] weekDays[selectedDay]:', weekDays[selectedDay]);
-    
     if (!weeklyPlan || !weekDays[selectedDay]) {
-      console.log('❌ [REGENERATE] Missing weeklyPlan or weekDays');
       return;
     }
 
     // Verificar si se puede modificar esta semana
     const canModify = canModifyWeek(currentWeek);
-    console.log('🔄 [REGENERATE] canModifyWeek:', canModify);
-    console.log('🔄 [REGENERATE] currentWeek:', currentWeek);
     
     if (!canModify) {
-      console.log('❌ [REGENERATE] Cannot modify past week');
       Alert.alert(
         'Semana pasada',
         'No puedes modificar planes de semanas anteriores. Solo puedes ver el contenido.',
@@ -442,8 +403,6 @@ export const PlanScreen: React.FC = () => {
       );
       return;
     }
-
-    console.log('✅ [REGENERATE] Showing confirmation alert');
     
     // Usar setTimeout para asegurar que el Alert se muestre después del render
     setTimeout(() => {
@@ -453,22 +412,17 @@ export const PlanScreen: React.FC = () => {
         [
           { 
             text: 'Cancelar', 
-            style: 'cancel',
-            onPress: () => console.log('❌ [REGENERATE] User cancelled')
+            style: 'cancel'
           },
           {
             text: 'Regenerar',
             style: 'destructive',
             onPress: async () => {
-              console.log('🔄 [REGENERATE] User confirmed, starting regeneration');
               try {
                 setRegeneratingDay(true);
                 const dayIndex = weekDays[selectedDay].dayIndex;
-                console.log('🔄 [REGENERATE] Regenerating day index:', dayIndex);
-                console.log('🔄 [REGENERATE] Plan ID:', weeklyPlan.id);
                 
                 const regeneratedDay = await NutritionService.regenerateDay(weeklyPlan.id, dayIndex);
-                console.log('✅ [REGENERATE] Day regenerated successfully');
                 
                 // Actualizar el plan existente con el día regenerado
                 const updatedPlan = {
@@ -483,8 +437,6 @@ export const PlanScreen: React.FC = () => {
                 setWeeklyPlan(updatedPlan);
                 Alert.alert('¡Listo!', 'El día ha sido regenerado exitosamente');
               } catch (error: any) {
-                console.log('❌ [REGENERATE] Error regenerating day:', error);
-                console.log('❌ [REGENERATE] Error message:', error.message);
                 Alert.alert('Error', 'No se pudo regenerar el día. Intenta de nuevo.');
               } finally {
                 setRegeneratingDay(false);
@@ -509,7 +461,6 @@ export const PlanScreen: React.FC = () => {
     
     try {
       setMarkingMeal(markKey);
-      console.log('✅ [MARK] Marking meal as consumed:', { planId: weeklyPlan.id, dayIndex, mealIndex });
       
       // Registrar la comida directamente usando logMeal
       await NutritionService.logMeal({
@@ -530,7 +481,6 @@ export const PlanScreen: React.FC = () => {
       
       Alert.alert('¡Registrado! ✅', `"${meal.title}" ha sido marcada como consumida.`);
     } catch (error: any) {
-      console.log('❌ [MARK] Error marking meal:', error);
       Alert.alert('Error', 'No se pudo marcar la comida. Intenta de nuevo.');
     } finally {
       setMarkingMeal(null);
@@ -582,7 +532,6 @@ export const PlanScreen: React.FC = () => {
               setWeeklyPlan(updatedPlan);
               Alert.alert('¡Cambiado!', 'La comida ha sido cambiada exitosamente');
             } catch (error) {
-              console.log('Error swapping meal:', error);
               Alert.alert('Error', 'No se pudo cambiar la comida. Intenta de nuevo.');
             } finally {
               setSwappingMeal(null);
@@ -707,13 +656,6 @@ export const PlanScreen: React.FC = () => {
 
     const canModify = canModifyWeek(currentWeek);
     const isButtonDisabled = regeneratingDay || !canModify;
-    
-    console.log('🔘 [RENDER] Regenerate button state:', {
-      currentWeek,
-      canModify,
-      regeneratingDay,
-      isButtonDisabled
-    });
 
     return (
       <View style={styles.mealPlan}>
@@ -724,10 +666,7 @@ export const PlanScreen: React.FC = () => {
               styles.regenerateDayButton, 
               isButtonDisabled && styles.buttonDisabled
             ]}
-            onPress={() => {
-              console.log('🔘 [BUTTON] Regenerate button pressed');
-              handleRegenerateDay();
-            }}
+            onPress={handleRegenerateDay}
             disabled={isButtonDisabled}
           >
             {regeneratingDay ? (

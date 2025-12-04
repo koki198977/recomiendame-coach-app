@@ -69,11 +69,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: 60, // More space for status bar
-    paddingBottom: 25,
-    paddingHorizontal: 24,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    paddingTop: 50, // Reducido de 60 a 50
+    paddingBottom: 16, // Reducido de 25 a 16
+    paddingHorizontal: 20, // Reducido de 24 a 20
+    borderBottomLeftRadius: 28, // Reducido de 32 a 28
+    borderBottomRightRadius: 28,
     overflow: 'hidden',
     ...SHADOWS.glow, // Green glow at the bottom
     shadowColor: COLORS.primaryStart,
@@ -114,16 +114,16 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     position: 'relative',
-    marginRight: 16,
+    marginRight: 12, // Reducido de 16 a 12
   },
   logoGlow: {
     position: 'absolute',
-    top: -4,
-    left: -4,
-    right: -4,
-    bottom: -4,
+    top: -3,
+    left: -3,
+    right: -3,
+    bottom: -3,
     backgroundColor: '#4CAF50',
-    borderRadius: 22,
+    borderRadius: 18,
     opacity: 0.4,
     shadowColor: '#4CAF50',
     shadowOffset: {
@@ -131,35 +131,35 @@ const styles = StyleSheet.create({
       height: 0,
     },
     shadowOpacity: 0.8,
-    shadowRadius: 12,
-    elevation: 10,
+    shadowRadius: 10,
+    elevation: 8,
   },
   logoWrapper: {
     backgroundColor: '#FFFFFF', // Fondo blanco sólido
-    padding: 10,
-    borderRadius: 18,
-    borderWidth: 3,
+    padding: 8, // Reducido de 10 a 8
+    borderRadius: 16, // Reducido de 18 a 16
+    borderWidth: 2.5, // Reducido de 3 a 2.5
     borderColor: 'rgba(255, 255, 255, 0.8)',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 3,
     },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 12,
+    shadowRadius: 6,
+    elevation: 10,
   },
   textContainer: {
     flex: 1,
   },
   title: {
-    fontSize: 22,
+    fontSize: 20, // Reducido de 22 a 20
     fontWeight: '800', // Extra bold
     color: '#fff',
     letterSpacing: 0.5,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 12, // Reducido de 13 a 12
     color: 'rgba(255, 255, 255, 0.9)',
     fontWeight: '600',
     marginTop: 2,

@@ -972,9 +972,9 @@ const styles = StyleSheet.create({
   // Estilos del nuevo header
   planInfo: {
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
+    paddingHorizontal: 16, // Reducido de 20 a 16
+    paddingTop: 16, // Reducido de 60 a 16
+    paddingBottom: 12, // Reducido de 20 a 12
   },
   planHeaderRow: {
     flexDirection: 'row',
@@ -987,17 +987,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   weekInfo: {
-    marginHorizontal: 15,
+    marginHorizontal: 12, // Reducido de 15 a 12
   },
   weekTitle: {
-    fontSize: 20,
+    fontSize: 18, // Reducido de 20 a 18
     fontWeight: 'bold',
     color: '#fff',
   },
   readOnlyTag: {
-    fontSize: 12,
+    fontSize: 11, // Reducido de 12 a 11
     color: 'rgba(255, 255, 255, 0.9)',
-    marginTop: 4,
+    marginTop: 3, // Reducido de 4 a 3
   },
   headerActions: {
     flexDirection: 'row',

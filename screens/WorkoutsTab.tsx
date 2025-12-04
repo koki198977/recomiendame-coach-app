@@ -349,22 +349,6 @@ export const WorkoutsTab: React.FC = () => {
 
     return (
       <View style={styles.workoutContainer}>
-        <View style={styles.workoutHeader}>
-          <Text style={styles.workoutTitle}>
-            {WorkoutService.getDayName(dayIndex)}
-          </Text>
-          <View style={styles.workoutMeta}>
-            <Text style={styles.workoutMetaText}>
-              {dayWorkout.exercises.length} ejercicios
-            </Text>
-            {dayWorkout.duration && (
-              <Text style={styles.workoutMetaText}>
-                • {dayWorkout.duration} min
-              </Text>
-            )}
-          </View>
-        </View>
-
         <ScrollView style={styles.exercisesList} showsVerticalScrollIndicator={false}>
           {dayWorkout.exercises.map((exercise, index) =>
             renderExercise(exercise, index)
@@ -471,9 +455,9 @@ const styles = StyleSheet.create({
   },
   planInfo: {
     backgroundColor: COLORS.card,
-    padding: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    padding: 14, // Reducido de 20 a 14
+    borderBottomLeftRadius: 20, // Reducido de 24 a 20
+    borderBottomRightRadius: 20,
     ...SHADOWS.glow,
     shadowColor: COLORS.primaryStart,
     shadowOpacity: 0.1,
@@ -483,20 +467,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 4, // Reducido de 8 a 4
   },
   planGoal: {
-    fontSize: 20,
+    fontSize: 18, // Reducido de 20 a 18
     fontWeight: '800',
     color: COLORS.text,
   },
   planWeek: {
-    fontSize: 14,
+    fontSize: 13, // Reducido de 14 a 13
     color: COLORS.textLight,
     fontWeight: '600',
   },
   planDays: {
-    fontSize: 14,
+    fontSize: 13, // Reducido de 14 a 13
     color: COLORS.primary,
     fontWeight: '700',
   },
@@ -554,7 +538,7 @@ const styles = StyleSheet.create({
   },
   workoutContainer: {
     flex: 1,
-    padding: 20,
+    padding: 12, // Reducido de 20 a 12
   },
   workoutHeader: {
     marginBottom: 20,

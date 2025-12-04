@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,11 @@ import {
   StyleSheet,
   Alert,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Logo } from '../components/Logo';
+import { NutritionService } from '../services/nutritionService';
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -27,6 +29,12 @@ export const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
     allergies: '',
     activityLevel: '',
   });
+  const [selectedAllergies, setSelectedAllergies] = useState<string[]>([]);
+  const [allergySearch, setAllergySearch] = useState('');
+  const [availableAllergies, setAvailableAllergies] = useState<string[]>([]);
+  const [loadingAllergies, setLoadingAllergies] = useState(false);
+
+
 
   const activityLevels = [
     { key: 'sedentary', emoji: '🪑', label: 'Sedentario', description: 'Poco o nada de ejercicio' },
@@ -84,22 +92,82 @@ export const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
       options: activityLevels
     },
     {
-      title: '¿Hay algún alimento que no te caiga bien?',
-      subtitle: 'Cuéntame sobre alergias o preferencias',
-      type: 'input',
-      fields: [
-        { key: 'allergies', label: 'Alimentos que prefieres evitar (opcional)', placeholder: 'Ej: Lactosa, gluten, soy vegetariano...' },
-      ]
+      title: 'Alergias y condiciones',
+      subtitle: 'Información médica importante',
+      type: 'allergies',
+      key: 'allergies'
     }
   ];
 
+  // Cargar alergias desde la DB cuando se llega al paso de alergias
+  useEffect(() => {
+    if (currentStepData.type === 'allergies') {
+      loadAllergies();
+    }
+  }, [currentStep]);
+
+  const loadAllergies = async () => {
+    try {
+      setLoadingAllergies(true);
+      // Cargar solo las primeras 12 más comunes
+      const response = await NutritionService.getAllergies('', 12, 0);
+      const allergyNames = response.items.map(item => item.name);
+      setAvailableAllergies(allergyNames);
+    } catch (error) {
+      Alert.alert('Error', 'No se pudieron cargar las alergias. Intenta de nuevo.');
+      setAvailableAllergies([]);
+    } finally {
+      setLoadingAllergies(false);
+    }
+  };
+
+  // Buscar alergias cuando el usuario escribe
+  const searchAllergies = async (searchText: string) => {
+    setAllergySearch(searchText);
+    
+    if (searchText.trim().length > 0) {
+      try {
+        setLoadingAllergies(true);
+        const response = await NutritionService.getAllergies(searchText, 20, 0);
+        const allergyNames = response.items.map(item => item.name);
+        setAvailableAllergies(allergyNames);
+      } catch (error) {
+        // Error silencioso en búsqueda
+      } finally {
+        setLoadingAllergies(false);
+      }
+    } else {
+      // Si borra el texto, volver a cargar las comunes
+      loadAllergies();
+    }
+  };
+
+  const toggleAllergy = (allergy: string) => {
+    setSelectedAllergies(prev => {
+      if (prev.includes(allergy)) {
+        return prev.filter(a => a !== allergy);
+      } else {
+        return [...prev, allergy];
+      }
+    });
+  };
+
   const handleNext = async () => {
     if (currentStep < steps.length - 1) {
+      // Si estamos en el paso de alergias, guardar las seleccionadas
+      if (currentStepData.type === 'allergies') {
+        updateFormData('allergies', selectedAllergies.join(', '));
+      }
       setCurrentStep(currentStep + 1);
     } else {
       // Guardar datos y completar onboarding
       try {
-        await AsyncStorage.setItem('userProfile', JSON.stringify(formData));
+        // Asegurar que las alergias estén actualizadas
+        const finalData = {
+          ...formData,
+          allergies: selectedAllergies.join(', ')
+        };
+        await AsyncStorage.setItem('userProfile', JSON.stringify(finalData));
         await AsyncStorage.setItem('onboardingCompleted', 'true');
         onComplete();
       } catch (error) {
@@ -163,7 +231,7 @@ export const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
 
       <View style={styles.content}>
         {/* Campos de texto */}
-        {currentStepData.type === 'input' && currentStepData.fields.map((field) => (
+        {currentStepData.type === 'input' && currentStepData.fields?.map((field) => (
           <View key={field.key} style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>{field.label}</Text>
             <TextInput
@@ -198,7 +266,7 @@ export const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
                     ]}>
                       {option.label}
                     </Text>
-                    {option.description && (
+                    {'description' in option && option.description && (
                       <Text style={[
                         styles.optionDescription,
                         isSelected && styles.optionDescriptionSelected
@@ -215,6 +283,101 @@ export const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
                 </TouchableOpacity>
               );
             })}
+          </View>
+        )}
+
+        {/* Selector de alergias con buscador */}
+        {currentStepData.type === 'allergies' && (
+          <View style={styles.allergiesContainer}>
+            {/* Buscador */}
+            <View style={styles.searchContainer}>
+              <Text style={styles.searchIcon}>🔍</Text>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Buscar otras alergias..."
+                value={allergySearch}
+                onChangeText={searchAllergies}
+                placeholderTextColor="#999"
+              />
+              {allergySearch.length > 0 && (
+                <TouchableOpacity onPress={() => searchAllergies('')}>
+                  <Text style={styles.clearSearch}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Chips seleccionados */}
+            {selectedAllergies.length > 0 && (
+              <View style={styles.selectedContainer}>
+                <Text style={styles.selectedLabel}>Seleccionadas ({selectedAllergies.length}):</Text>
+                <View style={styles.selectedChips}>
+                  {selectedAllergies.map((allergy) => (
+                    <TouchableOpacity
+                      key={allergy}
+                      style={styles.selectedChip}
+                      onPress={() => toggleAllergy(allergy)}
+                    >
+                      <Text style={styles.selectedChipText}>{allergy}</Text>
+                      <Text style={styles.selectedChipRemove}>✕</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Título de sección */}
+            {!allergySearch && (
+              <Text style={styles.sectionSubtitle}>
+                Alergias más comunes:
+              </Text>
+            )}
+
+            {/* Lista de opciones */}
+            <ScrollView style={styles.allergiesList} showsVerticalScrollIndicator={false}>
+              {loadingAllergies ? (
+                <View style={styles.searchingContainer}>
+                  <ActivityIndicator size="small" color="#4CAF50" />
+                  <Text style={styles.searchingText}>Buscando...</Text>
+                </View>
+              ) : (
+                    <>
+                      <View style={styles.allergiesGrid}>
+                        {availableAllergies.map((allergy) => {
+                          const isSelected = selectedAllergies.includes(allergy);
+                          return (
+                            <TouchableOpacity
+                              key={allergy}
+                              style={[
+                                styles.allergyChip,
+                                isSelected && styles.allergyChipSelected
+                              ]}
+                              onPress={() => toggleAllergy(allergy)}
+                            >
+                              <Text style={[
+                                styles.allergyChipText,
+                                isSelected && styles.allergyChipTextSelected
+                              ]}>
+                                {allergy}
+                              </Text>
+                              {isSelected && (
+                                <Text style={styles.allergyCheckmark}>✓</Text>
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                      {availableAllergies.length === 0 && allergySearch && (
+                        <Text style={styles.noResults}>
+                          No se encontraron resultados para "{allergySearch}"
+                        </Text>
+                      )}
+                    </>
+                  )}
+            </ScrollView>
+
+            <Text style={styles.allergyHint}>
+              💡 Puedes seleccionar múltiples opciones o ninguna si no aplica
+            </Text>
           </View>
         )}
 
@@ -489,5 +652,143 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  allergiesContainer: {
+    flex: 1,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 12,
+  },
+  searchingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    gap: 10,
+  },
+  searchingText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  searchIcon: {
+    fontSize: 18,
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#000',
+  },
+  clearSearch: {
+    fontSize: 18,
+    color: '#999',
+    paddingHorizontal: 5,
+  },
+  selectedContainer: {
+    marginBottom: 15,
+  },
+  selectedLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4CAF50',
+    marginBottom: 8,
+  },
+  selectedChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  selectedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  selectedChipText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  selectedChipRemove: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  allergiesList: {
+    maxHeight: 350,
+  },
+  allergiesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  allergyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#ddd',
+    gap: 6,
+  },
+  allergyChipSelected: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#4CAF50',
+  },
+  allergyChipText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  allergyChipTextSelected: {
+    color: '#2E7D32',
+    fontWeight: '600',
+  },
+  allergyCheckmark: {
+    color: '#4CAF50',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  noResults: {
+    textAlign: 'center',
+    color: '#999',
+    fontSize: 14,
+    marginTop: 20,
+    fontStyle: 'italic',
+  },
+  allergyHint: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 15,
+    fontStyle: 'italic',
   },
 });

@@ -27,14 +27,12 @@ interface CompleteProfileModalProps {
   visible: boolean;
   onComplete: (profileData: any) => void;
   onSkip?: () => void; // Opcional
-  onLogout?: () => void; // Temporal para cerrar sesión
 }
 
 export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
   visible,
   onComplete,
   onSkip,
-  onLogout,
 }) => {
   const [formData, setFormData] = useState({
     sex: '',
@@ -55,6 +53,12 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
   const [allergies, setAllergies] = useState<Allergy[]>([]);
   const [conditions, setConditions] = useState<Condition[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // Estados para búsqueda
+  const [allergySearch, setAllergySearch] = useState('');
+  const [conditionSearch, setConditionSearch] = useState('');
+  const [searchingAllergies, setSearchingAllergies] = useState(false);
+  const [searchingConditions, setSearchingConditions] = useState(false);
 
   const steps = [
     {
@@ -111,8 +115,8 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
     try {
       const [cuisinesData, allergiesData, conditionsData] = await Promise.all([
         NutritionService.getCuisines('', 50, 0).catch(() => ({ items: [], total: 0 })),
-        NutritionService.getAllergies('', 50, 0).catch(() => ({ items: [], total: 0 })),
-        NutritionService.getConditions('', 50, 0).catch(() => ({ items: [], total: 0 })),
+        NutritionService.getAllergies('', 5, 0).catch(() => ({ items: [], total: 0 })),
+        NutritionService.getConditions('', 5, 0).catch(() => ({ items: [], total: 0 })),
       ]);
       
       setCuisines(cuisinesData.items);
@@ -172,6 +176,56 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
         : [...currentArray, itemId];
       return { ...prev, [key]: newArray };
     });
+  };
+
+  // Búsqueda de alergias
+  const searchAllergies = async (searchText: string) => {
+    setAllergySearch(searchText);
+    
+    if (searchText.trim().length > 0) {
+      try {
+        setSearchingAllergies(true);
+        const response = await NutritionService.getAllergies(searchText, 20, 0);
+        setAllergies(response.items);
+      } catch (error) {
+        // Error silencioso
+      } finally {
+        setSearchingAllergies(false);
+      }
+    } else {
+      // Si borra el texto, volver a cargar las comunes
+      try {
+        const response = await NutritionService.getAllergies('', 5, 0);
+        setAllergies(response.items);
+      } catch (error) {
+        // Error silencioso
+      }
+    }
+  };
+
+  // Búsqueda de condiciones
+  const searchConditions = async (searchText: string) => {
+    setConditionSearch(searchText);
+    
+    if (searchText.trim().length > 0) {
+      try {
+        setSearchingConditions(true);
+        const response = await NutritionService.getConditions(searchText, 20, 0);
+        setConditions(response.items);
+      } catch (error) {
+        // Error silencioso
+      } finally {
+        setSearchingConditions(false);
+      }
+    } else {
+      // Si borra el texto, volver a cargar las comunes
+      try {
+        const response = await NutritionService.getConditions('', 5, 0);
+        setConditions(response.items);
+      } catch (error) {
+        // Error silencioso
+      }
+    }
   };
 
   const handleNext = () => {
@@ -308,16 +362,6 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
               />
             ))}
           </View>
-
-          {/* Botón temporal de cerrar sesión */}
-          {onLogout && (
-            <TouchableOpacity 
-              style={styles.tempLogoutButton}
-              onPress={onLogout}
-            >
-              <Text style={styles.tempLogoutText}>🚪 Cerrar sesión (temporal)</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* Content */}
@@ -423,7 +467,46 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
               <View style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>Alergias alimentarias</Text>
                 <Text style={styles.fieldSubtitle}>Selecciona las que apliquen (opcional)</Text>
-                {loading ? (
+                
+                {/* Chips seleccionados */}
+                {formData.allergies.length > 0 && (
+                  <View style={styles.selectedContainer}>
+                    <Text style={styles.selectedLabel}>Seleccionadas ({formData.allergies.length}):</Text>
+                    <View style={styles.selectedChips}>
+                      {allergies
+                        .filter(a => formData.allergies.includes(a.id))
+                        .map((allergy) => (
+                          <TouchableOpacity
+                            key={allergy.id}
+                            style={styles.selectedChip}
+                            onPress={() => toggleArrayItem('allergies', allergy.id)}
+                          >
+                            <Text style={styles.selectedChipText}>{allergy.name}</Text>
+                            <Text style={styles.selectedChipRemove}>✕</Text>
+                          </TouchableOpacity>
+                        ))}
+                    </View>
+                  </View>
+                )}
+
+                {/* Buscador de alergias */}
+                <View style={styles.searchContainer}>
+                  <Text style={styles.searchIcon}>🔍</Text>
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Buscar otras alergias..."
+                    value={allergySearch}
+                    onChangeText={searchAllergies}
+                    placeholderTextColor="#999"
+                  />
+                  {allergySearch.length > 0 && (
+                    <TouchableOpacity onPress={() => searchAllergies('')}>
+                      <Text style={styles.clearSearch}>✕</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {loading || searchingAllergies ? (
                   <ActivityIndicator color="#fff" style={{ marginVertical: 20 }} />
                 ) : (
                   <View style={styles.checkboxContainer}>
@@ -452,7 +535,46 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
               <View style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>Condiciones médicas</Text>
                 <Text style={styles.fieldSubtitle}>Información para personalizar tu plan (opcional)</Text>
-                {loading ? (
+                
+                {/* Chips seleccionados */}
+                {formData.conditions.length > 0 && (
+                  <View style={styles.selectedContainer}>
+                    <Text style={styles.selectedLabel}>Seleccionadas ({formData.conditions.length}):</Text>
+                    <View style={styles.selectedChips}>
+                      {conditions
+                        .filter(c => formData.conditions.includes(c.id))
+                        .map((condition) => (
+                          <TouchableOpacity
+                            key={condition.id}
+                            style={styles.selectedChip}
+                            onPress={() => toggleArrayItem('conditions', condition.id)}
+                          >
+                            <Text style={styles.selectedChipText}>{condition.label}</Text>
+                            <Text style={styles.selectedChipRemove}>✕</Text>
+                          </TouchableOpacity>
+                        ))}
+                    </View>
+                  </View>
+                )}
+
+                {/* Buscador de condiciones */}
+                <View style={styles.searchContainer}>
+                  <Text style={styles.searchIcon}>🔍</Text>
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Buscar otras condiciones..."
+                    value={conditionSearch}
+                    onChangeText={searchConditions}
+                    placeholderTextColor="#999"
+                  />
+                  {conditionSearch.length > 0 && (
+                    <TouchableOpacity onPress={() => searchConditions('')}>
+                      <Text style={styles.clearSearch}>✕</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {loading || searchingConditions ? (
                   <ActivityIndicator color="#fff" style={{ marginVertical: 20 }} />
                 ) : (
                   <View style={styles.checkboxContainer}>
@@ -779,20 +901,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 15,
   },
-  tempLogoutButton: {
-    marginTop: 15,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  tempLogoutText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
+
   fieldSubtitle: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.7)',
@@ -821,5 +930,64 @@ const styles = StyleSheet.create({
   checkboxTextActive: {
     color: '#fff',
     fontWeight: '600',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  searchIcon: {
+    fontSize: 18,
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  clearSearch: {
+    fontSize: 18,
+    color: 'rgba(255, 255, 255, 0.7)',
+    paddingHorizontal: 5,
+  },
+  selectedContainer: {
+    marginBottom: 15,
+  },
+  selectedLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 8,
+  },
+  selectedChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  selectedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  selectedChipText: {
+    color: '#4CAF50',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  selectedChipRemove: {
+    color: '#4CAF50',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

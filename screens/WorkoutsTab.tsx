@@ -9,12 +9,14 @@ import {
   Alert,
   Linking,
   Image,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import WorkoutService from '../services/workoutService';
 import { WorkoutPlan, WorkoutGoal, WorkoutDay, Exercise } from '../types/nutrition';
 import { GenerateWorkoutModal } from '../components/GenerateWorkoutModal';
 import { PlanGeneratingModal } from '../components/PlanGeneratingModal';
+import { RestTimerModal } from '../components/RestTimerModal';
 import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
 
 export const WorkoutsTab: React.FC = () => {
@@ -25,10 +27,34 @@ export const WorkoutsTab: React.FC = () => {
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
+  
+  // Estados para rutina activa
+  const [isWorkoutActive, setIsWorkoutActive] = useState(false);
+  const [completedExercises, setCompletedExercises] = useState<Set<number>>(new Set());
+  const [workoutStartTime, setWorkoutStartTime] = useState<Date | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [exerciseEdits, setExerciseEdits] = useState<{[key: number]: Partial<Exercise>}>({});
+  const [showWorkoutSummary, setShowWorkoutSummary] = useState(false);
+  const [workoutSummary, setWorkoutSummary] = useState<any>(null);
+  const [showRestTimer, setShowRestTimer] = useState(false);
+  const [currentRestSeconds, setCurrentRestSeconds] = useState(60);
 
   useEffect(() => {
     loadWorkoutPlan();
   }, []);
+
+  // Timer effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isWorkoutActive && workoutStartTime) {
+      interval = setInterval(() => {
+        const now = new Date().getTime();
+        const start = workoutStartTime.getTime();
+        setElapsedTime(Math.floor((now - start) / 1000));
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isWorkoutActive, workoutStartTime]);
 
   const loadWorkoutPlan = async () => {
     try {
@@ -205,6 +231,122 @@ export const WorkoutsTab: React.FC = () => {
     return workoutPlan.days.find(day => day.dayIndex === todayDayIndex) || null;
   };
 
+  const startWorkout = () => {
+    setIsWorkoutActive(true);
+    setWorkoutStartTime(new Date());
+    setCompletedExercises(new Set());
+    setExerciseEdits({});
+    Alert.alert(
+      '¡Rutina iniciada! 💪', 
+      'Presiona el botón "Marcar" en cada ejercicio cuando lo completes. El cronómetro está corriendo. ¡A entrenar!',
+      [{ text: 'Entendido' }]
+    );
+  };
+
+  const toggleExerciseComplete = (index: number, restSeconds?: number) => {
+    setCompletedExercises(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) {
+        newSet.delete(index);
+      } else {
+        newSet.add(index);
+        // Iniciar temporizador de descanso si hay tiempo definido
+        if (restSeconds && restSeconds > 0) {
+          setCurrentRestSeconds(restSeconds);
+          setShowRestTimer(true);
+        }
+      }
+      return newSet;
+    });
+  };
+
+  const updateExerciseValue = (index: number, field: keyof Exercise, value: any) => {
+    setExerciseEdits(prev => ({
+      ...prev,
+      [index]: {
+        ...prev[index],
+        [field]: value
+      }
+    }));
+  };
+
+  const calculateCaloriesBurned = (exercises: Exercise[]): number => {
+    // Estimación simple: ~5 calorías por serie completada
+    let totalCalories = 0;
+    exercises.forEach((exercise, idx) => {
+      if (completedExercises.has(idx)) {
+        const sets = exerciseEdits[idx]?.sets || exercise.sets;
+        totalCalories += sets * 5;
+      }
+    });
+    return totalCalories;
+  };
+
+  const finishWorkout = async () => {
+    if (!workoutPlan) return;
+
+    const dayIndex = selectedDay + 1;
+    const dayWorkout = workoutPlan.days.find(d => d.dayIndex === dayIndex);
+    if (!dayWorkout) return;
+
+    const totalExercises = dayWorkout.exercises.length;
+    const completedCount = completedExercises.size;
+    const caloriesBurned = calculateCaloriesBurned(dayWorkout.exercises);
+    const durationMinutes = Math.floor(elapsedTime / 60);
+
+    // Preparar ejercicios con modificaciones
+    const exercisesWithEdits = dayWorkout.exercises.map((exercise, idx) => ({
+      ...exercise,
+      ...(exerciseEdits[idx] || {}),
+      completed: completedExercises.has(idx)
+    }));
+
+    const summary = {
+      totalExercises,
+      completedCount,
+      caloriesBurned,
+      durationMinutes,
+      completionRate: Math.round((completedCount / totalExercises) * 100),
+      exercises: exercisesWithEdits,
+      dayIndex
+    };
+
+    setWorkoutSummary(summary);
+    setShowWorkoutSummary(true);
+    setIsWorkoutActive(false);
+  };
+
+  const saveWorkoutProgress = async () => {
+    if (!workoutSummary) return;
+
+    try {
+      await WorkoutService.saveWorkoutCompletion({
+        isoWeek: currentWeek,
+        dayIndex: workoutSummary.dayIndex,
+        durationMinutes: workoutSummary.durationMinutes,
+        caloriesBurned: workoutSummary.caloriesBurned,
+        completedExercises: workoutSummary.completedCount,
+        totalExercises: workoutSummary.totalExercises,
+        exercises: workoutSummary.exercises
+      });
+
+      Alert.alert('¡Guardado! 💾', 'Tu progreso ha sido guardado exitosamente.');
+      setShowWorkoutSummary(false);
+      setWorkoutSummary(null);
+      
+      // Recargar el plan para ver los datos actualizados
+      await loadWorkoutPlan();
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo guardar el progreso. Intenta de nuevo.');
+    }
+  };
+
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const handleOpenVideo = async (query: string) => {
     try {
       // Usar directamente el enlace web para mayor compatibilidad
@@ -226,66 +368,132 @@ export const WorkoutsTab: React.FC = () => {
       .filter(step => step.length > 0);
   };
 
-  const renderExercise = (exercise: Exercise, index: number) => (
-    <View key={index} style={styles.exerciseCard}>
-      <View style={styles.exerciseHeader}>
-        <Text style={styles.exerciseNumber}>{index + 1}</Text>
-        <View style={styles.exerciseInfo}>
-          <Text style={styles.exerciseName}>{exercise.name}</Text>
-          {exercise.muscleGroup && (
-            <Text style={styles.muscleGroup}>🎯 {exercise.muscleGroup}</Text>
-          )}
-        </View>
-        {exercise.videoQuery && (
-          <TouchableOpacity 
-            style={styles.videoButton}
-            onPress={() => handleOpenVideo(exercise.videoQuery!)}
+  const renderExercise = (exercise: Exercise, index: number) => {
+    const isCompleted = completedExercises.has(index);
+    const edits = exerciseEdits[index] || {};
+    const currentSets = edits.sets ?? exercise.sets;
+    const currentReps = edits.reps ?? exercise.reps;
+    const currentWeight = edits.weight ?? exercise.weight;
+
+    return (
+      <View key={index} style={[
+        styles.exerciseCard,
+        isCompleted && styles.exerciseCardCompleted
+      ]}>
+        {/* Check button */}
+        {isWorkoutActive && (
+          <TouchableOpacity
+            style={[styles.checkButton, isCompleted && styles.checkButtonCompleted]}
+            onPress={() => toggleExerciseComplete(index, exercise.restSeconds || 60)}
+            activeOpacity={0.7}
           >
-            <Text style={styles.videoButtonText}>📺 Ver video</Text>
+            {isCompleted ? (
+              <View style={styles.checkButtonContent}>
+                <Text style={styles.checkButtonIcon}>✓</Text>
+              </View>
+            ) : (
+              <View style={styles.checkButtonContent}>
+                <View style={styles.checkButtonInner} />
+                <Text style={styles.checkButtonLabel}>Marcar</Text>
+              </View>
+            )}
           </TouchableOpacity>
         )}
-      </View>
 
-      <View style={styles.exerciseDetails}>
-        <View style={styles.exerciseDetail}>
-          <Text style={styles.detailLabel}>Series</Text>
-          <Text style={styles.detailValue}>{exercise.sets}</Text>
-        </View>
-        <View style={styles.exerciseDetail}>
-          <Text style={styles.detailLabel}>Reps</Text>
-          <Text style={styles.detailValue}>{exercise.reps}</Text>
-        </View>
-        <View style={styles.exerciseDetail}>
-          <Text style={styles.detailLabel}>Descanso</Text>
-          <Text style={styles.detailValue}>
-            {exercise.restSeconds ? `${exercise.restSeconds}s` : exercise.rest}
+        <View style={styles.exerciseHeader}>
+          <Text style={[styles.exerciseNumber, isCompleted && styles.exerciseNumberCompleted]}>
+            {index + 1}
           </Text>
+          <View style={styles.exerciseInfo}>
+            <Text style={[styles.exerciseName, isCompleted && styles.exerciseNameCompleted]}>
+              {exercise.name}
+            </Text>
+            {exercise.muscleGroup && (
+              <Text style={styles.muscleGroup}>🎯 {exercise.muscleGroup}</Text>
+            )}
+          </View>
+          {exercise.videoQuery && (
+            <TouchableOpacity 
+              style={styles.videoButton}
+              onPress={() => handleOpenVideo(exercise.videoQuery!)}
+            >
+              <Text style={styles.videoButtonText}>📺</Text>
+            </TouchableOpacity>
+          )}
         </View>
+
+        {/* Editable details */}
+        <View style={styles.exerciseDetails}>
+          <View style={styles.exerciseDetail}>
+            <Text style={styles.detailLabel}>Series</Text>
+            {isWorkoutActive ? (
+              <View style={styles.editableValue}>
+                <TouchableOpacity onPress={() => updateExerciseValue(index, 'sets', Math.max(1, currentSets - 1))}>
+                  <Text style={styles.editButton}>−</Text>
+                </TouchableOpacity>
+                <Text style={styles.detailValue}>{currentSets}</Text>
+                <TouchableOpacity onPress={() => updateExerciseValue(index, 'sets', currentSets + 1)}>
+                  <Text style={styles.editButton}>+</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <Text style={styles.detailValue}>{currentSets}</Text>
+            )}
+          </View>
+          <View style={styles.exerciseDetail}>
+            <Text style={styles.detailLabel}>Reps</Text>
+            <Text style={styles.detailValue}>{currentReps}</Text>
+          </View>
+          {currentWeight !== null && currentWeight !== undefined && (
+            <View style={styles.exerciseDetail}>
+              <Text style={styles.detailLabel}>Peso (kg)</Text>
+              {isWorkoutActive ? (
+                <View style={styles.editableValue}>
+                  <TouchableOpacity onPress={() => updateExerciseValue(index, 'weight', Math.max(0, (currentWeight || 0) - 2.5))}>
+                    <Text style={styles.editButton}>−</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.detailValue}>{currentWeight || 0}</Text>
+                  <TouchableOpacity onPress={() => updateExerciseValue(index, 'weight', (currentWeight || 0) + 2.5)}>
+                    <Text style={styles.editButton}>+</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <Text style={styles.detailValue}>{currentWeight}</Text>
+              )}
+            </View>
+          )}
+          <View style={styles.exerciseDetail}>
+            <Text style={styles.detailLabel}>Descanso</Text>
+            <Text style={styles.detailValue}>
+              {exercise.restSeconds ? `${exercise.restSeconds}s` : exercise.rest}
+            </Text>
+          </View>
+        </View>
+
+        {exercise.instructions && (
+          <View style={styles.instructionsContainer}>
+            <Text style={styles.instructionsTitle}>Instrucciones:</Text>
+            {formatInstructions(exercise.instructions).map((instruction, idx) => (
+              <Text key={idx} style={styles.instructionsText}>
+                {instruction}
+              </Text>
+            ))}
+          </View>
+        )}
+
+        {exercise.notes && (
+          <View style={styles.notesContainer}>
+            <Text style={styles.exerciseNotes}>💡 Notas:</Text>
+            {formatInstructions(exercise.notes).map((note, idx) => (
+              <Text key={idx} style={styles.noteText}>
+                {note}
+              </Text>
+            ))}
+          </View>
+        )}
       </View>
-
-      {exercise.instructions && (
-        <View style={styles.instructionsContainer}>
-          <Text style={styles.instructionsTitle}>Instrucciones:</Text>
-          {formatInstructions(exercise.instructions).map((instruction, idx) => (
-            <Text key={idx} style={styles.instructionsText}>
-              {instruction}
-            </Text>
-          ))}
-        </View>
-      )}
-
-      {exercise.notes && (
-        <View style={styles.notesContainer}>
-          <Text style={styles.exerciseNotes}>💡 Notas:</Text>
-          {formatInstructions(exercise.notes).map((note, idx) => (
-            <Text key={idx} style={styles.noteText}>
-              {note}
-            </Text>
-          ))}
-        </View>
-      )}
-    </View>
-  );
+    );
+  };
 
   const renderDaySelector = () => {
     const days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -294,7 +502,9 @@ export const WorkoutsTab: React.FC = () => {
       <View style={styles.daySelector}>
         {days.map((day, index) => {
           const dayIndex = index + 1;
-          const hasWorkout = workoutPlan?.days.some(d => d.dayIndex === dayIndex);
+          const dayWorkout = workoutPlan?.days.find(d => d.dayIndex === dayIndex);
+          const hasWorkout = !!dayWorkout;
+          const isCompleted = dayWorkout?.completed || false;
           const today = new Date().getDay();
           const todayIndex = today === 0 ? 6 : today - 1;
           const isToday = index === todayIndex;
@@ -307,6 +517,7 @@ export const WorkoutsTab: React.FC = () => {
                 selectedDay === index && styles.dayButtonActive,
                 isToday && styles.dayButtonToday,
                 !hasWorkout && styles.dayButtonDisabled,
+                isCompleted && styles.dayButtonCompleted,
               ]}
               onPress={() => hasWorkout && setSelectedDay(index)}
               disabled={!hasWorkout}
@@ -318,7 +529,8 @@ export const WorkoutsTab: React.FC = () => {
               ]}>
                 {day}
               </Text>
-              {hasWorkout && <View style={styles.dayIndicator} />}
+              {isCompleted && <Text style={styles.dayCompletedIcon}>✓</Text>}
+              {hasWorkout && !isCompleted && <View style={styles.dayIndicator} />}
             </TouchableOpacity>
           );
         })}
@@ -349,6 +561,95 @@ export const WorkoutsTab: React.FC = () => {
 
     return (
       <View style={styles.workoutContainer}>
+        {/* Completed workout banner */}
+        {dayWorkout.completed && !isWorkoutActive && (
+          <View style={styles.completedBanner}>
+            <View style={styles.completedHeader}>
+              <Text style={styles.completedTitle}>✓ Rutina Completada</Text>
+              <Text style={styles.completedDate}>
+                {dayWorkout.completedAt ? new Date(dayWorkout.completedAt).toLocaleString('es-ES', {
+                  day: '2-digit',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                }) : ''}
+              </Text>
+            </View>
+            <View style={styles.completedStats}>
+              <View style={styles.completedStat}>
+                <Text style={styles.completedStatValue}>
+                  {dayWorkout.durationMinutes || 0}
+                </Text>
+                <Text style={styles.completedStatLabel}>minutos</Text>
+              </View>
+              <View style={styles.completedStat}>
+                <Text style={styles.completedStatValue}>
+                  {dayWorkout.caloriesBurned || 0}
+                </Text>
+                <Text style={styles.completedStatLabel}>kcal</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Timer and controls */}
+        {isWorkoutActive && (
+          <>
+            {/* Hint banner */}
+            {completedExercises.size === 0 && (
+              <View style={styles.hintBanner}>
+                <Text style={styles.hintBannerText}>
+                  👉 Presiona "Marcar" en cada ejercicio al completarlo
+                </Text>
+              </View>
+            )}
+            
+            <View style={styles.timerContainer}>
+              <View style={styles.timerContent}>
+                <Text style={styles.timerLabel}>⏱️ Tiempo</Text>
+                <Text style={styles.timerValue}>{formatTime(elapsedTime)}</Text>
+              </View>
+              <View style={styles.timerStats}>
+                <Text style={styles.timerStat}>
+                  ✓ {completedExercises.size}/{dayWorkout.exercises.length}
+                </Text>
+                <Text style={styles.timerStat}>
+                  🔥 ~{calculateCaloriesBurned(dayWorkout.exercises)} kcal
+                </Text>
+              </View>
+            </View>
+          </>
+        )}
+
+        {/* Start/Finish buttons */}
+        <View style={styles.workoutControls}>
+          {!isWorkoutActive ? (
+            <TouchableOpacity style={styles.startButton} onPress={startWorkout}>
+              <LinearGradient
+                colors={GRADIENTS.primary}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.startButtonGradient}
+              >
+                <Text style={styles.startButtonText}>
+                  {dayWorkout.completed ? '🔄 Repetir Rutina' : '▶️ Iniciar Rutina'}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.finishButton} onPress={finishWorkout}>
+              <LinearGradient
+                colors={['#FF6B6B', '#FF8E53']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.finishButtonGradient}
+              >
+                <Text style={styles.finishButtonText}>✓ Finalizar y Guardar</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+        </View>
+
         <ScrollView style={styles.exercisesList} showsVerticalScrollIndicator={false}>
           {dayWorkout.exercises.map((exercise, index) =>
             renderExercise(exercise, index)
@@ -372,20 +673,6 @@ export const WorkoutsTab: React.FC = () => {
       <View style={styles.container}>
         {workoutPlan ? (
           <>
-            {/* Plan Info */}
-            <View style={styles.planInfo}>
-              <View style={styles.planHeader}>
-                <Text style={styles.planGoal}>
-                  {WorkoutService.getGoalEmoji(workoutPlan.goal)}{' '}
-                  {WorkoutService.getGoalLabel(workoutPlan.goal)}
-                </Text>
-                <Text style={styles.planWeek}>Semana {currentWeek}</Text>
-              </View>
-              <Text style={styles.planDays}>
-                {workoutPlan.daysAvailable} días de entrenamiento
-              </Text>
-            </View>
-
             {/* Day Selector */}
             {renderDaySelector()}
 
@@ -435,6 +722,77 @@ export const WorkoutsTab: React.FC = () => {
         progress={generationProgress}
         type="workout"
       />
+
+      {/* Workout Summary Modal */}
+      {showWorkoutSummary && workoutSummary && (
+        <Modal
+          visible={showWorkoutSummary}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowWorkoutSummary(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.summaryModal}>
+              <Text style={styles.summaryTitle}>¡Rutina Completada! 🎉</Text>
+              
+              <View style={styles.summaryStats}>
+                <View style={styles.summaryStatCard}>
+                  <Text style={styles.summaryStatValue}>{workoutSummary.durationMinutes}</Text>
+                  <Text style={styles.summaryStatLabel}>minutos</Text>
+                </View>
+                <View style={styles.summaryStatCard}>
+                  <Text style={styles.summaryStatValue}>{workoutSummary.caloriesBurned}</Text>
+                  <Text style={styles.summaryStatLabel}>kcal quemadas</Text>
+                </View>
+              </View>
+
+              <View style={styles.summaryProgress}>
+                <Text style={styles.summaryProgressText}>
+                  Completaste {workoutSummary.completedCount} de {workoutSummary.totalExercises} ejercicios
+                </Text>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { width: `${workoutSummary.completionRate}%` }]} />
+                </View>
+                <Text style={styles.summaryProgressPercent}>{workoutSummary.completionRate}%</Text>
+              </View>
+
+              {/* Action buttons */}
+              <View style={styles.summaryActions}>
+                <TouchableOpacity
+                  style={styles.summarySaveButton}
+                  onPress={saveWorkoutProgress}
+                >
+                  <LinearGradient
+                    colors={GRADIENTS.primary}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.summaryButtonGradient}
+                  >
+                    <Text style={styles.summaryButtonText}>💾 Guardar Progreso</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.summaryDiscardButton}
+                  onPress={() => {
+                    setShowWorkoutSummary(false);
+                    setWorkoutSummary(null);
+                  }}
+                >
+                  <Text style={styles.summaryDiscardText}>Descartar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Rest Timer Modal */}
+      <RestTimerModal
+        visible={showRestTimer}
+        restSeconds={currentRestSeconds}
+        onClose={() => setShowRestTimer(false)}
+      />
     </>
   );
 };
@@ -453,40 +811,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.textLight,
   },
-  planInfo: {
-    backgroundColor: COLORS.card,
-    padding: 14, // Reducido de 20 a 14
-    borderBottomLeftRadius: 20, // Reducido de 24 a 20
-    borderBottomRightRadius: 20,
-    ...SHADOWS.glow,
-    shadowColor: COLORS.primaryStart,
-    shadowOpacity: 0.1,
-    zIndex: 10,
-  },
-  planHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4, // Reducido de 8 a 4
-  },
-  planGoal: {
-    fontSize: 18, // Reducido de 20 a 18
-    fontWeight: '800',
-    color: COLORS.text,
-  },
-  planWeek: {
-    fontSize: 13, // Reducido de 14 a 13
-    color: COLORS.textLight,
-    fontWeight: '600',
-  },
-  planDays: {
-    fontSize: 13, // Reducido de 14 a 13
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
   daySelector: {
     backgroundColor: 'transparent',
-    paddingVertical: 8,
+    paddingTop: 16,
+    paddingBottom: 8,
     paddingHorizontal: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -516,6 +844,11 @@ const styles = StyleSheet.create({
     opacity: 0.5,
     backgroundColor: '#f0f0f0',
   },
+  dayButtonCompleted: {
+    backgroundColor: 'rgba(67, 233, 123, 0.2)',
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+  },
   dayText: {
     fontSize: 16,
     fontWeight: 'bold',
@@ -535,6 +868,14 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 1.5,
     backgroundColor: '#fff',
+  },
+  dayCompletedIcon: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    fontSize: 12,
+    color: COLORS.primary,
+    fontWeight: '800',
   },
   workoutContainer: {
     flex: 1,
@@ -754,5 +1095,300 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 8,
     paddingLeft: 4,
+  },
+  // Workout active styles
+  completedBanner: {
+    backgroundColor: COLORS.card,
+    padding: 16,
+    borderRadius: 20,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    ...SHADOWS.glow,
+  },
+  completedHeader: {
+    marginBottom: 12,
+  },
+  completedTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.primary,
+    marginBottom: 4,
+  },
+  completedDate: {
+    fontSize: 13,
+    color: COLORS.textLight,
+    fontWeight: '600',
+  },
+  completedStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+  },
+  completedStat: {
+    alignItems: 'center',
+  },
+  completedStatValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: COLORS.primary,
+    marginBottom: 4,
+  },
+  completedStatLabel: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    fontWeight: '600',
+  },
+  hintBanner: {
+    backgroundColor: 'rgba(67, 233, 123, 0.15)',
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
+  },
+  hintBannerText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.primary,
+    textAlign: 'center',
+  },
+  timerContainer: {
+    backgroundColor: COLORS.card,
+    padding: 12,
+    borderRadius: 16,
+    marginBottom: 10,
+    ...SHADOWS.card,
+  },
+  timerContent: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  timerLabel: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  timerValue: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  timerStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+  },
+  timerStat: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  workoutControls: {
+    marginBottom: 10,
+  },
+  startButton: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    ...SHADOWS.glow,
+  },
+  startButtonGradient: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  startButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  finishButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...SHADOWS.glow,
+  },
+  finishButtonGradient: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  finishButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  exerciseCardCompleted: {
+    opacity: 0.7,
+    backgroundColor: 'rgba(67, 233, 123, 0.1)',
+  },
+  checkButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    minWidth: 80,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+    ...SHADOWS.card,
+  },
+  checkButtonCompleted: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  checkButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  checkButtonInner: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    backgroundColor: '#fff',
+  },
+  checkButtonIcon: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  checkButtonLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  exerciseNumberCompleted: {
+    backgroundColor: 'rgba(67, 233, 123, 0.3)',
+  },
+  exerciseNameCompleted: {
+    textDecorationLine: 'line-through',
+    opacity: 0.7,
+  },
+  editableValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  editButton: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: COLORS.primary,
+    paddingHorizontal: 8,
+  },
+  // Summary modal
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  summaryModal: {
+    backgroundColor: COLORS.card,
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    ...SHADOWS.glow,
+  },
+  summaryTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  summaryStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 24,
+  },
+  summaryStatCard: {
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    padding: 16,
+    borderRadius: 16,
+    flex: 1,
+    marginHorizontal: 6,
+  },
+  summaryStatValue: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: COLORS.primary,
+    marginBottom: 4,
+  },
+  summaryStatLabel: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    fontWeight: '600',
+  },
+  summaryProgress: {
+    marginBottom: 24,
+  },
+  summaryProgressText: {
+    fontSize: 14,
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: 12,
+    fontWeight: '600',
+  },
+  progressBar: {
+    height: 12,
+    backgroundColor: COLORS.background,
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: 6,
+  },
+  summaryProgressPercent: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: COLORS.primary,
+    textAlign: 'center',
+  },
+  summaryActions: {
+    gap: 12,
+    width: '100%',
+  },
+  summarySaveButton: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    ...SHADOWS.glow,
+  },
+  summaryButtonGradient: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  summaryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  summaryDiscardButton: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  summaryDiscardText: {
+    color: COLORS.textLight,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

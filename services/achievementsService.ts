@@ -84,6 +84,17 @@ export class AchievementsService {
         progress: 0,
         maxProgress: 10,
       },
+      {
+        id: 'weight_loss_20kg',
+        title: 'Metamorfosis',
+        description: 'Pierde 20 kilogramos',
+        icon: '🦋',
+        category: 'weight',
+        requirement: 20,
+        isUnlocked: false,
+        progress: 0,
+        maxProgress: 20,
+      },
 
       // Logros de adherencia
       {
@@ -144,6 +155,107 @@ export class AchievementsService {
         maxProgress: 5,
       },
 
+      // Logros de entrenamiento
+      {
+        id: 'first_workout',
+        title: 'Primer Entrenamiento',
+        description: 'Completa tu primera rutina de ejercicios',
+        icon: '💪',
+        category: 'workout',
+        requirement: 1,
+        isUnlocked: false,
+        progress: 0,
+        maxProgress: 1,
+      },
+      {
+        id: 'workout_week',
+        title: 'Semana Activa',
+        description: 'Entrena 3 días en una semana',
+        icon: '🏃',
+        category: 'workout',
+        requirement: 3,
+        isUnlocked: false,
+        progress: 0,
+        maxProgress: 3,
+      },
+      {
+        id: 'workout_dedication',
+        title: 'Dedicación Total',
+        description: 'Completa 10 entrenamientos',
+        icon: '🎯',
+        category: 'workout',
+        requirement: 10,
+        isUnlocked: false,
+        progress: 0,
+        maxProgress: 10,
+      },
+      {
+        id: 'calories_100',
+        title: 'Quemador Principiante',
+        description: 'Quema 100 calorías en un entrenamiento',
+        icon: '🔥',
+        category: 'workout',
+        requirement: 100,
+        isUnlocked: false,
+        progress: 0,
+        maxProgress: 100,
+      },
+      {
+        id: 'calories_300',
+        title: 'Quemador Avanzado',
+        description: 'Quema 300 calorías en un entrenamiento',
+        icon: '🔥🔥',
+        category: 'workout',
+        requirement: 300,
+        isUnlocked: false,
+        progress: 0,
+        maxProgress: 300,
+      },
+      {
+        id: 'calories_500',
+        title: 'Máquina de Quemar',
+        description: 'Quema 500 calorías en un entrenamiento',
+        icon: '🔥🔥🔥',
+        category: 'workout',
+        requirement: 500,
+        isUnlocked: false,
+        progress: 0,
+        maxProgress: 500,
+      },
+      {
+        id: 'calories_total_1000',
+        title: 'Mil Calorías',
+        description: 'Quema 1000 calorías en total',
+        icon: '⚡',
+        category: 'workout',
+        requirement: 1000,
+        isUnlocked: false,
+        progress: 0,
+        maxProgress: 1000,
+      },
+      {
+        id: 'calories_total_5000',
+        title: 'Incinerador',
+        description: 'Quema 5000 calorías en total',
+        icon: '💥',
+        category: 'workout',
+        requirement: 5000,
+        isUnlocked: false,
+        progress: 0,
+        maxProgress: 5000,
+      },
+      {
+        id: 'workout_streak_7',
+        title: 'Semana Imparable',
+        description: 'Entrena 7 días consecutivos',
+        icon: '🏆',
+        category: 'workout',
+        requirement: 7,
+        isUnlocked: false,
+        progress: 0,
+        maxProgress: 7,
+      },
+
       // Logros de hitos
       {
         id: 'first_plan',
@@ -182,8 +294,13 @@ export class AchievementsService {
     commentsGiven: number;
     hasProfile: boolean;
     hasPlans: boolean;
+    // Datos de entrenamiento
+    totalWorkouts?: number;
+    maxCaloriesInWorkout?: number;
+    totalCaloriesBurned?: number;
+    workoutStreakDays?: number;
+    workoutsThisWeek?: number;
   }): Achievement[] {
-    console.log('🎯 AchievementsService recibió datos:', data);
     const achievements = this.getAllAchievements();
 
     return achievements.map(achievement => {
@@ -195,7 +312,6 @@ export class AchievementsService {
         case 'first_checkin':
           progress = Math.min(data.totalCheckins, 1);
           isUnlocked = data.totalCheckins >= 1;
-          console.log('🎯 first_checkin:', { totalCheckins: data.totalCheckins, progress, isUnlocked });
           break;
         case 'streak_3':
           progress = Math.min(data.streakDays, 3);
@@ -223,6 +339,10 @@ export class AchievementsService {
           progress = Math.min(data.weightLoss, 10);
           isUnlocked = data.weightLoss >= 10;
           break;
+        case 'weight_loss_20kg':
+          progress = Math.min(data.weightLoss, 20);
+          isUnlocked = data.weightLoss >= 20;
+          break;
 
         // Logros de adherencia
         case 'adherence_perfect':
@@ -246,6 +366,44 @@ export class AchievementsService {
         case 'community_helper':
           progress = Math.min(data.commentsGiven, 5);
           isUnlocked = data.commentsGiven >= 5;
+          break;
+
+        // Logros de entrenamiento
+        case 'first_workout':
+          progress = Math.min(data.totalWorkouts || 0, 1);
+          isUnlocked = (data.totalWorkouts || 0) >= 1;
+          break;
+        case 'workout_week':
+          progress = Math.min(data.workoutsThisWeek || 0, 3);
+          isUnlocked = (data.workoutsThisWeek || 0) >= 3;
+          break;
+        case 'workout_dedication':
+          progress = Math.min(data.totalWorkouts || 0, 10);
+          isUnlocked = (data.totalWorkouts || 0) >= 10;
+          break;
+        case 'calories_100':
+          progress = Math.min(data.maxCaloriesInWorkout || 0, 100);
+          isUnlocked = (data.maxCaloriesInWorkout || 0) >= 100;
+          break;
+        case 'calories_300':
+          progress = Math.min(data.maxCaloriesInWorkout || 0, 300);
+          isUnlocked = (data.maxCaloriesInWorkout || 0) >= 300;
+          break;
+        case 'calories_500':
+          progress = Math.min(data.maxCaloriesInWorkout || 0, 500);
+          isUnlocked = (data.maxCaloriesInWorkout || 0) >= 500;
+          break;
+        case 'calories_total_1000':
+          progress = Math.min(data.totalCaloriesBurned || 0, 1000);
+          isUnlocked = (data.totalCaloriesBurned || 0) >= 1000;
+          break;
+        case 'calories_total_5000':
+          progress = Math.min(data.totalCaloriesBurned || 0, 5000);
+          isUnlocked = (data.totalCaloriesBurned || 0) >= 5000;
+          break;
+        case 'workout_streak_7':
+          progress = Math.min(data.workoutStreakDays || 0, 7);
+          isUnlocked = (data.workoutStreakDays || 0) >= 7;
           break;
 
         // Logros de hitos
@@ -296,11 +454,21 @@ export class AchievementsService {
       'weight_loss_1kg': '¡Perdí mi primer kilogramo! ⚖️ #PrimerKilo #RecomiendameCoach',
       'weight_loss_5kg': '¡5 kilos menos! El progreso es real 🎖️ #GranProgreso #RecomiendameCoach',
       'weight_loss_10kg': '¡10 kilos perdidos! Transformación total 🏅 #Transformacion #RecomiendameCoach',
+      'weight_loss_20kg': '¡20 kilos perdidos! Metamorfosis completa 🦋 #Metamorfosis #RecomiendameCoach',
       'adherence_perfect': '¡Día perfecto con 100% de adherencia! ⭐ #DiaPerfecto #RecomiendameCoach',
       'adherence_week_90': '¡Semana excelente con +90% adherencia! 🌟 #SemanaExcelente #RecomiendameCoach',
       'first_post': '¡Mi primera publicación en la comunidad! 📝 #PrimeraPublicacion #RecomiendameCoach',
       'social_butterfly': '¡10 likes en mis posts! Gracias comunidad 🦋 #MariposaSocial #RecomiendameCoach',
       'community_helper': '¡Ayudando a la comunidad con mis comentarios! 🤝 #AyudanteComunitario #RecomiendameCoach',
+      'first_workout': '¡Completé mi primer entrenamiento! 💪 #PrimerEntrenamiento #RecomiendameCoach',
+      'workout_week': '¡3 entrenamientos esta semana! 🏃 #SemanaActiva #RecomiendameCoach',
+      'workout_dedication': '¡10 entrenamientos completados! 🎯 #DedicacionTotal #RecomiendameCoach',
+      'calories_100': '¡Quemé 100 calorías en un entrenamiento! 🔥 #QuemadorPrincipiante #RecomiendameCoach',
+      'calories_300': '¡300 calorías quemadas en una sesión! 🔥🔥 #QuemadorAvanzado #RecomiendameCoach',
+      'calories_500': '¡500 calorías en un solo entrenamiento! 🔥🔥🔥 #MaquinaDeQuemar #RecomiendameCoach',
+      'calories_total_1000': '¡1000 calorías quemadas en total! ⚡ #MilCalorias #RecomiendameCoach',
+      'calories_total_5000': '¡5000 calorías quemadas! Soy un incinerador 💥 #Incinerador #RecomiendameCoach',
+      'workout_streak_7': '¡7 días consecutivos entrenando! 🏆 #SemanaImparable #RecomiendameCoach',
       'first_plan': '¡Mi primer plan nutricional personalizado con IA! 🤖 #PlanPersonalizado #RecomiendameCoach',
       'profile_complete': '¡Perfil 100% completo! Listo para la transformación ✅ #PerfilCompleto #RecomiendameCoach',
     };

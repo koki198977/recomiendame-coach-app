@@ -40,10 +40,35 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
   const [preferencesType, setPreferencesType] = React.useState<
     "cuisinesLike" | "cuisinesDislike" | "allergies" | "conditions" | null
   >(null);
+  const [currentWeight, setCurrentWeight] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     loadUserData();
   }, []);
+
+  const loadCurrentWeight = async () => {
+    try {
+      // Obtener el último checkin con peso
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+      const today = new Date();
+      
+      const recentCheckins = await NutritionService.getCheckinHistory(
+        oneMonthAgo.toISOString().split('T')[0],
+        today.toISOString().split('T')[0]
+      );
+
+      const weightsWithDates = recentCheckins
+        .filter(c => c.weightKg)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      if (weightsWithDates.length > 0) {
+        setCurrentWeight(weightsWithDates[0].weightKg!);
+      }
+    } catch (error) {
+      // Si falla, no hacer nada (se mostrará el peso del perfil)
+    }
+  };
 
   const loadUserData = async () => {
     try {
@@ -98,6 +123,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
           setUserProfile(JSON.parse(localProfile));
         }
       }
+      // Cargar peso actual del último checkin
+      await loadCurrentWeight();
     } catch (error) {
       console.log("Error loading user data:", error);
     } finally {
@@ -207,7 +234,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
           <Text style={styles.dataLabel}>Peso actual</Text>
         </View>
         <Text style={styles.dataValue}>
-          {userProfile?.weightKg
+          {currentWeight
+            ? `${currentWeight} kg`
+            : userProfile?.weightKg
             ? `${userProfile.weightKg} kg`
             : "No especificado"}
         </Text>

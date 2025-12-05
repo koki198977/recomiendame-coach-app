@@ -8,11 +8,13 @@ import {
   Dimensions,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { NutritionService } from '../services/nutritionService';
 import { SocialService } from '../services/socialService';
 import { AchievementsService } from '../services/achievementsService';
-import { Checkin, Achievement } from '../types/nutrition';
+import WorkoutService from '../services/workoutService';
+import { Checkin, Achievement, ActivityStat } from '../types/nutrition';
 import { TrophyModal } from '../components/TrophyModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppHeader } from '../components/AppHeader';
@@ -28,51 +30,124 @@ export const ProgressScreen: React.FC = () => {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [showTrophyModal, setShowTrophyModal] = useState(false);
   const [selectedTrophy, setSelectedTrophy] = useState<Achievement | null>(null);
+  const [activityStats, setActivityStats] = useState<ActivityStat[]>([]);
+  const [historicalInitialWeight, setHistoricalInitialWeight] = useState<number | null>(null);
 
   useEffect(() => {
-    loadCheckinHistory();
+    const loadAllData = async () => {
+      await loadCheckinHistory();
+      await loadActivityStats();
+      await loadHistoricalInitialWeight();
+      // Cargar logros después de que todo esté listo
+      await loadAchievements();
+    };
+    
+    loadAllData();
   }, [selectedPeriod]);
 
-  // Cargar logros cuando cambien los checkins
-  useEffect(() => {
-    if (checkins.length >= 0) { // Ejecutar incluso si no hay checkins (array vacío)
-      loadAchievements();
+  const getDateRange = () => {
+    const now = new Date();
+    let from: Date;
+    
+    if (selectedPeriod === 'week') {
+      // Inicio de la semana actual (lunes)
+      const startOfWeek = new Date(now);
+      const dayOfWeek = now.getDay();
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      startOfWeek.setDate(now.getDate() - daysToMonday);
+      startOfWeek.setHours(0, 0, 0, 0);
+      from = startOfWeek;
+    } else if (selectedPeriod === 'month') {
+      // Inicio del mes actual
+      from = new Date(now.getFullYear(), now.getMonth(), 1);
+      from.setHours(0, 0, 0, 0);
+    } else {
+      // Inicio del año actual
+      from = new Date(now.getFullYear(), 0, 1);
+      from.setHours(0, 0, 0, 0);
     }
-  }, [checkins]);
+    
+    const to = new Date(now);
+    to.setHours(23, 59, 59, 999);
+    
+    return { from, to };
+  };
 
   const loadCheckinHistory = async () => {
     try {
       setLoading(true);
-      const now = new Date();
-      let from: string;
+      const { from, to } = getDateRange();
       
-      if (selectedPeriod === 'week') {
-        // Inicio de la semana actual (lunes)
-        const startOfWeek = new Date(now);
-        const dayOfWeek = now.getDay();
-        const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Si es domingo (0), retroceder 6 días
-        startOfWeek.setDate(now.getDate() - daysToMonday);
-        from = startOfWeek.toISOString().split('T')[0];
-      } else if (selectedPeriod === 'month') {
-        // Inicio del mes actual
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        from = startOfMonth.toISOString().split('T')[0];
-      } else {
-        // Inicio del año actual
-        const startOfYear = new Date(now.getFullYear(), 0, 1);
-        from = startOfYear.toISOString().split('T')[0];
-      }
+      const history = await NutritionService.getCheckinHistory(
+        from.toISOString().split('T')[0],
+        to.toISOString().split('T')[0]
+      );
       
-      const to = now.toISOString().split('T')[0];
-      const history = await NutritionService.getCheckinHistory(from, to);
-      
-      // La función ya devuelve un array validado
       setCheckins(history);
     } catch (error) {
       console.log('Error loading checkin history:', error);
-      setCheckins([]); // Asegurar que siempre sea un array
+      setCheckins([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadActivityStats = async () => {
+    try {
+      const { from, to } = getDateRange();
+      
+      const stats = await WorkoutService.getActivityStats(
+        from.toISOString(),
+        to.toISOString()
+      );
+      
+      setActivityStats(stats);
+    } catch (error) {
+      console.log('Error loading activity stats:', error);
+      setActivityStats([]);
+    }
+  };
+
+  const loadHistoricalInitialWeight = async () => {
+    try {
+      // Primero intentar obtener el peso del perfil (peso inicial del usuario)
+      let initialWeight: number | null = null;
+
+      try {
+        const profile = await NutritionService.getUserProfile();
+        if (profile.weightKg) {
+          initialWeight = profile.weightKg;
+
+        }
+      } catch (error) {
+
+      }
+
+      // Si no hay peso en el perfil, buscar el primer checkin histórico
+      if (!initialWeight) {
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 2);
+        const today = new Date();
+        
+        const allCheckins = await NutritionService.getCheckinHistory(
+          oneYearAgo.toISOString().split('T')[0],
+          today.toISOString().split('T')[0]
+        );
+
+        const weightsWithDates = allCheckins
+          .filter(c => c.weightKg)
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+        if (weightsWithDates.length > 0) {
+          initialWeight = weightsWithDates[0].weightKg!;
+        }
+      }
+
+      if (initialWeight) {
+        setHistoricalInitialWeight(initialWeight);
+      }
+    } catch (error) {
+      console.log('❌ Error loading historical initial weight:', error);
     }
   };
 
@@ -92,21 +167,45 @@ export const ProgressScreen: React.FC = () => {
           today.toISOString().split('T')[0]
         );
         
-        console.log('🏆 Calculando logros con TODOS los checkins:', {
-          totalCheckins: allCheckins.length,
-          checkins: allCheckins.map(c => ({ id: c.id, date: c.date }))
-        });
+
       } catch (error) {
         console.log('Error loading all checkins for achievements:', error);
         // Fallback: usar los checkins del período actual
         allCheckins = Array.isArray(checkins) ? checkins : [];
       }
       
-      // Calcular estadísticas
+      // Calcular estadísticas de checkins
       const totalCheckins = allCheckins.length;
       const streakDays = await getStreakDays();
-      const weightLoss = calculateWeightLoss(allCheckins);
+      const weightLoss = await calculateWeightLoss(allCheckins);
       const { maxAdherence, avgAdherence } = calculateAdherenceStats(allCheckins);
+
+      // Calcular estadísticas de entrenamiento
+      let workoutStats = {
+        totalWorkouts: 0,
+        maxCaloriesInWorkout: 0,
+        totalCaloriesBurned: 0,
+        workoutStreakDays: 0,
+        workoutsThisWeek: 0,
+      };
+
+      try {
+        // Cargar estadísticas de los últimos 3 meses (más que suficiente)
+        const threeMonthsAgo = new Date();
+        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+        threeMonthsAgo.setHours(0, 0, 0, 0);
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+        
+        const allActivityStats = await WorkoutService.getActivityStats(
+          threeMonthsAgo.toISOString(),
+          today.toISOString()
+        );
+
+        workoutStats = calculateWorkoutStats(allActivityStats);
+      } catch (error) {
+        console.log('Error loading workout stats for achievements:', error);
+      }
       
       // Datos sociales (simulados por ahora)
       let socialStats = {
@@ -149,6 +248,12 @@ export const ProgressScreen: React.FC = () => {
         commentsGiven: socialStats.commentsGiven,
         hasProfile,
         hasPlans,
+        // Estadísticas de entrenamiento
+        totalWorkouts: workoutStats.totalWorkouts,
+        maxCaloriesInWorkout: workoutStats.maxCaloriesInWorkout,
+        totalCaloriesBurned: workoutStats.totalCaloriesBurned,
+        workoutStreakDays: workoutStats.workoutStreakDays,
+        workoutsThisWeek: workoutStats.workoutsThisWeek,
       });
 
       // Cargar estado de trofeos compartidos
@@ -159,15 +264,6 @@ export const ProgressScreen: React.FC = () => {
         ...achievement,
         isShared: sharedTrophies.has(achievement.id)
       }));
-
-      console.log('🏆 Logros calculados:', achievementsWithSharedStatus.map(a => ({
-        id: a.id,
-        title: a.title,
-        isUnlocked: a.isUnlocked,
-        isShared: a.isShared,
-        progress: a.progress,
-        maxProgress: a.maxProgress
-      })));
 
       setAchievements(achievementsWithSharedStatus);
     } catch (error) {
@@ -212,17 +308,28 @@ export const ProgressScreen: React.FC = () => {
     }
   };
 
-  const calculateWeightLoss = (checkinsArray: Checkin[]): number => {
+  const calculateWeightLoss = async (checkinsArray: Checkin[]): Promise<number> => {
     const weightsWithDates = checkinsArray
       .filter(c => c.weightKg)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
-    if (weightsWithDates.length < 2) return 0;
+    if (weightsWithDates.length === 0) return 0;
     
-    const initialWeight = weightsWithDates[0].weightKg!;
+    // Obtener peso inicial del perfil
+    let initialWeight = weightsWithDates[0].weightKg!;
+    try {
+      const profile = await NutritionService.getUserProfile();
+      if (profile.weightKg) {
+        initialWeight = profile.weightKg;
+      }
+    } catch (error) {
+
+    }
+    
     const currentWeight = weightsWithDates[weightsWithDates.length - 1].weightKg!;
     
-    return Math.max(0, initialWeight - currentWeight);
+    const loss = initialWeight - currentWeight;
+    return Math.max(0, loss);
   };
 
   const calculateAdherenceStats = (checkinsArray: Checkin[]): { maxAdherence: number; avgAdherence: number } => {
@@ -236,6 +343,57 @@ export const ProgressScreen: React.FC = () => {
     const avgAdherence = adherenceData.reduce((sum, c) => sum + c.adherencePct!, 0) / adherenceData.length;
     
     return { maxAdherence, avgAdherence };
+  };
+
+  const calculateWorkoutStats = (activityStatsArray: ActivityStat[]) => {
+    const workoutsWithCalories = activityStatsArray.filter(stat => stat.kcal > 0);
+    
+    const totalWorkouts = workoutsWithCalories.length;
+    const maxCaloriesInWorkout = workoutsWithCalories.length > 0 
+      ? Math.max(...workoutsWithCalories.map(s => s.kcal))
+      : 0;
+    const totalCaloriesBurned = workoutsWithCalories.reduce((sum, s) => sum + s.kcal, 0);
+
+    // Calcular racha de entrenamientos
+    let workoutStreakDays = 0;
+    const sortedWorkouts = workoutsWithCalories.sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+    
+    const today = new Date();
+    for (let i = 0; i < sortedWorkouts.length; i++) {
+      const workoutDate = new Date(sortedWorkouts[i].date);
+      const expectedDate = new Date(today);
+      expectedDate.setDate(today.getDate() - i);
+      
+      if (workoutDate.toDateString() === expectedDate.toDateString()) {
+        workoutStreakDays++;
+      } else {
+        break;
+      }
+    }
+
+    // Calcular entrenamientos de esta semana
+    const startOfWeek = new Date(today);
+    const dayOfWeek = today.getDay();
+    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    startOfWeek.setDate(today.getDate() - daysToMonday);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const workoutsThisWeek = workoutsWithCalories.filter(stat => {
+      const statDate = new Date(stat.date);
+      return statDate >= startOfWeek;
+    }).length;
+
+    const result = {
+      totalWorkouts,
+      maxCaloriesInWorkout,
+      totalCaloriesBurned,
+      workoutStreakDays,
+      workoutsThisWeek,
+    };
+
+    return result;
   };
 
   // Cargar estado de trofeos compartidos
@@ -255,7 +413,6 @@ export const ProgressScreen: React.FC = () => {
       const sharedTrophies = await loadSharedTrophies();
       sharedTrophies.add(achievementId);
       await AsyncStorage.setItem('sharedTrophies', JSON.stringify([...sharedTrophies]));
-      console.log('🏆 Trofeo marcado como compartido:', achievementId);
       
       // Actualizar el estado local de achievements
       setAchievements(prev => prev.map(a => 
@@ -327,7 +484,8 @@ export const ProgressScreen: React.FC = () => {
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
     const currentWeight = weightsWithDates.length > 0 ? weightsWithDates[weightsWithDates.length - 1].weightKg : null;
-    const initialWeight = weightsWithDates.length > 0 ? weightsWithDates[0].weightKg : null;
+    // Usar el peso inicial histórico si está disponible, sino usar el del período
+    const initialWeight = historicalInitialWeight || (weightsWithDates.length > 0 ? weightsWithDates[0].weightKg : null);
     const weightLoss = currentWeight && initialWeight ? initialWeight - currentWeight : 0;
 
     return (
@@ -379,6 +537,80 @@ export const ProgressScreen: React.FC = () => {
             </Text>
             <Text style={styles.noDataSubtext}>
               Registra tu peso en el checkin diario
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const renderWorkoutProgress = () => {
+    const totalMinutes = activityStats.reduce((sum, stat) => sum + stat.minutes, 0);
+    const totalKcal = activityStats.reduce((sum, stat) => sum + stat.kcal, 0);
+    // Contar días con calorías quemadas (kcal > 0) en lugar de minutos
+    const workoutDays = activityStats.filter(stat => stat.kcal > 0).length;
+    const avgMinutes = workoutDays > 0 && totalMinutes > 0 ? Math.round(totalMinutes / workoutDays) : 0;
+
+    return (
+      <View style={styles.progressCard}>
+        <Text style={styles.cardTitle}>Progreso de Entrenamiento</Text>
+        {activityStats.length > 0 ? (
+          <>
+            <View style={styles.workoutStats}>
+              <View style={styles.workoutItem}>
+                <Text style={styles.workoutNumber}>{workoutDays}</Text>
+                <Text style={styles.workoutLabel}>Días entrenados</Text>
+              </View>
+              <View style={styles.workoutItem}>
+                <Text style={styles.workoutNumber}>{totalMinutes}</Text>
+                <Text style={styles.workoutLabel}>Minutos totales</Text>
+              </View>
+              <View style={styles.workoutItem}>
+                <Text style={styles.workoutNumber}>{totalKcal}</Text>
+                <Text style={styles.workoutLabel}>Kcal quemadas</Text>
+              </View>
+            </View>
+            
+            {totalMinutes > 0 && avgMinutes > 0 && (
+              <View style={styles.avgContainer}>
+                <Text style={styles.avgLabel}>Promedio por sesión:</Text>
+                <Text style={styles.avgValue}>{avgMinutes} minutos</Text>
+              </View>
+            )}
+            
+            {/* Lista de entrenamientos recientes */}
+            <View style={styles.workoutHistory}>
+              <Text style={styles.workoutHistoryTitle}>Entrenamientos recientes</Text>
+              {activityStats
+                .filter(stat => stat.kcal > 0)
+                .slice(-5)
+                .reverse()
+                .map((stat) => (
+                  <View key={stat.id} style={styles.workoutHistoryItem}>
+                    <Text style={styles.workoutHistoryDate}>
+                      {new Date(stat.date).toLocaleDateString('es-ES')}
+                    </Text>
+                    <View style={styles.workoutHistoryStats}>
+                      {stat.minutes > 0 && (
+                        <Text style={styles.workoutHistoryValue}>
+                          ⏱️ {stat.minutes} min
+                        </Text>
+                      )}
+                      <Text style={styles.workoutHistoryValue}>
+                        🔥 {stat.kcal} kcal
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+            </View>
+          </>
+        ) : (
+          <View style={styles.noDataContainer}>
+            <Text style={styles.noDataText}>
+              No hay entrenamientos registrados aún
+            </Text>
+            <Text style={styles.noDataSubtext}>
+              Completa una rutina para ver tus estadísticas
             </Text>
           </View>
         )}
@@ -525,12 +757,22 @@ export const ProgressScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* App Header */}
-      <AppHeader 
-        title="Mi Progreso" 
-        subtitle="Seguimiento detallado"
-        showLogo={true}
-      />
+      {/* Custom Header with Chapi */}
+      <View style={styles.customHeader}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle}>Mi Progreso</Text>
+            <Text style={styles.headerSubtitle}>Seguimiento detallado</Text>
+          </View>
+          <View style={styles.chapiContainer}>
+            <Image 
+              source={require('../assets/chapi-3d-progreso.png')}
+              style={styles.chapiImage}
+              resizeMode="cover"
+            />
+          </View>
+        </View>
+      </View>
 
       {/* Period Selector */}
       {renderPeriodSelector()}
@@ -544,6 +786,7 @@ export const ProgressScreen: React.FC = () => {
         ) : (
           <>
             {renderWeightProgress()}
+            {renderWorkoutProgress()}
             {renderAdherenceProgress()}
             {renderAchievements()}
           </>
@@ -565,6 +808,54 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  customHeader: {
+    backgroundColor: COLORS.card,
+    paddingTop: 60,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    ...SHADOWS.glow,
+    shadowColor: COLORS.primaryStart,
+    shadowOpacity: 0.1,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerTextContainer: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    fontWeight: '600',
+  },
+  chapiContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...SHADOWS.glow,
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.3,
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: COLORS.primary,
+  },
+  chapiImage: {
+    width: 80,
+    height: 80,
   },
 
   periodSelector: {
@@ -667,6 +958,79 @@ const styles = StyleSheet.create({
   },
   weightHistoryValue: {
     fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  workoutStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 16,
+  },
+  workoutItem: {
+    alignItems: 'center',
+  },
+  workoutNumber: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  workoutLabel: {
+    fontSize: 11,
+    color: COLORS.textLight,
+    marginTop: 4,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  avgContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 12,
+    backgroundColor: 'rgba(67, 233, 123, 0.1)',
+    borderRadius: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  avgLabel: {
+    fontSize: 13,
+    color: COLORS.textLight,
+    fontWeight: '600',
+  },
+  avgValue: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  workoutHistory: {
+    marginTop: 15,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+  },
+  workoutHistoryTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 12,
+  },
+  workoutHistoryItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  workoutHistoryDate: {
+    fontSize: 14,
+    color: COLORS.textLight,
+  },
+  workoutHistoryStats: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  workoutHistoryValue: {
+    fontSize: 13,
     fontWeight: '700',
     color: COLORS.text,
   },

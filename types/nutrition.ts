@@ -345,7 +345,7 @@ export interface Achievement {
   title: string;
   description: string;
   icon: string;
-  category: "streak" | "weight" | "adherence" | "social" | "milestone";
+  category: "streak" | "weight" | "adherence" | "social" | "milestone" | "workout";
   requirement: number;
   isUnlocked: boolean;
   unlockedAt?: string;
@@ -441,13 +441,19 @@ export interface Exercise {
   instructions?: string;
   videoQuery?: string;
   order?: number;
+  completed?: boolean;
 }
 
 export interface WorkoutDay {
+  id?: string;
   dayIndex: number; // 1-7 (lunes a domingo)
   dayName?: string;
   exercises: Exercise[];
   duration?: number; // minutos estimados
+  completed: boolean;
+  completedAt: string | null;
+  durationMinutes: number | null;
+  caloriesBurned: number | null;
 }
 
 export interface WorkoutPlan {
@@ -519,4 +525,14 @@ export interface TodayMealsResponse {
     carbs_g: number;
     fat_g: number;
   };
+}
+
+// Activity Stats Types
+export interface ActivityStat {
+  id: string;
+  userId: string;
+  date: string;
+  steps: number | null;
+  minutes: number;
+  kcal: number;
 }

@@ -564,12 +564,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
                 ))
               ) : (
                 <View style={styles.noMealsCard}>
-                  <Text style={styles.noMealsEmoji}>🍽️</Text>
+                  <View style={styles.chapiMealContainer}>
+                    <Image 
+                      source={require('../assets/chapi-3d-foto-alimento.png')}
+                      style={styles.chapiMealImage}
+                      resizeMode="cover"
+                    />
+                  </View>
                   <Text style={styles.noMealsText}>
                     No has registrado comidas hoy
                   </Text>
                   <Text style={styles.noMealsHint}>
-                    Marca las comidas de tu plan o agrega nuevas con el botón 📸
+                    Usa el botón flotante para registrar tus comidas
                   </Text>
                 </View>
               )}
@@ -1120,6 +1126,25 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     borderWidth: 2,
     borderColor: COLORS.border,
+  },
+  chapiMealContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    ...SHADOWS.glow,
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.3,
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: COLORS.primary,
+  },
+  chapiMealImage: {
+    width: 100,
+    height: 100,
   },
   noMealsEmoji: {
     fontSize: 48,

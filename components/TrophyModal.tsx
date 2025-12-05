@@ -115,10 +115,17 @@ export const TrophyModal: React.FC<TrophyModalProps> = ({
 
             {/* Content */}
             <View style={styles.content}>
-              <Text style={styles.congratsText}>¡Felicitaciones!</Text>
+              <Text style={styles.congratsText}>
+                {achievement.isUnlocked ? '¡Felicitaciones!' : 'Trofeo Bloqueado'}
+              </Text>
               
-              <View style={styles.trophyContainer}>
-                <Text style={styles.trophyIcon}>{achievement.icon}</Text>
+              <View style={[
+                styles.trophyContainer,
+                !achievement.isUnlocked && styles.trophyContainerLocked
+              ]}>
+                <Text style={styles.trophyIcon}>
+                  {achievement.isUnlocked ? achievement.icon : '🔒'}
+                </Text>
               </View>
               
               <Text style={styles.achievementTitle}>{achievement.title}</Text>
@@ -126,30 +133,43 @@ export const TrophyModal: React.FC<TrophyModalProps> = ({
                 {achievement.description}
               </Text>
 
-              {/* Progress Bar (siempre completa para logros desbloqueados) */}
+              {/* Progress Bar */}
               <View style={styles.progressContainer}>
                 <View style={styles.progressBar}>
-                  <View style={[styles.progressFill, { width: '100%' }]} />
+                  <View style={[
+                    styles.progressFill, 
+                    { width: `${(achievement.progress / achievement.maxProgress) * 100}%` }
+                  ]} />
                 </View>
                 <Text style={styles.progressText}>
-                  {achievement.maxProgress}/{achievement.maxProgress}
+                  {achievement.progress}/{achievement.maxProgress}
                 </Text>
               </View>
 
               {/* Buttons */}
               <View style={styles.buttonsContainer}>
-                {achievement.isShared ? (
-                  <View style={styles.sharedButton}>
-                    <Text style={styles.sharedButtonText}>✅ Ya compartido</Text>
-                  </View>
-                ) : (
-                  <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-                    <Text style={styles.shareButtonText}>📤 Compartir</Text>
-                  </TouchableOpacity>
+                {achievement.isUnlocked && (
+                  achievement.isShared ? (
+                    <View style={styles.sharedButton}>
+                      <Text style={styles.sharedButtonText}>✅ Ya compartido</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
+                      <Text style={styles.shareButtonText}>📤 Compartir</Text>
+                    </TouchableOpacity>
+                  )
                 )}
                 
-                <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-                  <Text style={styles.closeButtonText}>Continuar</Text>
+                <TouchableOpacity 
+                  style={[
+                    styles.closeButton,
+                    achievement.isUnlocked && styles.closeButtonWithShare
+                  ]} 
+                  onPress={handleClose}
+                >
+                  <Text style={styles.closeButtonText}>
+                    {achievement.isUnlocked ? 'Continuar' : 'Cerrar'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -219,6 +239,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderWidth: 3,
     borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  trophyContainerLocked: {
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    opacity: 0.7,
   },
   trophyIcon: {
     fontSize: 50,
@@ -300,6 +325,9 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderRadius: 25,
     alignItems: 'center',
+  },
+  closeButtonWithShare: {
+    flex: 1,
   },
   closeButtonText: {
     color: '#333',

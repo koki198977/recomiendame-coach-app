@@ -223,6 +223,54 @@ class WorkoutService {
     };
     return labels[goal] || goal;
   }
+
+  /**
+   * Obtener estadísticas de actividad física
+   */
+  async getActivityStats(startDate: string, endDate: string): Promise<any[]> {
+    try {
+      const response = await api.get('/workouts/activity-stats', {
+        params: {
+          startDate,
+          endDate
+        }
+      });
+
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Error obteniendo estadísticas de actividad:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Guardar el progreso de una rutina completada
+   */
+  async saveWorkoutCompletion(data: {
+    isoWeek: string;
+    dayIndex: number;
+    durationMinutes: number;
+    caloriesBurned: number;
+    completedExercises: number;
+    totalExercises: number;
+    exercises: any[];
+  }): Promise<void> {
+    try {
+      await api.post('/workouts/completion', {
+        isoWeek: data.isoWeek,
+        dayIndex: data.dayIndex,
+        durationMinutes: data.durationMinutes,
+        caloriesBurned: data.caloriesBurned,
+        completedExercises: data.completedExercises,
+        totalExercises: data.totalExercises,
+        exercises: data.exercises,
+        completedAt: new Date().toISOString()
+      });
+    } catch (error: any) {
+      console.error('❌ Error guardando progreso de rutina:', error);
+      throw error;
+    }
+  }
 }
 
 export default new WorkoutService();

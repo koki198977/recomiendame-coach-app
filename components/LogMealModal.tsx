@@ -148,7 +148,8 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
     <Modal visible={visible} animationType="slide" transparent>
       <KeyboardAvoidingView 
         style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <View style={styles.container}>
           <ScrollView showsVerticalScrollIndicator={false}>
@@ -233,6 +234,8 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
                   value={description}
                   onChangeText={setDescription}
                   multiline
+                  numberOfLines={3}
+                  maxLength={200}
                 />
               </View>
             )}
@@ -467,6 +470,7 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 14,
     minHeight: 60,
+    maxHeight: 100,
     textAlignVertical: 'top',
     color: '#000',
   },

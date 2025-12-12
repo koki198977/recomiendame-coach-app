@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LoginScreen } from './screens/LoginScreen';
@@ -53,14 +54,14 @@ const MainApp: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Content */}
       <View style={styles.content}>
         {renderScreen()}
       </View>
 
       {/* Modern Bottom Tabs */}
-      <View style={styles.tabBarContainer}>
+      <SafeAreaView style={styles.tabBarContainer} edges={['bottom']}>
         <View style={styles.tabBar}>
           <TouchableOpacity
             style={styles.tab}
@@ -122,7 +123,7 @@ const MainApp: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </SafeAreaView>
 
       {/* Chapi - Asistente Virtual */}
       <ChapiBubble onPress={() => setChapiModalVisible(true)} />
@@ -132,7 +133,7 @@ const MainApp: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       />
 
       <StatusBar style="dark" />
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -334,14 +335,15 @@ export default function App() {
 
   // App principal con navegación manual
   return (
-    <ErrorBoundary>
-      <MainApp onLogout={handleLogout} />
-      <CompleteProfileModal
-        visible={showCompleteProfile}
-        onComplete={handleCompleteProfile}
-        onLogout={handleLogout}
-      />
-    </ErrorBoundary>
+    <SafeAreaProvider>
+      <ErrorBoundary>
+        <MainApp onLogout={handleLogout} />
+        <CompleteProfileModal
+          visible={showCompleteProfile}
+          onComplete={handleCompleteProfile}
+        />
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }
 
@@ -368,7 +370,6 @@ const styles = StyleSheet.create({
   tabBarContainer: {
     backgroundColor: 'transparent',
     paddingHorizontal: 20,
-    paddingBottom: 20,
     paddingTop: 10,
   },
   tabBar: {

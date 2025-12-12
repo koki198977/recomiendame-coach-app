@@ -16,6 +16,29 @@ export interface Cuisine {
   name: string;
 }
 
+export type NutritionGoal = 
+  | "MAINTAIN_WEIGHT"
+  | "LOSE_WEIGHT" 
+  | "GAIN_WEIGHT"
+  | "BUILD_MUSCLE"
+  | "ATHLETIC_PERFORMANCE"
+  | "GENERAL_HEALTH";
+
+export type TimeFrame = 
+  | "1_MONTH"
+  | "3_MONTHS"
+  | "6_MONTHS"
+  | "1_YEAR"
+  | "LONG_TERM";
+
+export interface NutritionGoalDetails {
+  goal: NutritionGoal;
+  targetWeightKg?: number; // Solo si el objetivo involucra cambio de peso
+  timeFrame: TimeFrame;
+  intensity: "GENTLE" | "MODERATE" | "AGGRESSIVE"; // Qué tan agresivo quiere ser
+  currentMotivation?: string; // Por qué quiere lograr este objetivo
+}
+
 export interface UserProfile {
   userId: string;
   sex?: "MALE" | "FEMALE";
@@ -30,6 +53,12 @@ export interface UserProfile {
   conditions?: Condition[];
   cuisinesLike?: Cuisine[];
   cuisinesDislike?: Cuisine[];
+  // Campos de objetivo nutricional como propiedades directas
+  nutritionGoal?: NutritionGoal;
+  targetWeightKg?: number;
+  timeFrame?: TimeFrame;
+  intensity?: "GENTLE" | "MODERATE" | "AGGRESSIVE";
+  currentMotivation?: string;
 }
 
 export interface Food {

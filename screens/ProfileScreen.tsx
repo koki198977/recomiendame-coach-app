@@ -15,6 +15,7 @@ import { SocialService } from "../services/socialService";
 import { UserProfile, SocialUserProfile } from "../types/nutrition";
 import { EditPreferencesModal } from "../components/EditPreferencesModal";
 import { FollowersModal } from "../components/FollowersModal";
+import { EditFieldModal } from "../components/EditFieldModal";
 import { getCurrentUserId } from "../utils/userUtils";
 
 import { AppHeader } from '../components/AppHeader';
@@ -41,6 +42,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
     "cuisinesLike" | "cuisinesDislike" | "allergies" | "conditions" | null
   >(null);
   const [currentWeight, setCurrentWeight] = React.useState<number | null>(null);
+  const [editField, setEditField] = React.useState<{
+    type: 'nutritionGoal' | 'targetWeight' | 'timeFrame' | 'intensity' | 'motivation' | null;
+    value: any;
+  }>({ type: null, value: null });
 
   React.useEffect(() => {
     loadUserData();
@@ -205,6 +210,21 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
     }
   };
 
+  const handleSaveField = async (updatedProfile: UserProfile) => {
+    try {
+      setUserProfile(updatedProfile);
+      setEditField({ type: null, value: null });
+      // También recargar datos para asegurar sincronización
+      await loadUserData();
+    } catch (error) {
+      console.log("Error updating field:", error);
+    }
+  };
+
+  const openEditField = (type: 'nutritionGoal' | 'targetWeight' | 'timeFrame' | 'intensity' | 'motivation', currentValue: any) => {
+    setEditField({ type, value: currentValue });
+  };
+
   const getActivityLevelLabel = (level?: string): string => {
     const labels: { [key: string]: string } = {
       SEDENTARY: "Sedentario",
@@ -222,6 +242,55 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
       FEMALE: "Femenino",
     };
     return labels[sex || ""] || "No especificado";
+  };
+
+  const getNutritionGoalLabel = (goal?: string): string => {
+    console.log('🔍 NutritionGoal recibido:', goal); // Debug
+    
+    const labels: { [key: string]: string } = {
+      MAINTAIN_WEIGHT: "Mantener peso",
+      LOSE_WEIGHT: "Bajar de peso",
+      GAIN_WEIGHT: "Subir de peso",
+      GAIN_MUSCLE: "Ganar masa muscular",
+      IMPROVE_HEALTH: "Salud general",
+      // Mantener compatibilidad con valores anteriores
+      BUILD_MUSCLE: "Ganar masa muscular",
+      ATHLETIC_PERFORMANCE: "Salud general",
+      GENERAL_HEALTH: "Salud general",
+    };
+    return labels[goal || ""] || `No especificado (${goal})`;
+  };
+
+  const getTimeFrameLabel = (timeFrame?: string): string => {
+    console.log('🔍 TimeFrame recibido:', timeFrame); // Debug
+    
+    const labels: { [key: string]: string } = {
+      "1_MONTH": "1 mes",
+      "ONE_MONTH": "1 mes",
+      "3_MONTHS": "3 meses", 
+      "THREE_MONTHS": "3 meses",
+      "6_MONTHS": "6 meses",
+      "SIX_MONTHS": "6 meses",
+      "1_YEAR": "1 año",
+      "ONE_YEAR": "1 año",
+      "LONG_TERM": "Largo plazo",
+    };
+    
+    const result = labels[timeFrame || ""] || `No especificado (${timeFrame})`;
+    console.log('🔍 TimeFrame mapeado:', result); // Debug
+    return result;
+  };
+
+  const getIntensityLabel = (intensity?: string): string => {
+    const labels: { [key: string]: string } = {
+      LOW: "Suave",
+      MODERATE: "Moderado",
+      HIGH: "Intensivo",
+      // Mantener compatibilidad con valores anteriores
+      GENTLE: "Suave",
+      AGGRESSIVE: "Intensivo",
+    };
+    return labels[intensity || ""] || "No especificado";
   };
 
   const renderHealthData = () => (
@@ -374,6 +443,94 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
     );
   };
 
+  const renderNutritionGoals = () => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Objetivos Nutricionales</Text>
+
+      <TouchableOpacity 
+        style={styles.dataItem}
+        onPress={() => openEditField('nutritionGoal', userProfile?.nutritionGoal)}
+      >
+        <View style={styles.dataLeft}>
+          <Text style={styles.dataIcon}>🎯</Text>
+          <Text style={styles.dataLabel}>Objetivo principal</Text>
+        </View>
+        <View style={styles.dataRight}>
+          <Text style={styles.dataValue}>
+            {getNutritionGoalLabel(userProfile?.nutritionGoal)}
+          </Text>
+          <Text style={styles.menuArrow}>›</Text>
+        </View>
+      </TouchableOpacity>
+
+      {(userProfile?.nutritionGoal === 'LOSE_WEIGHT' || userProfile?.nutritionGoal === 'GAIN_WEIGHT') && (
+        <TouchableOpacity 
+          style={styles.dataItem}
+          onPress={() => openEditField('targetWeight', userProfile?.targetWeightKg)}
+        >
+          <View style={styles.dataLeft}>
+            <Text style={styles.dataIcon}>🎯</Text>
+            <Text style={styles.dataLabel}>Peso objetivo</Text>
+          </View>
+          <View style={styles.dataRight}>
+            <Text style={styles.dataValue}>
+              {userProfile?.targetWeightKg ? `${userProfile.targetWeightKg} kg` : 'No especificado'}
+            </Text>
+            <Text style={styles.menuArrow}>›</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      <TouchableOpacity 
+        style={styles.dataItem}
+        onPress={() => openEditField('timeFrame', userProfile?.timeFrame)}
+      >
+        <View style={styles.dataLeft}>
+          <Text style={styles.dataIcon}>⏰</Text>
+          <Text style={styles.dataLabel}>Marco temporal</Text>
+        </View>
+        <View style={styles.dataRight}>
+          <Text style={styles.dataValue}>
+            {getTimeFrameLabel(userProfile?.timeFrame)}
+          </Text>
+          <Text style={styles.menuArrow}>›</Text>
+        </View>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={styles.dataItem}
+        onPress={() => openEditField('intensity', userProfile?.intensity)}
+      >
+        <View style={styles.dataLeft}>
+          <Text style={styles.dataIcon}>🔥</Text>
+          <Text style={styles.dataLabel}>Intensidad</Text>
+        </View>
+        <View style={styles.dataRight}>
+          <Text style={styles.dataValue}>
+            {getIntensityLabel(userProfile?.intensity)}
+          </Text>
+          <Text style={styles.menuArrow}>›</Text>
+        </View>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={styles.dataItem}
+        onPress={() => openEditField('motivation', userProfile?.currentMotivation)}
+      >
+        <View style={styles.dataLeft}>
+          <Text style={styles.dataIcon}>💪</Text>
+          <Text style={styles.dataLabel}>Motivación</Text>
+        </View>
+        <View style={styles.dataRight}>
+          <Text style={[styles.dataValue, styles.motivationText]} numberOfLines={2}>
+            {userProfile?.currentMotivation ? `"${userProfile.currentMotivation}"` : 'No especificada'}
+          </Text>
+          <Text style={styles.menuArrow}>›</Text>
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+
   const renderCulinaryPreferences = () => (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Preferencias Culinarias</Text>
@@ -444,6 +601,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
         {renderProfileInfo()}
         {renderSocialStats()}
         {renderHealthData()}
+        {renderNutritionGoals()}
         {renderCulinaryPreferences()}
 
         {/* Logout Button */}
@@ -459,7 +617,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
         </TouchableOpacity>
 
         {/* Version */}
-        <Text style={styles.version}>Versión 1.0.0</Text>
+        <Text style={styles.version}>Versión 1.0.0 (17)</Text>
       </ScrollView>
 
       {/* Modal de preferencias */}
@@ -615,6 +773,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
         userId={currentUserId || socialProfile?.id || ""}
         type="following"
       />
+
+      {/* Modal de edición de campo específico */}
+      <EditFieldModal
+        visible={editField.type !== null}
+        onClose={() => setEditField({ type: null, value: null })}
+        fieldType={editField.type!}
+        currentValue={editField.value}
+        userProfile={userProfile}
+        onSave={handleSaveField}
+      />
     </View>
   );
 };
@@ -697,6 +865,7 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 10,
   },
+
   dataItem: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -723,6 +892,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: COLORS.primary,
+  },
+  motivationText: {
+    fontStyle: 'italic',
+    fontWeight: '500',
+    fontSize: 14,
+    lineHeight: 20,
+    maxWidth: 200,
   },
   dataRight: {
     flexDirection: "row",

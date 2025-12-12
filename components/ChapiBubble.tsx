@@ -8,6 +8,7 @@ import {
   Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ChapiBubbleProps {
   onPress: () => void;
@@ -15,6 +16,7 @@ interface ChapiBubbleProps {
 }
 
 export const ChapiBubble: React.FC<ChapiBubbleProps> = ({ onPress, unreadCount = 0 }) => {
+  const insets = useSafeAreaInsets();
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
   const blinkAnim = React.useRef(new Animated.Value(1)).current;
   const glowAnim = React.useRef(new Animated.Value(0)).current;
@@ -86,7 +88,7 @@ export const ChapiBubble: React.FC<ChapiBubbleProps> = ({ onPress, unreadCount =
   });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { bottom: 100 + insets.bottom }]}>
       {/* Halo de fondo animado */}
       <Animated.View
         style={[
@@ -131,7 +133,6 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     right: 20,
-    bottom: 100,
     alignItems: 'center',
     zIndex: 1000,
   },

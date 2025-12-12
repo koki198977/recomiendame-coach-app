@@ -13,11 +13,13 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Logo } from './Logo';
 import { NutritionService } from '../services/nutritionService';
-import { Cuisine, Allergy, Condition } from '../types/nutrition';
+import { Cuisine, Allergy, Condition, NutritionGoal, TimeFrame, NutritionGoalDetails } from '../types/nutrition';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
@@ -41,9 +43,18 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
     activityLevel: '',
     country: 'CL',
     allergies: [] as number[],
+    customAllergies: [] as string[], // Alergias personalizadas (texto libre)
     conditions: [] as number[],
+    customConditions: [] as string[], // Condiciones personalizadas (texto libre)
     cuisinesLike: [] as number[],
     cuisinesDislike: [] as number[],
+    // Nuevos campos para objetivos
+    nutritionGoal: '' as NutritionGoal | '',
+    targetWeightKg: '',
+    timeFrame: '' as TimeFrame | '',
+    intensity: '' as 'GENTLE' | 'MODERATE' | 'AGGRESSIVE' | '',
+    currentMotivation: '',
+    cookTimePerMeal: '',
   });
 
   const [currentStep, setCurrentStep] = useState(0);
@@ -54,11 +65,36 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
   const [conditions, setConditions] = useState<Condition[]>([]);
   const [loading, setLoading] = useState(false);
   
+  // Referencia al ScrollView para controlar el scroll
+  const scrollViewRef = React.useRef<ScrollView>(null);
+  
+  // Estado para detectar si el teclado está visible
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  // Detectar cuando el teclado se muestra/oculta
+  React.useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
+  }, []);
+  
   // Estados para búsqueda
   const [allergySearch, setAllergySearch] = useState('');
   const [conditionSearch, setConditionSearch] = useState('');
   const [searchingAllergies, setSearchingAllergies] = useState(false);
   const [searchingConditions, setSearchingConditions] = useState(false);
+  
+  // Estados para agregar elementos personalizados
+  const [newAllergyText, setNewAllergyText] = useState('');
+  const [newConditionText, setNewConditionText] = useState('');
 
   const steps = [
     {
@@ -77,6 +113,16 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
     {
       title: 'Estilo de vida',
       subtitle: 'Tu nivel de actividad',
+      fields: []
+    },
+    {
+      title: '¿Cuál es tu objetivo? 🎯',
+      subtitle: 'Define tu meta nutricional',
+      fields: []
+    },
+    {
+      title: 'Tu plan personalizado ⏰',
+      subtitle: 'Tiempo y intensidad',
       fields: []
     },
     {
@@ -101,6 +147,101 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
   const genderOptions = [
     { key: 'MALE', label: '👨 Masculino' },
     { key: 'FEMALE', label: '👩 Femenino' },
+  ];
+
+  const nutritionGoalOptions = [
+    { 
+      key: 'MAINTAIN_WEIGHT', 
+      label: 'Mantener peso', 
+      desc: 'Mantener mi peso actual y mejorar composición corporal',
+      emoji: '⚖️'
+    },
+    { 
+      key: 'LOSE_WEIGHT', 
+      label: 'Bajar de peso', 
+      desc: 'Reducir peso corporal de forma saludable',
+      emoji: '📉'
+    },
+    { 
+      key: 'GAIN_WEIGHT', 
+      label: 'Subir de peso', 
+      desc: 'Aumentar peso de forma saludable',
+      emoji: '📈'
+    },
+    { 
+      key: 'BUILD_MUSCLE', 
+      label: 'Ganar masa muscular', 
+      desc: 'Aumentar músculo y mejorar fuerza',
+      emoji: '💪'
+    },
+    { 
+      key: 'ATHLETIC_PERFORMANCE', 
+      label: 'Rendimiento deportivo', 
+      desc: 'Optimizar nutrición para entrenamientos',
+      emoji: '🏃'
+    },
+    { 
+      key: 'GENERAL_HEALTH', 
+      label: 'Salud general', 
+      desc: 'Mejorar hábitos alimentarios y bienestar',
+      emoji: '🌱'
+    },
+  ];
+
+  const timeFrameOptions = [
+    { key: '1_MONTH', label: '1 mes', desc: 'Resultados rápidos' },
+    { key: '3_MONTHS', label: '3 meses', desc: 'Cambios sostenibles' },
+    { key: '6_MONTHS', label: '6 meses', desc: 'Transformación gradual' },
+    { key: '1_YEAR', label: '1 año', desc: 'Cambio de estilo de vida' },
+    { key: 'LONG_TERM', label: 'Largo plazo', desc: 'Sin prisa, enfoque en hábitos' },
+  ];
+
+  const intensityOptions = [
+    { 
+      key: 'GENTLE', 
+      label: '🌸 Suave', 
+      desc: 'Cambios graduales, fácil de mantener',
+      color: '#81C784'
+    },
+    { 
+      key: 'MODERATE', 
+      label: '🎯 Moderado', 
+      desc: 'Balance entre resultados y sostenibilidad',
+      color: '#FF9800'
+    },
+    { 
+      key: 'AGGRESSIVE', 
+      label: '🔥 Intensivo', 
+      desc: 'Cambios más rápidos, requiere disciplina',
+      color: '#F44336'
+    },
+  ];
+
+  const cookTimeOptions = [
+    { 
+      key: '15', 
+      label: 'Rápido (15 min)', 
+      desc: 'Comidas simples y rápidas',
+      emoji: '🚀'
+    },
+    { 
+      key: '25', 
+      label: 'Moderado (25 min)', 
+      desc: 'Balance entre tiempo y variedad',
+      emoji: '⏰'
+    },
+    { 
+      key: '35', 
+      label: 'Elaborado (35 min)', 
+      desc: 'Recetas más detalladas',
+      emoji: '👨‍🍳'
+    },
+    { 
+      key: '45', 
+      label: 'Gourmet (45+ min)', 
+      desc: 'Disfruto cocinar sin prisa',
+      emoji: '🍽️'
+    },
   ];
 
   // Cargar listas cuando se abre el modal
@@ -149,11 +290,13 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
     ]);
     
     setAllergies([
-      { id: 1, name: 'Gluten' },
-      { id: 2, name: 'Lactosa' },
-      { id: 3, name: 'Frutos secos' },
-      { id: 4, name: 'Mariscos' },
-      { id: 5, name: 'Huevos' },
+      { id: 1, name: 'Maní (cacahuate)' },
+      { id: 2, name: 'Frutos secos' },
+      { id: 3, name: 'Mariscos' },
+      { id: 4, name: 'Huevos' },
+      { id: 5, name: 'Soja' },
+      { id: 6, name: 'Gluten' },
+      { id: 7, name: 'Lactosa' },
     ]);
     
     setConditions([
@@ -176,6 +319,178 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
         : [...currentArray, itemId];
       return { ...prev, [key]: newArray };
     });
+  };
+
+  // Agregar alergia personalizada
+  const addCustomAllergy = async () => {
+    if (!newAllergyText.trim()) return;
+
+    const allergyName = newAllergyText.trim().toLowerCase();
+
+    // 1. Verificar si ya existe en las alergias oficiales
+    const existingAllergy = allergies.find(a => a.name.toLowerCase() === allergyName);
+    if (existingAllergy) {
+      // Si ya existe, simplemente seleccionarla
+      if (!formData.allergies.includes(existingAllergy.id)) {
+        setFormData(prev => ({
+          ...prev,
+          allergies: [...prev.allergies, existingAllergy.id]
+        }));
+        Alert.alert('Alergia encontrada', `"${existingAllergy.name}" ya estaba en la lista y se ha seleccionado.`);
+      } else {
+        Alert.alert('Ya seleccionada', `"${existingAllergy.name}" ya está seleccionada en tu perfil.`);
+      }
+      setNewAllergyText('');
+      return;
+    }
+
+    // 2. Verificar si ya existe en las alergias personalizadas
+    const existingCustom = formData.customAllergies.find(a => a.toLowerCase() === allergyName);
+    if (existingCustom) {
+      Alert.alert('Ya agregada', `"${existingCustom}" ya está en tu lista de alergias personalizadas.`);
+      setNewAllergyText('');
+      return;
+    }
+
+    try {
+      // 3. Intentar crear la alergia en la base de datos
+      const newAllergy = await NutritionService.createAllergy(newAllergyText.trim());
+      
+      // Agregar a la lista local de alergias disponibles
+      setAllergies(prev => [...prev, newAllergy]);
+      
+      // Seleccionar automáticamente la nueva alergia
+      setFormData(prev => ({
+        ...prev,
+        allergies: [...prev.allergies, newAllergy.id]
+      }));
+      
+      // Limpiar el campo de texto
+      setNewAllergyText('');
+      
+      // Mostrar mensaje de éxito
+      Alert.alert('¡Éxito!', `Se agregó "${newAllergy.name}" a la lista de alergias disponibles.`);
+      
+    } catch (error: any) {
+      console.log('Error creando alergia:', error);
+      
+      // Si el error es por duplicado (409 Conflict)
+      if (error.response?.status === 409) {
+        Alert.alert(
+          'Alergia ya existe', 
+          'Esta alergia ya existe en la base de datos. Intenta buscarla en la lista o usa el buscador.'
+        );
+        setNewAllergyText('');
+        return;
+      }
+      
+      // Si es otro error, agregar como alergia personalizada
+      setFormData(prev => ({
+        ...prev,
+        customAllergies: [...prev.customAllergies, newAllergyText.trim()]
+      }));
+      setNewAllergyText('');
+      
+      // Mostrar mensaje informativo
+      Alert.alert(
+        'Alergia agregada localmente', 
+        'Se guardó tu alergia personalizada. Se sincronizará cuando sea posible.'
+      );
+    }
+  };
+
+  // Remover alergia personalizada
+  const removeCustomAllergy = (allergy: string) => {
+    setFormData(prev => ({
+      ...prev,
+      customAllergies: prev.customAllergies.filter(a => a !== allergy)
+    }));
+  };
+
+  // Agregar condición personalizada
+  const addCustomCondition = async () => {
+    if (!newConditionText.trim()) return;
+
+    const conditionLabel = newConditionText.trim().toLowerCase();
+
+    // 1. Verificar si ya existe en las condiciones oficiales
+    const existingCondition = conditions.find(c => c.label.toLowerCase() === conditionLabel);
+    if (existingCondition) {
+      // Si ya existe, simplemente seleccionarla
+      if (!formData.conditions.includes(existingCondition.id)) {
+        setFormData(prev => ({
+          ...prev,
+          conditions: [...prev.conditions, existingCondition.id]
+        }));
+        Alert.alert('Condición encontrada', `"${existingCondition.label}" ya estaba en la lista y se ha seleccionado.`);
+      } else {
+        Alert.alert('Ya seleccionada', `"${existingCondition.label}" ya está seleccionada en tu perfil.`);
+      }
+      setNewConditionText('');
+      return;
+    }
+
+    // 2. Verificar si ya existe en las condiciones personalizadas
+    const existingCustom = formData.customConditions.find(c => c.toLowerCase() === conditionLabel);
+    if (existingCustom) {
+      Alert.alert('Ya agregada', `"${existingCustom}" ya está en tu lista de condiciones personalizadas.`);
+      setNewConditionText('');
+      return;
+    }
+
+    try {
+      // 3. Intentar crear la condición en la base de datos
+      const newCondition = await NutritionService.createCondition(newConditionText.trim());
+      
+      // Agregar a la lista local de condiciones disponibles
+      setConditions(prev => [...prev, newCondition]);
+      
+      // Seleccionar automáticamente la nueva condición
+      setFormData(prev => ({
+        ...prev,
+        conditions: [...prev.conditions, newCondition.id]
+      }));
+      
+      // Limpiar el campo de texto
+      setNewConditionText('');
+      
+      // Mostrar mensaje de éxito
+      Alert.alert('¡Éxito!', `Se agregó "${newCondition.label}" a la lista de condiciones disponibles.`);
+      
+    } catch (error: any) {
+      console.log('Error creando condición:', error);
+      
+      // Si el error es por duplicado (409 Conflict)
+      if (error.response?.status === 409) {
+        Alert.alert(
+          'Condición ya existe', 
+          'Esta condición ya existe en la base de datos. Intenta buscarla en la lista o usa el buscador.'
+        );
+        setNewConditionText('');
+        return;
+      }
+      
+      // Si es otro error, agregar como condición personalizada
+      setFormData(prev => ({
+        ...prev,
+        customConditions: [...prev.customConditions, newConditionText.trim()]
+      }));
+      setNewConditionText('');
+      
+      // Mostrar mensaje informativo
+      Alert.alert(
+        'Condición agregada localmente', 
+        'Se guardó tu condición personalizada. Se sincronizará cuando sea posible.'
+      );
+    }
+  };
+
+  // Remover condición personalizada
+  const removeCustomCondition = (condition: string) => {
+    setFormData(prev => ({
+      ...prev,
+      customConditions: prev.customConditions.filter(c => c !== condition)
+    }));
   };
 
   // Búsqueda de alergias
@@ -231,6 +546,10 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
+      // Scroll automático hacia arriba al cambiar de paso
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      }, 100);
     } else {
       handleComplete();
     }
@@ -240,14 +559,94 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
   const getChapiImage = () => {
     if (currentStep === 0) return require('../assets/chapi-3d-onboarding.png');
     if (currentStep <= 2) return require('../assets/chapi-3d-onboarding-1.png');
-    if (currentStep <= 3) return require('../assets/chapi-3d-onboarding-2.png');
+    if (currentStep <= 4) return require('../assets/chapi-3d-onboarding-2.png');
     return require('../assets/chapi-3d-onboarding-3.png');
+  };
+
+  // Calcular IMC y diagnóstico
+  const calculateBMI = () => {
+    const height = parseFloat(formData.heightCm);
+    const weight = parseFloat(formData.weightKg);
+    if (!height || !weight) return null;
+    
+    const heightInMeters = height / 100;
+    return weight / (heightInMeters * heightInMeters);
+  };
+
+  const getBMICategory = (bmi: number) => {
+    if (bmi < 18.5) return { category: 'Bajo peso', color: '#2196F3', emoji: '📉' };
+    if (bmi < 25) return { category: 'Peso normal', color: '#4CAF50', emoji: '✅' };
+    if (bmi < 30) return { category: 'Sobrepeso', color: '#FF9800', emoji: '⚠️' };
+    return { category: 'Obesidad', color: '#F44336', emoji: '🚨' };
+  };
+
+  const getCurrentDiagnosis = () => {
+    const bmi = calculateBMI();
+    if (!bmi) return null;
+
+    const bmiInfo = getBMICategory(bmi);
+    const weight = parseFloat(formData.weightKg);
+    const height = parseFloat(formData.heightCm);
+    
+    // Calcular peso ideal (fórmula de Devine)
+    const baseWeight = formData.sex === 'MALE' ? 50 : 45.5;
+    const heightFactor = formData.sex === 'MALE' ? 2.3 : 2.3;
+    const idealWeight = baseWeight + (heightFactor * ((height - 152.4) / 2.54));
+    
+    const weightDifference = weight - idealWeight;
+    
+    return {
+      bmi: bmi.toFixed(1),
+      category: bmiInfo.category,
+      color: bmiInfo.color,
+      emoji: bmiInfo.emoji,
+      idealWeight: idealWeight.toFixed(1),
+      weightDifference: weightDifference.toFixed(1),
+      recommendations: getRecommendations(bmi, formData.nutritionGoal as NutritionGoal)
+    };
+  };
+
+  const getRecommendations = (bmi: number, goal: NutritionGoal) => {
+    const recommendations = [];
+    
+    if (bmi < 18.5) {
+      recommendations.push('Considera aumentar tu ingesta calórica de forma saludable');
+      recommendations.push('Incluye proteínas de calidad en cada comida');
+    } else if (bmi > 25) {
+      recommendations.push('Un déficit calórico moderado te ayudará a alcanzar tu objetivo');
+      recommendations.push('Prioriza alimentos ricos en nutrientes y fibra');
+    } else {
+      recommendations.push('Tu peso está en rango saludable');
+      recommendations.push('Enfócate en la composición corporal y hábitos');
+    }
+
+    if (goal === 'BUILD_MUSCLE') {
+      recommendations.push('Aumenta tu consumo de proteína (1.6-2.2g por kg de peso)');
+      recommendations.push('Combina con entrenamiento de fuerza regular');
+    } else if (goal === 'ATHLETIC_PERFORMANCE') {
+      recommendations.push('Sincroniza tu nutrición con tus entrenamientos');
+      recommendations.push('Mantén una hidratación óptima');
+    }
+
+    return recommendations;
   };
 
   const handleComplete = async () => {
     // Validar datos básicos requeridos
-    if (!formData.heightCm || !formData.weightKg || !formData.activityLevel || !formData.sex) {
-      Alert.alert('Datos incompletos', 'Por favor completa todos los campos requeridos (género, altura, peso y nivel de actividad)');
+    if (!formData.heightCm || !formData.weightKg || !formData.activityLevel || !formData.sex || !formData.cookTimePerMeal) {
+      Alert.alert('Datos incompletos', 'Por favor completa todos los campos requeridos (género, altura, peso, nivel de actividad y tiempo de cocina)');
+      return;
+    }
+
+    // Validar objetivo nutricional
+    if (!formData.nutritionGoal || !formData.timeFrame || !formData.intensity) {
+      Alert.alert('Objetivo incompleto', 'Por favor define tu objetivo nutricional, tiempo e intensidad');
+      return;
+    }
+
+    // Validar peso objetivo si es necesario
+    if ((formData.nutritionGoal === 'LOSE_WEIGHT' || formData.nutritionGoal === 'GAIN_WEIGHT') && !formData.targetWeightKg) {
+      Alert.alert('Peso objetivo requerido', 'Por favor indica tu peso objetivo');
       return;
     }
 
@@ -255,13 +654,19 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
     try {
       // 1. Crear/actualizar perfil básico
       const profileData = {
-        sex: formData.sex,
+        sex: formData.sex as "MALE" | "FEMALE",
         heightCm: parseInt(formData.heightCm),
         weightKg: parseInt(formData.weightKg),
-        activityLevel: formData.activityLevel,
+        activityLevel: formData.activityLevel as "SEDENTARY" | "LIGHT" | "MODERATE" | "ACTIVE" | "VERY_ACTIVE",
         country: formData.country,
         budgetLevel: 1, // Valor por defecto
-        cookTimePerMeal: 25, // Valor por defecto
+        cookTimePerMeal: parseInt(formData.cookTimePerMeal),
+        // Campos de objetivo nutricional como campos planos
+        nutritionGoal: formData.nutritionGoal as NutritionGoal,
+        targetWeightKg: formData.targetWeightKg ? parseInt(formData.targetWeightKg) : undefined,
+        timeFrame: formData.timeFrame as TimeFrame,
+        intensity: formData.intensity as 'GENTLE' | 'MODERATE' | 'AGGRESSIVE',
+        currentMotivation: formData.currentMotivation || undefined,
       };
 
       await NutritionService.createUserProfile(profileData);
@@ -269,14 +674,18 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
       // 2. Actualizar preferencias si hay datos
       const hasPreferences = 
         formData.allergies.length > 0 || 
+        formData.customAllergies.length > 0 ||
         formData.conditions.length > 0 || 
+        formData.customConditions.length > 0 ||
         formData.cuisinesLike.length > 0 || 
         formData.cuisinesDislike.length > 0;
 
       if (hasPreferences) {
         const preferences = {
           allergyIds: formData.allergies.length > 0 ? formData.allergies : undefined,
+          customAllergies: formData.customAllergies.length > 0 ? formData.customAllergies : undefined,
           conditionIds: formData.conditions.length > 0 ? formData.conditions : undefined,
+          customConditions: formData.customConditions.length > 0 ? formData.customConditions : undefined,
           cuisinesLike: formData.cuisinesLike.length > 0 ? formData.cuisinesLike : undefined,
           cuisinesDislike: formData.cuisinesDislike.length > 0 ? formData.cuisinesDislike : undefined,
         };
@@ -288,7 +697,9 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
       const completeProfileData = {
         ...profileData,
         allergies: formData.allergies,
+        customAllergies: formData.customAllergies,
         conditions: formData.conditions,
+        customConditions: formData.customConditions,
         cuisinesLike: formData.cuisinesLike,
         cuisinesDislike: formData.cuisinesDislike,
       };
@@ -322,10 +733,11 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <KeyboardAvoidingView 
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <KeyboardAvoidingView 
+          style={styles.container}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
         {/* Background Gradient */}
         <LinearGradient
           colors={['#4CAF50', '#81C784']}
@@ -365,7 +777,11 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
         </View>
 
         {/* Content */}
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          ref={scrollViewRef}
+          style={styles.content} 
+          showsVerticalScrollIndicator={false}
+        >
           {/* Step 1: Welcome */}
           {currentStep === 0 && (
             <View style={styles.welcomeContent}>
@@ -420,6 +836,9 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     value={formData[field.key as keyof typeof formData] as string}
                     onChangeText={(value) => updateFormData(field.key, value)}
                     keyboardType={field.keyboardType as any || 'default'}
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                    blurOnSubmit={true}
                   />
                 </View>
               ))}
@@ -457,36 +876,303 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                   ))}
                 </View>
               </View>
+
+              <View style={styles.fieldContainer}>
+                <Text style={styles.fieldLabel}>¿Cuánto tiempo puedes dedicar a cocinar?</Text>
+                <View style={styles.cookTimeContainer}>
+                  {cookTimeOptions.map((cookTime) => (
+                    <TouchableOpacity
+                      key={cookTime.key}
+                      style={[
+                        styles.cookTimeOption,
+                        formData.cookTimePerMeal === cookTime.key && styles.cookTimeOptionActive
+                      ]}
+                      onPress={() => updateFormData('cookTimePerMeal', cookTime.key)}
+                    >
+                      <Text style={styles.cookTimeEmoji}>{cookTime.emoji}</Text>
+                      <View style={styles.cookTimeContent}>
+                        <Text style={[
+                          styles.cookTimeLabel,
+                          formData.cookTimePerMeal === cookTime.key && styles.cookTimeLabelActive
+                        ]}>
+                          {cookTime.label}
+                        </Text>
+                        <Text style={[
+                          styles.cookTimeDesc,
+                          formData.cookTimePerMeal === cookTime.key && styles.cookTimeDescActive
+                        ]}>
+                          {cookTime.desc}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
             </View>
           )}
 
-          {/* Step 4: Allergies and Conditions */}
+          {/* Step 4: Nutrition Goals */}
           {currentStep === 3 && (
             <View style={styles.formSection}>
-              {/* Allergies */}
+              <View style={styles.fieldContainer}>
+                <Text style={styles.fieldLabel}>¿Cuál es tu objetivo principal?</Text>
+                <View style={styles.goalContainer}>
+                  {nutritionGoalOptions.map((goal) => (
+                    <TouchableOpacity
+                      key={goal.key}
+                      style={[
+                        styles.goalOption,
+                        formData.nutritionGoal === goal.key && styles.goalOptionActive
+                      ]}
+                      onPress={() => updateFormData('nutritionGoal', goal.key)}
+                    >
+                      <Text style={styles.goalEmoji}>{goal.emoji}</Text>
+                      <View style={styles.goalContent}>
+                        <Text style={[
+                          styles.goalLabel,
+                          formData.nutritionGoal === goal.key && styles.goalLabelActive
+                        ]}>
+                          {goal.label}
+                        </Text>
+                        <Text style={[
+                          styles.goalDesc,
+                          formData.nutritionGoal === goal.key && styles.goalDescActive
+                        ]}>
+                          {goal.desc}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Peso objetivo si aplica */}
+              {(formData.nutritionGoal === 'LOSE_WEIGHT' || formData.nutritionGoal === 'GAIN_WEIGHT') && (
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.fieldLabel}>
+                    {formData.nutritionGoal === 'LOSE_WEIGHT' ? '¿Cuál es tu peso objetivo?' : '¿Cuánto quieres pesar?'}
+                  </Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ej: 65"
+                    placeholderTextColor="rgba(0, 0, 0, 0.4)"
+                    value={formData.targetWeightKg}
+                    onChangeText={(value) => updateFormData('targetWeightKg', value)}
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                    blurOnSubmit={true}
+                  />
+                </View>
+              )}
+
+              {/* Motivación */}
+              <View style={styles.fieldContainer}>
+                <Text style={styles.fieldLabel}>¿Qué te motiva a lograr este objetivo? (opcional)</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  placeholder="Ej: Quiero sentirme más saludable y con energía..."
+                  placeholderTextColor="rgba(0, 0, 0, 0.4)"
+                  value={formData.currentMotivation}
+                  onChangeText={(value) => updateFormData('currentMotivation', value)}
+                  multiline
+                  numberOfLines={3}
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                  blurOnSubmit={true}
+                />
+              </View>
+            </View>
+          )}
+
+          {/* Step 5: Time Frame and Intensity */}
+          {currentStep === 4 && (
+            <View style={styles.formSection}>
+              <View style={styles.fieldContainer}>
+                <Text style={styles.fieldLabel}>¿En cuánto tiempo quieres lograrlo?</Text>
+                <View style={styles.timeFrameContainer}>
+                  {timeFrameOptions.map((timeFrame) => (
+                    <TouchableOpacity
+                      key={timeFrame.key}
+                      style={[
+                        styles.timeFrameOption,
+                        formData.timeFrame === timeFrame.key && styles.timeFrameOptionActive
+                      ]}
+                      onPress={() => updateFormData('timeFrame', timeFrame.key)}
+                    >
+                      <Text style={[
+                        styles.timeFrameLabel,
+                        formData.timeFrame === timeFrame.key && styles.timeFrameLabelActive
+                      ]}>
+                        {timeFrame.label}
+                      </Text>
+                      <Text style={[
+                        styles.timeFrameDesc,
+                        formData.timeFrame === timeFrame.key && styles.timeFrameDescActive
+                      ]}>
+                        {timeFrame.desc}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.fieldContainer}>
+                <Text style={styles.fieldLabel}>¿Qué tan intensivo quieres que sea tu plan?</Text>
+                <View style={styles.intensityContainer}>
+                  {intensityOptions.map((intensity) => (
+                    <TouchableOpacity
+                      key={intensity.key}
+                      style={[
+                        styles.intensityOption,
+                        formData.intensity === intensity.key && styles.intensityOptionActive,
+                        formData.intensity === intensity.key && { borderColor: intensity.color }
+                      ]}
+                      onPress={() => updateFormData('intensity', intensity.key)}
+                    >
+                      <Text style={[
+                        styles.intensityLabel,
+                        formData.intensity === intensity.key && styles.intensityLabelActive,
+                        formData.intensity === intensity.key && { color: intensity.color }
+                      ]}>
+                        {intensity.label}
+                      </Text>
+                      <Text style={[
+                        styles.intensityDesc,
+                        formData.intensity === intensity.key && styles.intensityDescActive
+                      ]}>
+                        {intensity.desc}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Diagnóstico actual */}
+              {formData.heightCm && formData.weightKg && (
+                <View style={styles.diagnosisContainer}>
+                  <Text style={styles.diagnosisTitle}>📊 Tu estado actual</Text>
+                  {(() => {
+                    const diagnosis = getCurrentDiagnosis();
+                    if (!diagnosis) return null;
+                    
+                    return (
+                      <View style={styles.diagnosisContent}>
+                        <View style={styles.bmiContainer}>
+                          <Text style={styles.bmiLabel}>IMC: </Text>
+                          <Text style={[styles.bmiValue, { color: diagnosis.color }]}>
+                            {diagnosis.bmi} {diagnosis.emoji}
+                          </Text>
+                          <Text style={[styles.bmiCategory, { color: diagnosis.color }]}>
+                            ({diagnosis.category})
+                          </Text>
+                        </View>
+                        
+                        <View style={styles.weightAnalysis}>
+                          <Text style={styles.weightAnalysisText}>
+                            Peso ideal aproximado: {diagnosis.idealWeight} kg
+                          </Text>
+                          <Text style={styles.weightAnalysisText}>
+                            Diferencia: {parseFloat(diagnosis.weightDifference) > 0 ? '+' : ''}{diagnosis.weightDifference} kg
+                          </Text>
+                        </View>
+
+                        <View style={styles.recommendationsContainer}>
+                          <Text style={styles.recommendationsTitle}>💡 Recomendaciones:</Text>
+                          {diagnosis.recommendations.map((rec, index) => (
+                            <Text key={index} style={styles.recommendationItem}>
+                              • {rec}
+                            </Text>
+                          ))}
+                        </View>
+                      </View>
+                    );
+                  })()}
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Step 6: Allergies and Conditions */}
+          {currentStep === 5 && (
+            <View style={styles.formSection}>
+              {/* Alergias */}
               <View style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>Alergias alimentarias</Text>
                 <Text style={styles.fieldSubtitle}>Selecciona las que apliquen (opcional)</Text>
                 
-                {/* Chips seleccionados */}
-                {formData.allergies.length > 0 && (
+                {/* Mostrar alergias personalizadas agregadas */}
+                {formData.customAllergies.length > 0 && (
                   <View style={styles.selectedContainer}>
-                    <Text style={styles.selectedLabel}>Seleccionadas ({formData.allergies.length}):</Text>
+                    <Text style={styles.selectedLabel}>Mis alergias ({formData.customAllergies.length}):</Text>
                     <View style={styles.selectedChips}>
-                      {allergies
-                        .filter(a => formData.allergies.includes(a.id))
-                        .map((allergy) => (
-                          <TouchableOpacity
-                            key={allergy.id}
-                            style={styles.selectedChip}
-                            onPress={() => toggleArrayItem('allergies', allergy.id)}
-                          >
-                            <Text style={styles.selectedChipText}>{allergy.name}</Text>
-                            <Text style={styles.selectedChipRemove}>✕</Text>
-                          </TouchableOpacity>
-                        ))}
+                      {formData.customAllergies.map((allergy, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={styles.selectedChip}
+                          onPress={() => removeCustomAllergy(allergy)}
+                        >
+                          <Text style={styles.selectedChipText}>{allergy}</Text>
+                          <Text style={styles.selectedChipRemove}>✕</Text>
+                        </TouchableOpacity>
+                      ))}
                     </View>
                   </View>
+                )}
+
+                {/* Campo para agregar nueva alergia */}
+                <View style={styles.addFoodContainer}>
+                  <TextInput
+                    style={styles.addFoodInput}
+                    placeholder="Agregar nueva alergia..."
+                    placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                    value={newAllergyText}
+                    onChangeText={setNewAllergyText}
+                    returnKeyType="done"
+                    onSubmitEditing={addCustomAllergy}
+                    blurOnSubmit={true}
+                  />
+                  <TouchableOpacity 
+                    style={[
+                      styles.addFoodButton,
+                      !newAllergyText.trim() && styles.addFoodButtonDisabled
+                    ]}
+                    onPress={addCustomAllergy}
+                    disabled={!newAllergyText.trim()}
+                  >
+                    <Text style={styles.addFoodButtonText}>+ Agregar</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Sugerencia si hay texto similar */}
+                {newAllergyText.trim().length > 2 && (
+                  (() => {
+                    const searchTerm = newAllergyText.trim().toLowerCase();
+                    const similarAllergy = allergies.find(a => 
+                      a.name.toLowerCase().includes(searchTerm) || 
+                      searchTerm.includes(a.name.toLowerCase())
+                    );
+                    
+                    if (similarAllergy && !formData.allergies.includes(similarAllergy.id)) {
+                      return (
+                        <TouchableOpacity 
+                          style={styles.suggestionContainer}
+                          onPress={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              allergies: [...prev.allergies, similarAllergy.id]
+                            }));
+                            setNewAllergyText('');
+                          }}
+                        >
+                          <Text style={styles.suggestionText}>
+                            💡 ¿Te refieres a "{similarAllergy.name}"? Toca para seleccionar
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    }
+                    return null;
+                  })()
                 )}
 
                 {/* Buscador de alergias */}
@@ -498,6 +1184,9 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     value={allergySearch}
                     onChangeText={searchAllergies}
                     placeholderTextColor="#999"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                    blurOnSubmit={true}
                   />
                   {allergySearch.length > 0 && (
                     <TouchableOpacity onPress={() => searchAllergies('')}>
@@ -531,30 +1220,86 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                 )}
               </View>
 
-              {/* Conditions */}
+              {/* Separador visual */}
+              <View style={styles.sectionSeparator} />
+
+              {/* Condiciones */}
               <View style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>Condiciones médicas</Text>
                 <Text style={styles.fieldSubtitle}>Información para personalizar tu plan (opcional)</Text>
                 
-                {/* Chips seleccionados */}
-                {formData.conditions.length > 0 && (
+                {/* Mostrar condiciones personalizadas agregadas */}
+                {formData.customConditions.length > 0 && (
                   <View style={styles.selectedContainer}>
-                    <Text style={styles.selectedLabel}>Seleccionadas ({formData.conditions.length}):</Text>
+                    <Text style={styles.selectedLabel}>Mis condiciones ({formData.customConditions.length}):</Text>
                     <View style={styles.selectedChips}>
-                      {conditions
-                        .filter(c => formData.conditions.includes(c.id))
-                        .map((condition) => (
-                          <TouchableOpacity
-                            key={condition.id}
-                            style={styles.selectedChip}
-                            onPress={() => toggleArrayItem('conditions', condition.id)}
-                          >
-                            <Text style={styles.selectedChipText}>{condition.label}</Text>
-                            <Text style={styles.selectedChipRemove}>✕</Text>
-                          </TouchableOpacity>
-                        ))}
+                      {formData.customConditions.map((condition, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={styles.selectedChip}
+                          onPress={() => removeCustomCondition(condition)}
+                        >
+                          <Text style={styles.selectedChipText}>{condition}</Text>
+                          <Text style={styles.selectedChipRemove}>✕</Text>
+                        </TouchableOpacity>
+                      ))}
                     </View>
                   </View>
+                )}
+
+                {/* Campo para agregar nueva condición */}
+                <View style={styles.addFoodContainer}>
+                  <TextInput
+                    style={styles.addFoodInput}
+                    placeholder="Agregar nueva condición..."
+                    placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                    value={newConditionText}
+                    onChangeText={setNewConditionText}
+                    returnKeyType="done"
+                    onSubmitEditing={addCustomCondition}
+                    blurOnSubmit={true}
+                  />
+                  <TouchableOpacity 
+                    style={[
+                      styles.addFoodButton,
+                      !newConditionText.trim() && styles.addFoodButtonDisabled
+                    ]}
+                    onPress={addCustomCondition}
+                    disabled={!newConditionText.trim()}
+                  >
+                    <Text style={styles.addFoodButtonText}>+ Agregar</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Sugerencia si hay texto similar */}
+                {newConditionText.trim().length > 2 && (
+                  (() => {
+                    const searchTerm = newConditionText.trim().toLowerCase();
+                    const similarCondition = conditions.find(c => 
+                      c.label.toLowerCase().includes(searchTerm) || 
+                      searchTerm.includes(c.label.toLowerCase())
+                    );
+                    
+                    if (similarCondition && !formData.conditions.includes(similarCondition.id)) {
+                      return (
+                        <TouchableOpacity 
+                          style={styles.suggestionContainer}
+                          onPress={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              conditions: [...prev.conditions, similarCondition.id]
+                            }));
+                            setNewConditionText('');
+                          }}
+                        >
+                          <Text style={styles.suggestionText}>
+                            💡 ¿Te refieres a "{similarCondition.label}"? Toca para seleccionar
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    }
+                    return null;
+                  })()
                 )}
 
                 {/* Buscador de condiciones */}
@@ -566,6 +1311,9 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     value={conditionSearch}
                     onChangeText={searchConditions}
                     placeholderTextColor="#999"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                    blurOnSubmit={true}
                   />
                   {conditionSearch.length > 0 && (
                     <TouchableOpacity onPress={() => searchConditions('')}>
@@ -601,8 +1349,8 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
             </View>
           )}
 
-          {/* Step 5: Cuisine Preferences */}
-          {currentStep === 4 && (
+          {/* Step 7: Cuisine Preferences */}
+          {currentStep === 6 && (
             <View style={styles.formSection}>
               <View style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>Tipos de cocina que te gustan</Text>
@@ -640,7 +1388,13 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
           {!isFirstStep && (
             <TouchableOpacity 
               style={styles.backButton} 
-              onPress={() => setCurrentStep(currentStep - 1)}
+              onPress={() => {
+                setCurrentStep(currentStep - 1);
+                // Scroll automático hacia arriba al ir hacia atrás
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+                }, 100);
+              }}
             >
               <Text style={styles.backButtonText}>← Atrás</Text>
             </TouchableOpacity>
@@ -666,7 +1420,18 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
             </LinearGradient>
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+
+        {/* Botón flotante para ocultar teclado */}
+        {keyboardVisible && (
+          <TouchableOpacity 
+            style={styles.hideKeyboardButton}
+            onPress={Keyboard.dismiss}
+          >
+            <Text style={styles.hideKeyboardText}>⌨️ Ocultar teclado</Text>
+          </TouchableOpacity>
+        )}
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };
@@ -772,7 +1537,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   fieldContainer: {
-    marginBottom: 25,
+    marginBottom: 30,
   },
   fieldLabel: {
     fontSize: 16,
@@ -938,7 +1703,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 15,
     paddingVertical: 12,
-    marginBottom: 15,
+    marginTop: 10,
+    marginBottom: 20,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
@@ -989,5 +1755,326 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+
+  // Estilos para objetivos nutricionales
+  goalContainer: {
+    gap: 12,
+  },
+  goalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  goalOptionActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: '#fff',
+    borderWidth: 2,
+  },
+  goalEmoji: {
+    fontSize: 24,
+    marginRight: 15,
+  },
+  goalContent: {
+    flex: 1,
+  },
+  goalLabel: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  goalLabelActive: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  goalDesc: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 14,
+  },
+  goalDescActive: {
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
+
+  // Estilos para marco temporal
+  timeFrameContainer: {
+    gap: 10,
+  },
+  timeFrameOption: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  timeFrameOptionActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: '#fff',
+  },
+  timeFrameLabel: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  timeFrameLabelActive: {
+    color: '#fff',
+  },
+  timeFrameDesc: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 13,
+  },
+  timeFrameDescActive: {
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
+
+  // Estilos para intensidad
+  intensityContainer: {
+    gap: 12,
+  },
+  intensityOption: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  intensityOptionActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderWidth: 3,
+  },
+  intensityLabel: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  intensityLabelActive: {
+    fontWeight: '700',
+  },
+  intensityDesc: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 14,
+  },
+  intensityDescActive: {
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
+
+  // Estilos para diagnóstico
+  diagnosisContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    padding: 20,
+    borderRadius: 16,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  diagnosisTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  diagnosisContent: {
+    gap: 12,
+  },
+  bmiContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  bmiLabel: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  bmiValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginHorizontal: 5,
+  },
+  bmiCategory: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  weightAnalysis: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  weightAnalysisText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  recommendationsContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 12,
+    borderRadius: 12,
+  },
+  recommendationsTitle: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  recommendationItem: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 13,
+    marginBottom: 4,
+    lineHeight: 18,
+  },
+
+  // Estilo para textarea
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
+    paddingTop: 16,
+  },
+
+  // Estilos para tiempo de cocina
+  cookTimeContainer: {
+    gap: 12,
+  },
+  cookTimeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  cookTimeOptionActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: '#fff',
+    borderWidth: 2,
+  },
+  cookTimeEmoji: {
+    fontSize: 24,
+    marginRight: 15,
+  },
+  cookTimeContent: {
+    flex: 1,
+  },
+  cookTimeLabel: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  cookTimeLabelActive: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  cookTimeDesc: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 14,
+  },
+  cookTimeDescActive: {
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
+
+  // Botón flotante para ocultar teclado
+  hideKeyboardButton: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 8,
+  },
+  hideKeyboardText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  // Estilos para agregar elementos personalizados
+  addFoodContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 15,
+    marginBottom: 20,
+  },
+  addFoodInput: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderRadius: 12,
+    fontSize: 14,
+    color: '#fff',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  addFoodButton: {
+    backgroundColor: '#FF9800',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    shadowColor: '#FF9800',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  addFoodButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  addFoodButtonDisabled: {
+    backgroundColor: 'rgba(255, 152, 0, 0.5)',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+
+  // Estilos para sugerencias
+  suggestionContainer: {
+    backgroundColor: 'rgba(33, 150, 243, 0.2)',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 8,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(33, 150, 243, 0.4)',
+  },
+  suggestionText: {
+    color: '#2196F3',
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+
+  // Separador entre secciones
+  sectionSeparator: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    marginVertical: 25,
+    marginHorizontal: 20,
   },
 });

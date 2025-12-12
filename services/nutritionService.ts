@@ -36,12 +36,105 @@ export class NutritionService {
   }
 
   static async createUserProfile(profileData: Partial<UserProfile>): Promise<UserProfile> {
-    const response = await api.post<UserProfile>('/me/profile', profileData);
+    // Normalizar el formato de timeFrame para el backend
+    const normalizedData = { ...profileData };
+    if (normalizedData.timeFrame) {
+      const timeFrameMapping: { [key: string]: string } = {
+        'ONE_MONTH': '1_MONTH',
+        'THREE_MONTHS': '3_MONTHS',
+        'SIX_MONTHS': '6_MONTHS',
+        'ONE_YEAR': '1_YEAR',
+        'LONG_TERM': 'LONG_TERM'
+      };
+      
+      const normalizedTimeFrame = timeFrameMapping[normalizedData.timeFrame] || normalizedData.timeFrame;
+      normalizedData.timeFrame = normalizedTimeFrame as any;
+    }
+
+    // Normalizar el formato de nutritionGoal para el backend
+    if (normalizedData.nutritionGoal) {
+      const nutritionGoalMapping: { [key: string]: string } = {
+        'MAINTAIN_WEIGHT': 'MAINTAIN_WEIGHT',
+        'LOSE_WEIGHT': 'LOSE_WEIGHT',
+        'GAIN_WEIGHT': 'GAIN_WEIGHT',
+        'BUILD_MUSCLE': 'GAIN_MUSCLE',
+        'ATHLETIC_PERFORMANCE': 'IMPROVE_HEALTH', // Mapear a IMPROVE_HEALTH
+        'GENERAL_HEALTH': 'IMPROVE_HEALTH'
+      };
+      
+      const normalizedGoal = nutritionGoalMapping[normalizedData.nutritionGoal] || normalizedData.nutritionGoal;
+      normalizedData.nutritionGoal = normalizedGoal as any;
+    }
+
+    // Normalizar el formato de intensity para el backend
+    if (normalizedData.intensity) {
+      const intensityMapping: { [key: string]: string } = {
+        'GENTLE': 'LOW',
+        'MODERATE': 'MODERATE',
+        'AGGRESSIVE': 'HIGH'
+      };
+      
+      const normalizedIntensity = intensityMapping[normalizedData.intensity] || normalizedData.intensity;
+      normalizedData.intensity = normalizedIntensity as any;
+    }
+
+    const response = await api.post<UserProfile>('/me/profile', normalizedData);
     return response.data;
   }
 
   static async updateUserProfile(profileData: Partial<UserProfile>): Promise<UserProfile> {
-    const response = await api.put<UserProfile>('/me/profile', profileData);
+    // Primero obtener el perfil actual
+    const currentProfile = await this.getUserProfile();
+    
+    // Combinar los datos actuales con los nuevos
+    const completeProfileData = {
+      ...currentProfile,
+      ...profileData
+    };
+
+    // Normalizar el formato de timeFrame para el backend
+    if (completeProfileData.timeFrame) {
+      const timeFrameMapping: { [key: string]: string } = {
+        'ONE_MONTH': '1_MONTH',
+        'THREE_MONTHS': '3_MONTHS',
+        'SIX_MONTHS': '6_MONTHS',
+        'ONE_YEAR': '1_YEAR',
+        'LONG_TERM': 'LONG_TERM'
+      };
+      
+      const normalizedTimeFrame = timeFrameMapping[completeProfileData.timeFrame] || completeProfileData.timeFrame;
+      completeProfileData.timeFrame = normalizedTimeFrame as any;
+    }
+
+    // Normalizar el formato de nutritionGoal para el backend
+    if (completeProfileData.nutritionGoal) {
+      const nutritionGoalMapping: { [key: string]: string } = {
+        'MAINTAIN_WEIGHT': 'MAINTAIN_WEIGHT',
+        'LOSE_WEIGHT': 'LOSE_WEIGHT',
+        'GAIN_WEIGHT': 'GAIN_WEIGHT',
+        'BUILD_MUSCLE': 'GAIN_MUSCLE',
+        'ATHLETIC_PERFORMANCE': 'IMPROVE_HEALTH', // Mapear a IMPROVE_HEALTH
+        'GENERAL_HEALTH': 'IMPROVE_HEALTH'
+      };
+      
+      const normalizedGoal = nutritionGoalMapping[completeProfileData.nutritionGoal] || completeProfileData.nutritionGoal;
+      completeProfileData.nutritionGoal = normalizedGoal as any;
+    }
+
+    // Normalizar el formato de intensity para el backend
+    if (completeProfileData.intensity) {
+      const intensityMapping: { [key: string]: string } = {
+        'GENTLE': 'LOW',
+        'MODERATE': 'MODERATE',
+        'AGGRESSIVE': 'HIGH'
+      };
+      
+      const normalizedIntensity = intensityMapping[completeProfileData.intensity] || completeProfileData.intensity;
+      completeProfileData.intensity = normalizedIntensity as any;
+    }
+
+    // Enviar todos los datos requeridos
+    const response = await api.post<UserProfile>('/me/profile', completeProfileData);
     return response.data;
   }
 
@@ -50,7 +143,9 @@ export class NutritionService {
   // Actualizar preferencias (alergias, condiciones, cuisines)
   static async updateUserPreferences(preferences: {
     allergyIds?: number[];
+    customAllergies?: string[];
     conditionIds?: number[];
+    customConditions?: string[];
     cuisinesLike?: number[];
     cuisinesDislike?: number[];
   }): Promise<any> {
@@ -348,6 +443,21 @@ export class NutritionService {
       });
       return response.data;
     }
+  }
+
+  // Crear nueva alergia
+  static async createAllergy(name: string): Promise<Allergy> {
+    const response = await api.post<Allergy>('/taxonomies/allergies', { name });
+    return response.data;
+  }
+
+  // Crear nueva condición médica
+  static async createCondition(label: string, code?: string): Promise<Condition> {
+    const response = await api.post<Condition>('/taxonomies/conditions', { 
+      label, 
+      code: code || label.toUpperCase().replace(/\s+/g, '_') 
+    });
+    return response.data;
   }
 
   // Meal Logging - Tracking de comidas consumidas

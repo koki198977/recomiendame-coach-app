@@ -12,6 +12,8 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -178,10 +180,12 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <KeyboardAvoidingView 
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <KeyboardAvoidingView 
+          style={styles.overlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
         <View style={styles.container}>
           {/* Header */}
           <LinearGradient
@@ -223,6 +227,10 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
                   numberOfLines={4}
                   placeholderTextColor="#999"
                   maxLength={500}
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                  blurOnSubmit={true}
+                  textAlignVertical="top"
                 />
                 <Text style={styles.characterCount}>
                   {caption.length}/500 caracteres
@@ -259,6 +267,11 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
                       }}
                       placeholder="https://ejemplo.com/imagen.jpg"
                       placeholderTextColor="#999"
+                      returnKeyType="done"
+                      onSubmitEditing={Keyboard.dismiss}
+                      blurOnSubmit={true}
+                      autoCapitalize="none"
+                      autoCorrect={false}
                     />
                   </View>
                 )}
@@ -333,7 +346,8 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
             </TouchableOpacity>
           </View>
         </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };

@@ -11,6 +11,8 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SocialService } from '../services/socialService';
@@ -201,10 +203,12 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <KeyboardAvoidingView 
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <KeyboardAvoidingView 
+          style={styles.overlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
         <View style={styles.container}>
           {/* Header */}
           <LinearGradient
@@ -243,6 +247,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
             showsVerticalScrollIndicator={false}
             onScroll={handleCommentsScroll}
             scrollEventThrottle={400}
+            keyboardShouldPersistTaps="handled"
           >
             {loading ? (
               <View style={styles.loadingContainer}>
@@ -306,6 +311,10 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
               placeholderTextColor="#999"
               multiline
               maxLength={500}
+              returnKeyType="send"
+              onSubmitEditing={handleSubmitComment}
+              blurOnSubmit={false}
+              textAlignVertical="top"
             />
             <TouchableOpacity
               style={[styles.sendButton, (!newComment.trim() || submitting) && styles.sendButtonDisabled]}
@@ -320,7 +329,8 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
             </TouchableOpacity>
           </View>
         </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };

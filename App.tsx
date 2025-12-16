@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LoginScreen } from './screens/LoginScreen';
 import { RegisterScreen } from './screens/RegisterScreen';
-import { OnboardingScreen } from './screens/OnboardingScreen';
+
 import { HomeScreen } from './screens/HomeScreen';
 import { PlanScreenWithTabs } from './screens/PlanScreenWithTabs';
 import { ProgressScreen } from './screens/ProgressScreen';
@@ -230,9 +230,7 @@ export default function App() {
     }
   };
 
-  const handleOnboardingComplete = () => {
-    setCurrentScreen('home');
-  };
+
 
   const handleCompleteProfile = async (profileData: any) => {
     try {
@@ -270,7 +268,7 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
-      await AsyncStorage.multiRemove(['authToken', 'userData', 'onboardingCompleted', 'userProfile']);
+      await AsyncStorage.multiRemove(['authToken', 'userData', 'userProfile']);
       setCurrentScreen('login');
       setShowCompleteProfile(false);
       setUserProfile(null);
@@ -324,14 +322,7 @@ export default function App() {
     );
   }
 
-  if (currentScreen === 'onboarding') {
-    return (
-      <>
-        <OnboardingScreen onComplete={handleOnboardingComplete} />
-        <StatusBar style="dark" />
-      </>
-    );
-  }
+
 
   // App principal con navegación manual
   return (

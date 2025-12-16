@@ -13,6 +13,7 @@ import {
   Alert,
   Keyboard,
   Image,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ChapiService from '../services/chapiService';
@@ -236,10 +237,12 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
       animationType="slide"
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
@@ -300,7 +303,8 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
             <Text style={styles.sendButtonText}>➤</Text>
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };

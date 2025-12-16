@@ -11,6 +11,8 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NutritionService } from '../services/nutritionService';
@@ -152,12 +154,13 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.overlay}>
-        <KeyboardAvoidingView 
-          style={styles.keyboardView}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-        >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={styles.overlay}>
+          <KeyboardAvoidingView 
+            style={styles.keyboardView}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          >
           <View style={styles.container}>
           {/* Header */}
           <LinearGradient
@@ -185,7 +188,11 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
           </LinearGradient>
 
           {/* Content */}
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView 
+            style={styles.content} 
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             {loading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#4CAF50" />
@@ -203,6 +210,10 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
                     placeholder="Ej: 75.5"
                     keyboardType="decimal-pad"
                     placeholderTextColor="#999"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                    blurOnSubmit={true}
+                    selectTextOnFocus={true}
                   />
                 </View>
 
@@ -216,6 +227,10 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
                     placeholder="Ej: 85"
                     keyboardType="number-pad"
                     placeholderTextColor="#999"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                    blurOnSubmit={true}
+                    selectTextOnFocus={true}
                   />
                   <Text style={styles.fieldHint}>
                     ¿Qué tan bien seguiste tu plan nutricional hoy?
@@ -236,6 +251,10 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
                     multiline
                     numberOfLines={4}
                     placeholderTextColor="#999"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                    blurOnSubmit={true}
+                    textAlignVertical="top"
                   />
                 </View>
 
@@ -271,8 +290,9 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
             </TouchableOpacity>
           </View>
           </View>
-        </KeyboardAvoidingView>
-      </View>
+          </KeyboardAvoidingView>
+        </View>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };

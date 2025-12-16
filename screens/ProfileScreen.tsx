@@ -142,7 +142,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
       await AsyncStorage.multiRemove([
         "authToken",
         "userData",
-        "onboardingCompleted",
         "userProfile",
       ]);
       if (onLogout) {

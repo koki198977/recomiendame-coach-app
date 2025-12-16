@@ -839,6 +839,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     returnKeyType="done"
                     onSubmitEditing={Keyboard.dismiss}
                     blurOnSubmit={true}
+                    selectTextOnFocus={true}
                   />
                 </View>
               ))}
@@ -962,6 +963,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     returnKeyType="done"
                     onSubmitEditing={Keyboard.dismiss}
                     blurOnSubmit={true}
+                    selectTextOnFocus={true}
                   />
                 </View>
               )}
@@ -980,6 +982,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}
                   blurOnSubmit={true}
+                  textAlignVertical="top"
                 />
               </View>
             </View>
@@ -1430,6 +1433,9 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
             <Text style={styles.hideKeyboardText}>⌨️ Ocultar teclado</Text>
           </TouchableOpacity>
         )}
+
+
+
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
     </Modal>
@@ -2077,4 +2083,6 @@ const styles = StyleSheet.create({
     marginVertical: 25,
     marginHorizontal: 20,
   },
+
+
 });

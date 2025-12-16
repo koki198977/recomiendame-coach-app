@@ -18,6 +18,9 @@ import { DailyCheckinModal } from '../components/DailyCheckinModal';
 import { LogMealModal } from '../components/LogMealModal';
 import { AppHeader } from '../components/AppHeader';
 import { NotificationBadge } from '../components/NotificationBadge';
+import { HydrationCard } from '../components/HydrationCard';
+import { HydrationSetupModal } from '../components/HydrationSetupModal';
+import { LogWaterModal } from '../components/LogWaterModal';
 import WorkoutService from '../services/workoutService';
 import type { WorkoutPlan, WorkoutDay, Exercise } from '../types/nutrition';
 import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
@@ -47,6 +50,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
   const [loadingWorkout, setLoadingWorkout] = React.useState(false);
   const [todayMealsConsumed, setTodayMealsConsumed] = React.useState<any>(null);
   const [showLogMealModal, setShowLogMealModal] = React.useState(false);
+  const [showHydrationSetup, setShowHydrationSetup] = React.useState(false);
+  const [showLogWater, setShowLogWater] = React.useState(false);
+  const [hydrationKey, setHydrationKey] = React.useState(0); // Para forzar refresh
 
   const loadData = async () => {
     try {
@@ -423,6 +429,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
               )}
             </View>
 
+            {/* Hidratación */}
+            <HydrationCard
+              key={hydrationKey}
+              onSetupPress={() => setShowHydrationSetup(true)}
+              onLogPress={() => setShowLogWater(true)}
+            />
+
             {/* Macros del plan */}
             <View style={styles.macrosCard}>
               <View style={styles.macrosHeader}>
@@ -645,6 +658,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
         visible={showLogMealModal}
         onClose={() => setShowLogMealModal(false)}
         onSuccess={handleLogMealSuccess}
+      />
+
+      {/* Modal de configuración de hidratación */}
+      <HydrationSetupModal
+        visible={showHydrationSetup}
+        onClose={() => setShowHydrationSetup(false)}
+        onPlanCreated={() => {
+          setHydrationKey(prev => prev + 1); // Forzar refresh de HydrationCard
+        }}
+      />
+
+      {/* Modal de registrar agua */}
+      <LogWaterModal
+        visible={showLogWater}
+        onClose={() => setShowLogWater(false)}
+        onLogSuccess={() => {
+          setHydrationKey(prev => prev + 1); // Forzar refresh de HydrationCard
+        }}
       />
 
       {/* Botón flotante para agregar comida */}

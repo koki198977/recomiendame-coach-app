@@ -12,6 +12,8 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { NutritionService } from '../services/nutritionService';
@@ -146,13 +148,17 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <KeyboardAvoidingView 
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <KeyboardAvoidingView 
+          style={styles.overlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
         <View style={styles.container}>
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView 
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.headerLeft}>
@@ -236,6 +242,10 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
                   multiline
                   numberOfLines={3}
                   maxLength={200}
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                  blurOnSubmit={true}
+                  textAlignVertical="top"
                 />
               </View>
             )}
@@ -302,7 +312,8 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
             )}
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };

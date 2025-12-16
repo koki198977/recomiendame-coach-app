@@ -565,3 +565,102 @@ export interface ActivityStat {
   minutes: number;
   kcal: number;
 }
+
+// Sistema de Hidratación
+export interface HydrationProgress {
+  userId: string;
+  date: string;
+  totalMl: number;
+  targetMl: number;
+  achievementPercentage: number;
+  status: 'POOR' | 'FAIR' | 'GOOD' | 'EXCELLENT';
+  remainingMl: number;
+  averagePerHour: number;
+  recommendedNextIntake: number;
+  insights: string[];
+}
+
+export interface HydrationPlanStatus {
+  hasPlan: boolean;
+  goal: number | null;
+  currentProgress: HydrationProgress;
+  recommendations: string[];
+  nextSteps: string[];
+}
+
+export interface HydrationRecommendation {
+  recommendedMl: number;
+  baseCalculation: {
+    weightBasedMl: number;
+    activityMultiplier: number;
+    climateMultiplier: number;
+    conditionsAdjustment: number;
+  };
+  factors: {
+    weight: number;
+    activityLevel: string;
+    sex: string;
+    conditions: string[];
+    climate: string;
+  };
+  explanation: string;
+  ranges: {
+    minimum: number;
+    optimal: number;
+    maximum: number;
+  };
+  tips: string[];
+}
+
+export interface HydrationLogRequest {
+  ml: number;
+  description?: string;
+  time?: string;
+}
+
+export interface HydrationLog {
+  id: string;
+  userId: string;
+  date: string;
+  ml: number;
+  createdAt: string;
+}
+
+export interface HydrationLogResponse {
+  success: boolean;
+  log: HydrationLog;
+  message: string;
+  dailyProgress: {
+    totalMl: number;
+    targetMl: number;
+    percentage: number;
+    remaining: number;
+    status: 'POOR' | 'FAIR' | 'GOOD' | 'EXCELLENT';
+  };
+  achievements: string[];
+  insights: string[];
+}
+
+export interface HydrationGoalRequest {
+  dailyTargetMl: number;
+  reminderIntervalMinutes?: number;
+  startTime?: string;
+  endTime?: string;
+  isActive?: boolean;
+}
+
+export interface HydrationGoalResponse {
+  success: boolean;
+  message: string;
+  goal: {
+    id: string;
+    userId: string;
+    dailyTargetMl: number;
+    reminderIntervalMinutes: number;
+    startTime: string;
+    endTime: string;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
+}

@@ -151,13 +151,16 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAvoidingView 
           style={styles.overlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
         <View style={styles.container}>
           <ScrollView 
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            bounces={false}
           >
             {/* Header */}
             <View style={styles.header}>
@@ -245,6 +248,7 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}
                   blurOnSubmit={true}
+                  selectTextOnFocus={true}
                   textAlignVertical="top"
                 />
               </View>
@@ -328,8 +332,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
-    maxHeight: '90%',
-    paddingBottom: 20,
+    maxHeight: '95%',
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 40,
   },
   header: {
     flexDirection: 'row',
@@ -549,6 +559,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
+    marginTop: 20,
   },
   saveButtonText: {
     color: '#fff',

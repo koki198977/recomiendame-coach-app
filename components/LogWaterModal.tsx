@@ -105,7 +105,7 @@ export const LogWaterModal: React.FC<LogWaterModalProps> = ({
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
           <LinearGradient
-            colors={['#2196F3', '#21CBF3']}
+            colors={['#00BCD4', '#4CAF50']}
             style={styles.container}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -271,10 +271,12 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 15,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   icon: {
     fontSize: 40,

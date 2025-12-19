@@ -91,7 +91,9 @@ class WorkoutService {
     daysAvailable: number,
     goal: WorkoutGoal,
     isoWeek?: string,
-    equipmentImageUris?: string[]
+    equipmentImageUris?: string[],
+    environment?: 'GYM' | 'HOME' | 'OUTDOOR' | 'SPORT',
+    sportName?: string
   ): Promise<GenerateWorkoutResponse> {
     try {
       const week = isoWeek || this.getCurrentISOWeek();
@@ -101,7 +103,9 @@ class WorkoutService {
         goal,
         week,
         equipmentImageUris: equipmentImageUris?.length || 0,
-        hasImages: !!equipmentImageUris && equipmentImageUris.length > 0
+        hasImages: !!equipmentImageUris && equipmentImageUris.length > 0,
+        environment,
+        sportName
       });
       
       const request: GenerateWorkoutRequest = {
@@ -109,6 +113,14 @@ class WorkoutService {
         daysAvailable,
         goal,
       };
+
+      // Agregar campos opcionales solo si están definidos
+      if (environment) {
+        request.environment = environment;
+      }
+      if (sportName) {
+        request.sportName = sportName;
+      }
 
       // Si hay imágenes locales, subirlas y obtener URLs
       if (equipmentImageUris && equipmentImageUris.length > 0) {

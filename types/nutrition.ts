@@ -443,11 +443,14 @@ export interface ChapiConversation {
 
 // Sistema de Rutinas de Ejercicio (Workouts)
 export type WorkoutGoal = 'HYPERTROPHY' | 'STRENGTH' | 'ENDURANCE' | 'WEIGHT_LOSS';
+export type WorkoutEnvironment = 'GYM' | 'HOME' | 'OUTDOOR' | 'SPORT';
 
 export interface GenerateWorkoutRequest {
   isoWeek: string;
   daysAvailable: number;
   goal: WorkoutGoal;
+  environment?: WorkoutEnvironment;
+  sportName?: string;
 }
 
 export interface GenerateWorkoutResponse {

@@ -10,11 +10,16 @@ import {
   Alert,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { WorkoutGoal } from '../types/nutrition';
+import { WorkoutGoal, WorkoutEnvironment } from '../types/nutrition';
 
 interface GenerateWorkoutModalProps {
   visible: boolean;
-  onGenerate: (daysAvailable: number, goal: WorkoutGoal, equipmentImages?: string[]) => void;
+  onGenerate: (
+    daysAvailable: number, 
+    goal: WorkoutGoal, 
+    equipmentImages?: string[],
+    environment?: WorkoutEnvironment,
+  ) => void;
   onClose: () => void;
 }
 
@@ -25,6 +30,7 @@ export const GenerateWorkoutModal: React.FC<GenerateWorkoutModalProps> = ({
 }) => {
   const [selectedDays, setSelectedDays] = useState<number>(3);
   const [selectedGoal, setSelectedGoal] = useState<WorkoutGoal>('HYPERTROPHY');
+  const [selectedEnvironment, setSelectedEnvironment] = useState<WorkoutEnvironment>('GYM');
   const [equipmentImages, setEquipmentImages] = useState<string[]>([]);
 
   const goals: { value: WorkoutGoal; label: string; emoji: string; description: string }[] = [
@@ -102,7 +108,12 @@ export const GenerateWorkoutModal: React.FC<GenerateWorkoutModalProps> = ({
   };
 
   const handleGenerate = () => {
-    onGenerate(selectedDays, selectedGoal, equipmentImages.length > 0 ? equipmentImages : undefined);
+    onGenerate(
+      selectedDays, 
+      selectedGoal, 
+      equipmentImages.length > 0 ? equipmentImages : undefined,
+      selectedEnvironment
+    );
   };
 
   return (
@@ -211,6 +222,37 @@ export const GenerateWorkoutModal: React.FC<GenerateWorkoutModalProps> = ({
                   ))}
                 </View>
               )}
+            </View>
+
+            {/* Environment Selection */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Entorno de Entrenamiento</Text>
+              <View style={styles.environmentGrid}>
+                {[
+                  { id: 'GYM', label: 'Gimnasio', icon: '🏋️' },
+                  { id: 'HOME', label: 'Casa', icon: '🏠' },
+                  { id: 'OUTDOOR', label: 'Aire Libre', icon: '🌳' },
+                ].map((env) => (
+                  <TouchableOpacity
+                    key={env.id}
+                    style={[
+                      styles.environmentCard,
+                      selectedEnvironment === env.id && styles.environmentCardActive
+                    ]}
+                    onPress={() => setSelectedEnvironment(env.id as WorkoutEnvironment)}
+                  >
+                    <Text style={styles.environmentIcon}>{env.icon}</Text>
+                    <Text style={[
+                      styles.environmentLabel,
+                      selectedEnvironment === env.id && styles.environmentLabelActive
+                    ]}>
+                      {env.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+
             </View>
 
             {/* Botón generar */}
@@ -430,6 +472,39 @@ const styles = StyleSheet.create({
   removeImageText: {
     color: '#fff',
     fontSize: 14,
+    fontWeight: 'bold',
+  },
+  environmentGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 10,
+  },
+  environmentCard: {
+    width: '48%',
+    backgroundColor: '#f5f5f5',
+    padding: 15,
+    borderRadius: 15,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    marginBottom: 10,
+  },
+  environmentCardActive: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#4CAF50',
+  },
+  environmentIcon: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  environmentLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  environmentLabelActive: {
+    color: '#2E7D32',
     fontWeight: 'bold',
   },
 });

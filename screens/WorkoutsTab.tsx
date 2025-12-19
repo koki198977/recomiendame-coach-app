@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import WorkoutService from '../services/workoutService';
-import { WorkoutPlan, WorkoutGoal, WorkoutDay, Exercise } from '../types/nutrition';
+import { WorkoutPlan, WorkoutGoal, WorkoutDay, Exercise, WorkoutEnvironment } from '../types/nutrition';
 import { GenerateWorkoutModal } from '../components/GenerateWorkoutModal';
 import { PlanGeneratingModal } from '../components/PlanGeneratingModal';
 import { RestTimerModal } from '../components/RestTimerModal';
@@ -77,7 +77,12 @@ export const WorkoutsTab: React.FC = () => {
     }
   };
 
-  const handleGeneratePlan = async (daysAvailable: number, goal: WorkoutGoal, equipmentImages?: string[]) => {
+  const handleGeneratePlan = async (
+    daysAvailable: number, 
+    goal: WorkoutGoal, 
+    equipmentImages?: string[],
+    environment?: WorkoutEnvironment
+  ) => {
     try {
       setShowGenerateModal(false);
       setIsGenerating(true);
@@ -88,7 +93,8 @@ export const WorkoutsTab: React.FC = () => {
         daysAvailable, 
         goal, 
         undefined, // isoWeek (usa la actual por defecto)
-        equipmentImages
+        equipmentImages,
+        environment
       );
       
       console.warn('📋 Generation response:', JSON.stringify(response));
@@ -955,17 +961,21 @@ const styles = StyleSheet.create({
   },
   exerciseDetail: {
     alignItems: 'center',
+    flex: 1,
+    paddingHorizontal: 4,
   },
   detailLabel: {
     fontSize: 12,
     color: COLORS.textLight,
     marginBottom: 4,
     fontWeight: '600',
+    textAlign: 'center',
   },
   detailValue: {
     fontSize: 16,
     fontWeight: '800',
     color: COLORS.primary,
+    textAlign: 'center',
   },
   notesContainer: {
     marginTop: 12,

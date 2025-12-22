@@ -191,6 +191,10 @@ export class NutritionService {
     return response.data;
   }
 
+  static async deletePlan(planId: string): Promise<void> {
+    await api.delete(`/plans/${planId}`);
+  }
+
   // Comidas
   static async getMealsByDate(date: string): Promise<Meal[]> {
     const response = await api.get<Meal[]>('/meals', {
@@ -479,6 +483,13 @@ export class NutritionService {
   static async logMeal(mealData: LogMealRequest): Promise<LogMealResponse> {
     const response = await api.post<LogMealResponse>('/meals/log', mealData);
     return response.data;
+  }
+
+  /**
+   * Eliminar un registro de comida
+   */
+  static async deleteMealLog(logId: string): Promise<void> {
+    await api.delete(`/meals/${logId}`);
   }
 
   /**

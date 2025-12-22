@@ -158,7 +158,7 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
         <View style={styles.overlay}>
           <KeyboardAvoidingView 
             style={styles.keyboardView}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
           >
           <View style={styles.container}>
@@ -354,7 +354,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   content: {
-    maxHeight: 400,
     paddingHorizontal: 20,
     paddingVertical: 15,
   },

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { MealLog } from '../types/nutrition';
 import {
   Modal,
   View,
@@ -24,12 +25,14 @@ interface LogMealModalProps {
   visible: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  existingMeals?: MealLog[];
 }
 
 export const LogMealModal: React.FC<LogMealModalProps> = ({
   visible,
   onClose,
   onSuccess,
+  existingMeals = [],
 }) => {
   const [selectedSlot, setSelectedSlot] = useState<'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK'>('LUNCH');
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -129,6 +132,20 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
         notes: analyzed.notes,
         imageUrl: analyzed.imageUrl,
       });
+
+      // Si existe una comida planificada para este mismo slot, la eliminamos (reemplazo)
+      const plannedMeal = existingMeals.find(
+        meal => meal.slot === selectedSlot && meal.fromPlan
+      );
+
+      if (plannedMeal) {
+        console.log('Replacing planned meal:', plannedMeal.id);
+        try {
+          await NutritionService.deleteMealLog(plannedMeal.id);
+        } catch (err) {
+          console.warn('Could not delete replaced meal:', err);
+        }
+      }
 
       // Cerrar automáticamente sin alert
       onSuccess();

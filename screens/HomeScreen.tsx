@@ -319,6 +319,35 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
     }
   };
 
+  const handleDeleteMeal = async (logId: string) => {
+    Alert.alert(
+      "Eliminar comida",
+      "¿Estás seguro de que quieres eliminar esta comida?",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel"
+        },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await NutritionService.deleteMealLog(logId);
+              // Recargar comidas consumidas
+              const mealsConsumed = await NutritionService.getTodayMeals();
+              setTodayMealsConsumed(mealsConsumed);
+              Alert.alert("Éxito", "Comida eliminada correctamente");
+            } catch (error) {
+              console.log('Error deleting meal:', error);
+              Alert.alert("Error", "No se pudo eliminar la comida");
+            }
+          }
+        }
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
@@ -556,7 +585,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
                           </View>
                         )}
                       </View>
-                      <Text style={styles.mealCalories}>{log.kcal} kcal</Text>
+                      <View style={styles.mealHeaderRight}>
+                        <Text style={styles.mealCalories}>{log.kcal} kcal</Text>
+                        <TouchableOpacity 
+                          onPress={() => handleDeleteMeal(log.id)}
+                          style={styles.deleteMealButton}
+                        >
+                          <Text style={styles.deleteMealIcon}>🗑️</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                     <Text style={styles.mealDescription}>{log.title}</Text>
                     <View style={styles.mealMacros}>
@@ -800,42 +837,55 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(67, 233, 123, 0.3)',
   },
   checkinBadgeText: {
+    color: '#00C853',
     fontSize: 12,
-    color: '#00C853', // Darker green for text
     fontWeight: '700',
+  },
+  checkinSummary: {
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    borderRadius: 16,
+    padding: 16,
   },
   checkinRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   checkinItem: {
     alignItems: 'center',
   },
   checkinValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.primaryStart,
+    marginBottom: 4,
   },
   checkinLabel: {
     fontSize: 12,
     color: COLORS.textLight,
-    marginTop: 4,
-    fontWeight: '600',
+  },
+  checkinNotes: {
+    fontSize: 14,
+    color: COLORS.text,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginVertical: 12,
+    paddingHorizontal: 8,
   },
   updateCheckinButton: {
-    backgroundColor: COLORS.background,
-    paddingVertical: 12,
-    borderRadius: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    marginTop: 8,
+    alignSelf: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: 'rgba(67, 233, 123, 0.1)',
   },
   updateCheckinButtonText: {
-    color: COLORS.primary,
-    fontWeight: '700',
+    color: COLORS.primaryStart,
     fontSize: 14,
+    fontWeight: '600',
   },
+
   
   // Progress Specific
   progressRow: {
@@ -1114,6 +1164,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  mealHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  deleteMealButton: {
+    padding: 4,
+    marginLeft: 4,
+  },
+  deleteMealIcon: {
+    fontSize: 18,
   },
   fromPlanBadge: {
     backgroundColor: 'rgba(67, 233, 123, 0.15)',

@@ -8,6 +8,11 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  TextInput,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NutritionService } from '../services/nutritionService';
@@ -42,12 +47,19 @@ export const EditPreferencesModal: React.FC<EditPreferencesModalProps> = ({
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  
+  // Search & Create states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [newItemText, setNewItemText] = useState('');
+  const [creatingItem, setCreatingItem] = useState(false);
 
   useEffect(() => {
     if (visible) {
       loadItems();
       // Inicializar con las preferencias actuales
       setSelectedIds(currentPreferences.map(c => c.id));
+      setSearchQuery('');
+      setNewItemText('');
     }
   }, [visible, currentPreferences, type]);
 
@@ -121,6 +133,39 @@ export const EditPreferencesModal: React.FC<EditPreferencesModalProps> = ({
     );
   };
 
+  const handleCreateItem = async () => {
+    if (!newItemText.trim()) return;
+
+    try {
+      setCreatingItem(true);
+      const label = newItemText.trim();
+      let newItem: PreferenceItem | null = null;
+
+      if (type === 'allergies') {
+        newItem = await NutritionService.createAllergy(label);
+      } else if (type === 'conditions') {
+        newItem = await NutritionService.createCondition(label);
+      } else {
+        Alert.alert('Info', 'Solo se pueden crear nuevas alergias y condiciones.');
+        setCreatingItem(false);
+        return;
+      }
+
+      if (newItem) {
+        setAllItems(prev => [...prev, newItem!]);
+        setSelectedIds(prev => [...prev, newItem!.id]);
+        setNewItemText('');
+        // No borramos la búsqueda para que el usuario pueda seguir buscando si quiere
+        Alert.alert('Éxito', 'Elemento agregado y seleccionado.');
+      }
+    } catch (error) {
+      console.log('Error creating item:', error);
+      Alert.alert('Error', 'No se pudo crear el elemento.');
+    } finally {
+      setCreatingItem(false);
+    }
+  };
+
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -170,89 +215,157 @@ export const EditPreferencesModal: React.FC<EditPreferencesModalProps> = ({
     return 'Item';
   };
 
+  // Filter and Sort items
+  const filteredItems = allItems
+    .filter(item => {
+      const name = getItemName(item).toLowerCase();
+      const query = searchQuery.toLowerCase();
+      return name.includes(query);
+    })
+    .sort((a, b) => getItemName(a).localeCompare(getItemName(b)));
+
+  const canCreate = (type === 'allergies' || type === 'conditions') ;
+
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.overlay}>
-        <View style={styles.container}>
-          {/* Header */}
-          <LinearGradient
-            colors={['#4CAF50', '#81C784']}
-            style={styles.header}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <View style={styles.headerContent}>
-              <Text style={styles.title}>{title}</Text>
-              <Text style={styles.subtitle}>
-                {selectedIds.length} seleccionadas
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.closeButton} onPress={handleCancel}>
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
-          </LinearGradient>
-
-          {/* Content */}
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#4CAF50" />
-                <Text style={styles.loadingText}>Cargando opciones...</Text>
-              </View>
-            ) : (
-              <View style={styles.itemsList}>
-                {allItems.map((item) => {
-                  const isSelected = selectedIds.includes(item.id);
-                  return (
-                    <TouchableOpacity
-                      key={item.id}
-                      style={[
-                        styles.itemContainer,
-                        isSelected && styles.itemContainerSelected
-                      ]}
-                      onPress={() => toggleItem(item.id)}
-                    >
-                      <View style={styles.itemContent}>
-                        <Text style={[
-                          styles.itemName,
-                          isSelected && styles.itemNameSelected
-                        ]}>
-                          {getItemName(item)}
-                        </Text>
-                        {isSelected && (
-                          <Text style={styles.checkmark}>✓</Text>
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
-          </ScrollView>
-
-          {/* Footer */}
-          <View style={styles.footer}>
-            <TouchableOpacity 
-              style={styles.cancelButton} 
-              onPress={handleCancel}
+       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.overlay}
+        >
+          <View style={styles.container}>
+            {/* Header */}
+            <LinearGradient
+              colors={['#4CAF50', '#81C784']}
+              style={styles.header}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
             >
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-              onPress={handleSave}
-              disabled={saving}
-            >
-              {saving ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.saveButtonText}>Guardar</Text>
+              <View style={styles.headerContent}>
+                <Text style={styles.title}>{title}</Text>
+                <Text style={styles.subtitle}>
+                  {selectedIds.length} seleccionadas
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.closeButton} onPress={handleCancel}>
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+            </LinearGradient>
+
+            <View style={styles.body}>
+              {/* Search Bar */}
+              <View style={styles.searchContainer}>
+                <Text style={styles.searchIcon}>🔍</Text>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder={`Buscar ${type === 'conditions' ? 'condiciones' : type === 'allergies' ? 'alergias' : 'cocinas'}...`}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholderTextColor="#999"
+                  returnKeyType="done"
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchQuery('')}>
+                    <Text style={styles.clearSearch}>✕</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Add New Item Section (Only for allergies and conditions) */}
+              {canCreate && (
+                <View style={styles.createContainer}>
+                  <TextInput
+                    style={styles.createInput}
+                    placeholder={`+ Agregar nueva ${type === 'conditions' ? 'condición' : 'alergia'}`}
+                    value={newItemText}
+                    onChangeText={setNewItemText}
+                    onSubmitEditing={handleCreateItem}
+                    returnKeyType="done"
+                  />
+                  <TouchableOpacity 
+                    style={[
+                      styles.createButton, 
+                      (!newItemText.trim() || creatingItem) && styles.createButtonDisabled
+                    ]}
+                    onPress={handleCreateItem}
+                    disabled={!newItemText.trim() || creatingItem}
+                  >
+                    {creatingItem ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.createButtonText}>Agregar</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
               )}
-            </TouchableOpacity>
+
+              {/* Content List */}
+              <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                {loading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#4CAF50" />
+                    <Text style={styles.loadingText}>Cargando opciones...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.itemsList}>
+                    {filteredItems.length > 0 ? (
+                      filteredItems.map((item) => {
+                        const isSelected = selectedIds.includes(item.id);
+                        return (
+                          <TouchableOpacity
+                            key={item.id}
+                            style={[
+                              styles.itemContainer,
+                              isSelected && styles.itemContainerSelected
+                            ]}
+                            onPress={() => toggleItem(item.id)}
+                          >
+                            <View style={styles.itemContent}>
+                              <Text style={[
+                                styles.itemName,
+                                isSelected && styles.itemNameSelected
+                              ]}>
+                                {getItemName(item)}
+                              </Text>
+                              {isSelected && (
+                                <Text style={styles.checkmark}>✓</Text>
+                              )}
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })
+                    ) : (
+                      <Text style={styles.noResultsText}>No se encontraron resultados</Text>
+                    )}
+                  </View>
+                )}
+              </ScrollView>
+            </View>
+
+            {/* Footer */}
+            <View style={styles.footer}>
+              <TouchableOpacity 
+                style={styles.cancelButton} 
+                onPress={handleCancel}
+              >
+                <Text style={styles.cancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+                onPress={handleSave}
+                disabled={saving}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Guardar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </View>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };
@@ -269,8 +382,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 20,
     width: '100%',
-    maxHeight: '85%',
-    minHeight: 400,
+    maxHeight: '90%',
+    flex: 1, // Ensure it takes available space in keyboard avoiding view
+    maxWidth: 500, // Tablet constraint
   },
   header: {
     flexDirection: 'row',
@@ -308,10 +422,70 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
   },
-  content: {
+  body: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingVertical: 10,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+    height: 46,
+  },
+  searchIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#333',
+    height: '100%',
+  },
+  clearSearch: {
+    fontSize: 18,
+    color: '#999',
+    padding: 4,
+  },
+  createContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+    gap: 10,
+  },
+  createInput: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 44,
+    fontSize: 14,
+  },
+  createButton: {
+    backgroundColor: '#FF9800',
+    paddingHorizontal: 16,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 80,
+  },
+  createButtonDisabled: {
+    backgroundColor: '#ffe0b2',
+  },
+  createButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  content: {
+    flex: 1,
   },
   loadingContainer: {
     alignItems: 'center',
@@ -355,6 +529,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#4CAF50',
     fontWeight: 'bold',
+  },
+  noResultsText: {
+    textAlign: 'center',
+    color: '#999',
+    marginTop: 20,
+    fontStyle: 'italic',
   },
   footer: {
     flexDirection: 'row',

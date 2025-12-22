@@ -733,7 +733,6 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAvoidingView 
           style={styles.container}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -781,6 +780,8 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
           ref={scrollViewRef}
           style={styles.content} 
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         >
           {/* Step 1: Welcome */}
           {currentStep === 0 && (
@@ -1437,7 +1438,6 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
 
 
         </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
     </Modal>
   );
 };

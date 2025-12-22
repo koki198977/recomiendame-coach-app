@@ -16,6 +16,7 @@ import { UserProfile, SocialUserProfile } from "../types/nutrition";
 import { EditPreferencesModal } from "../components/EditPreferencesModal";
 import { FollowersModal } from "../components/FollowersModal";
 import { EditFieldModal } from "../components/EditFieldModal";
+import { PlanGeneratingModal } from "../components/PlanGeneratingModal";
 import { getCurrentUserId } from "../utils/userUtils";
 
 import { AppHeader } from '../components/AppHeader';
@@ -46,6 +47,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
     type: 'nutritionGoal' | 'targetWeight' | 'timeFrame' | 'intensity' | 'motivation' | null;
     value: any;
   }>({ type: null, value: null });
+  const [isGeneratingPlan, setIsGeneratingPlan] = React.useState(false);
+  const [generationProgress, setGenerationProgress] = React.useState(0);
 
   React.useEffect(() => {
     loadUserData();
@@ -195,6 +198,56 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
     setPreferencesType(null);
   };
 
+  const pollForPlan = async (planId: string, week: string, attempts: number = 0) => {
+    const maxAttempts = 20;
+    const is504Timeout = planId.includes(week);
+    const pollInterval = is504Timeout ? 10000 : 6000;
+    const progress = Math.min(20 + (attempts / maxAttempts) * 75, 95);
+    setGenerationProgress(progress);
+
+    console.log(`🔄 Polling attempt ${attempts + 1}/${maxAttempts} for nutrition plan`);
+
+    try {
+      const plan = await NutritionService.getWeeklyPlan(week);
+      const isPlanReady = plan && (plan.id === planId || planId.includes(week));
+
+      if (isPlanReady) {
+        console.log('✅ Nutrition plan is ready!');
+        setGenerationProgress(100);
+        setTimeout(() => {
+          setIsGeneratingPlan(false);
+          setGenerationProgress(0);
+          Alert.alert('¡Listo! 🎉', 'Tu plan nutricional ha sido regenerado con tus nuevas preferencias.');
+          loadUserData();
+        }, 1000);
+        return;
+      }
+
+      if (attempts < maxAttempts) {
+        setTimeout(() => {
+          pollForPlan(planId, week, attempts + 1);
+        }, pollInterval);
+      } else {
+        setIsGeneratingPlan(false);
+        setGenerationProgress(0);
+        Alert.alert(
+          'Plan en proceso',
+          'Tu plan se está generando. Regresa en unos minutos para ver tu nuevo plan.'
+        );
+      }
+    } catch (error) {
+      if (attempts < maxAttempts) {
+        setTimeout(() => {
+          pollForPlan(planId, week, attempts + 1);
+        }, pollInterval);
+      } else {
+        setIsGeneratingPlan(false);
+        setGenerationProgress(0);
+        Alert.alert('Error', 'Hubo un problema verificando tu plan.');
+      }
+    }
+  };
+
   const handleSavePreferences = async (updatedPreferences: {
     cuisinesLike?: number[];
     cuisinesDislike?: number[];
@@ -204,6 +257,78 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
     try {
       // Recargar el perfil para obtener los datos actualizados
       await loadUserData();
+
+      // Si se actualizaron preferencias que afectan el plan, preguntar si desea regenerarlo
+      const hasRelevantChanges = 
+        updatedPreferences.allergyIds || 
+        updatedPreferences.conditionIds || 
+        updatedPreferences.cuisinesLike || 
+        updatedPreferences.cuisinesDislike;
+
+      if (hasRelevantChanges) {
+        // Determinar el mensaje según qué se cambió
+        let changeMessage = "Has actualizado tus ";
+        const changes = [];
+        if (updatedPreferences.allergyIds) changes.push("alergias");
+        if (updatedPreferences.conditionIds) changes.push("condiciones médicas");
+        if (updatedPreferences.cuisinesLike) changes.push("cocinas favoritas");
+        if (updatedPreferences.cuisinesDislike) changes.push("cocinas a evitar");
+        
+        changeMessage += changes.join(", ").replace(/, ([^,]*)$/, " y $1");
+
+        Alert.alert(
+          "Plan Nutricional",
+          `${changeMessage}. ¿Deseas regenerar tu plan nutricional para reflejar estos cambios?`,
+          [
+            {
+              text: "No por ahora",
+              style: "cancel"
+            },
+            {
+              text: "Sí, regenerar plan",
+              onPress: async () => {
+                try {
+                  setIsGeneratingPlan(true);
+                  setGenerationProgress(10);
+                  const currentWeek = NutritionService.getCurrentWeek();
+                  
+                  // Obtener el plan actual
+                  const existingPlan = await NutritionService.getWeeklyPlan(currentWeek);
+                  
+                  // Si existe un plan, eliminarlo primero
+                  if (existingPlan) {
+                    console.log('Deleting existing plan:', existingPlan.id);
+                    await NutritionService.deletePlan(existingPlan.id);
+                  }
+                  
+                  // Intentar generar nuevo plan
+                  try {
+                    const generateResponse = await NutritionService.generatePlanWithAI(currentWeek);
+                    if (generateResponse.created) {
+                      pollForPlan(generateResponse.planId, currentWeek);
+                    }
+                  } catch (error: any) {
+                    // Si es un 504, iniciar polling de todas formas
+                    if (error.response?.status === 504) {
+                      console.log('⏰ 504 Gateway Timeout - Starting polling...');
+                      setGenerationProgress(20);
+                      const tempPlanId = `${currentWeek}-${Date.now()}`;
+                      pollForPlan(tempPlanId, currentWeek);
+                      return;
+                    }
+                    throw error;
+                  }
+                } catch (error) {
+                  console.log("Error generating plan:", error);
+                  setIsGeneratingPlan(false);
+                  setGenerationProgress(0);
+                  Alert.alert("Error", "No se pudo regenerar el plan. Intenta nuevamente más tarde.");
+                }
+              }
+            }
+          ]
+        );
+      }
     } catch (error) {
       console.log("Error reloading profile:", error);
     }
@@ -781,6 +906,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
         currentValue={editField.value}
         userProfile={userProfile}
         onSave={handleSaveField}
+      />
+
+      {/* Modal de generación de plan */}
+      <PlanGeneratingModal
+        visible={isGeneratingPlan}
+        progress={generationProgress}
       />
     </View>
   );

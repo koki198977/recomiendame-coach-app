@@ -13,6 +13,7 @@ import {
   Platform,
   Keyboard,
   TouchableWithoutFeedback,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SocialService } from '../services/socialService';
@@ -39,6 +40,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [totalComments, setTotalComments] = useState(0);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   const COMMENTS_PER_PAGE = 20;
 
@@ -47,6 +49,20 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
       loadComments();
     }
   }, [visible, post]);
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
+  }, []);
 
   const loadComments = async () => {
     if (!post) return;
@@ -203,134 +219,137 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <KeyboardAvoidingView 
-          style={styles.overlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-        >
-        <View style={styles.container}>
-          {/* Header */}
-          <LinearGradient
-            colors={['#4CAF50', '#45A049']}
-            style={styles.header}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <View style={styles.headerContent}>
-              <Text style={styles.title}>💬 Comentarios</Text>
-              <Text style={styles.subtitle}>
-                {totalComments} comentario{totalComments !== 1 ? 's' : ''}
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
-          </LinearGradient>
-
-          {/* Post info */}
-          <View style={styles.postInfo}>
-            <Text style={styles.postCaption} numberOfLines={2}>
-              {post.caption}
-            </Text>
-            <Text style={styles.postAuthor}>
-              Por {post.authorName 
-                ? getUserDisplayName({email: post.authorName})
-                : getUserDisplayName(post.author)
-              }
-            </Text>
-          </View>
-
-          {/* Comments list */}
-          <ScrollView 
-            style={styles.commentsList} 
-            showsVerticalScrollIndicator={false}
-            onScroll={handleCommentsScroll}
-            scrollEventThrottle={400}
-            keyboardShouldPersistTaps="handled"
-          >
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#4CAF50" />
-                <Text style={styles.loadingText}>Cargando comentarios...</Text>
-              </View>
-            ) : comments.length > 0 ? (
-              comments.map((comment) => (
-                <View key={comment.id} style={styles.commentItem}>
-                  <View style={styles.commentHeader}>
-                    <View style={styles.commentAvatar}>
-                      <Text style={styles.commentAvatarText}>
-                        {getUserInitial(comment.author)}
-                      </Text>
-                    </View>
-                    <View style={styles.commentContent}>
-                      <View style={styles.commentMeta}>
-                        <Text style={styles.commentAuthor}>
-                          {getUserDisplayName(comment.author)}
-                        </Text>
-                        <Text style={styles.commentTime}>
-                          {formatDate(comment.createdAt)}
-                        </Text>
-                      </View>
-                      <Text style={styles.commentBody}>{comment.body}</Text>
-                    </View>
-                  </View>
+      <KeyboardAvoidingView 
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={[styles.modalContainer, keyboardVisible && styles.modalContainerKeyboard]}>
+            <View style={[styles.container, keyboardVisible && styles.containerKeyboard]}>
+              {/* Header */}
+              <LinearGradient
+                colors={['#4CAF50', '#45A049']}
+                style={styles.header}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <View style={styles.headerContent}>
+                  <Text style={styles.title}>💬 Comentarios</Text>
+                  <Text style={styles.subtitle}>
+                    {totalComments} comentario{totalComments !== 1 ? 's' : ''}
+                  </Text>
                 </View>
-              ))
-            ) : (
-              <View style={styles.emptyComments}>
-                <Text style={styles.emptyCommentsText}>
-                  Sé el primero en comentar 💬
+                <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+                  <Text style={styles.closeButtonText}>✕</Text>
+                </TouchableOpacity>
+              </LinearGradient>
+
+              {/* Post info */}
+              <View style={styles.postInfo}>
+                <Text style={styles.postCaption} numberOfLines={2}>
+                  {post.caption}
+                </Text>
+                <Text style={styles.postAuthor}>
+                  Por {post.authorName 
+                    ? getUserDisplayName({email: post.authorName})
+                    : getUserDisplayName(post.author)
+                  }
                 </Text>
               </View>
-            )}
-            
-            {/* Indicador de carga para más comentarios */}
-            {loadingMore && (
-              <View style={styles.loadingMoreComments}>
-                <ActivityIndicator size="small" color="#4CAF50" />
-                <Text style={styles.loadingMoreText}>Cargando más comentarios...</Text>
-              </View>
-            )}
-            
-            {/* Mensaje cuando no hay más comentarios */}
-            {!hasMoreComments && comments.length > 10 && (
-              <View style={styles.endOfComments}>
-                <Text style={styles.endOfCommentsText}>No hay más comentarios</Text>
-              </View>
-            )}
-          </ScrollView>
 
-          {/* Comment input */}
-          <View style={styles.commentInput}>
-            <TextInput
-              style={styles.textInput}
-              value={newComment}
-              onChangeText={setNewComment}
-              placeholder="Escribe un comentario..."
-              placeholderTextColor="#999"
-              multiline
-              maxLength={500}
-              returnKeyType="send"
-              onSubmitEditing={handleSubmitComment}
-              blurOnSubmit={false}
-              textAlignVertical="top"
-            />
-            <TouchableOpacity
-              style={[styles.sendButton, (!newComment.trim() || submitting) && styles.sendButtonDisabled]}
-              onPress={handleSubmitComment}
-              disabled={!newComment.trim() || submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.sendButtonText}>📤</Text>
-              )}
-            </TouchableOpacity>
+              {/* Comments list */}
+              <ScrollView 
+                style={styles.commentsList} 
+                showsVerticalScrollIndicator={false}
+                onScroll={handleCommentsScroll}
+                scrollEventThrottle={400}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.scrollContent}
+              >
+                {loading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#4CAF50" />
+                    <Text style={styles.loadingText}>Cargando comentarios...</Text>
+                  </View>
+                ) : comments.length > 0 ? (
+                  comments.map((comment) => (
+                    <View key={comment.id} style={styles.commentItem}>
+                      <View style={styles.commentHeader}>
+                        <View style={styles.commentAvatar}>
+                          <Text style={styles.commentAvatarText}>
+                            {getUserInitial(comment.author)}
+                          </Text>
+                        </View>
+                        <View style={styles.commentContent}>
+                          <View style={styles.commentMeta}>
+                            <Text style={styles.commentAuthor}>
+                              {getUserDisplayName(comment.author)}
+                            </Text>
+                            <Text style={styles.commentTime}>
+                              {formatDate(comment.createdAt)}
+                            </Text>
+                          </View>
+                          <Text style={styles.commentBody}>{comment.body}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  ))
+                ) : (
+                  <View style={styles.emptyComments}>
+                    <Text style={styles.emptyCommentsText}>
+                      Sé el primero en comentar 💬
+                    </Text>
+                  </View>
+                )}
+                
+                {/* Indicador de carga para más comentarios */}
+                {loadingMore && (
+                  <View style={styles.loadingMoreComments}>
+                    <ActivityIndicator size="small" color="#4CAF50" />
+                    <Text style={styles.loadingMoreText}>Cargando más comentarios...</Text>
+                  </View>
+                )}
+                
+                {/* Mensaje cuando no hay más comentarios */}
+                {!hasMoreComments && comments.length > 10 && (
+                  <View style={styles.endOfComments}>
+                    <Text style={styles.endOfCommentsText}>No hay más comentarios</Text>
+                  </View>
+                )}
+              </ScrollView>
+
+              {/* Comment input */}
+              <View style={styles.commentInput}>
+                <TextInput
+                  style={styles.textInput}
+                  value={newComment}
+                  onChangeText={setNewComment}
+                  placeholder="Escribe un comentario..."
+                  placeholderTextColor="#999"
+                  multiline
+                  maxLength={500}
+                  returnKeyType="send"
+                  onSubmitEditing={handleSubmitComment}
+                  blurOnSubmit={false}
+                  textAlignVertical="top"
+                />
+                <TouchableOpacity
+                  style={[styles.sendButton, (!newComment.trim() || submitting) && styles.sendButtonDisabled]}
+                  onPress={handleSubmitComment}
+                  disabled={!newComment.trim() || submitting}
+                >
+                  {submitting ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.sendButtonText}>📤</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        </View>
-        </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -339,7 +358,14 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContainer: {
+    flex: 1,
     justifyContent: 'flex-end',
+  },
+  modalContainerKeyboard: {
+    justifyContent: 'flex-start',
+    paddingTop: 50,
   },
   container: {
     backgroundColor: '#fff',
@@ -347,6 +373,10 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     maxHeight: '90%',
     minHeight: '60%',
+  },
+  containerKeyboard: {
+    borderRadius: 20,
+    maxHeight: '90%',
   },
   header: {
     flexDirection: 'row',
@@ -402,6 +432,9 @@ const styles = StyleSheet.create({
   commentsList: {
     flex: 1,
     paddingHorizontal: 20,
+  },
+  scrollContent: {
+    paddingBottom: 20,
   },
   loadingContainer: {
     alignItems: 'center',
@@ -482,10 +515,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 10,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#fff',
     maxHeight: 100,
     marginRight: 10,
     color: '#000',
+    minHeight: 40,
   },
   sendButton: {
     width: 40,

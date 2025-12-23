@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   Platform,
   Keyboard,
   TouchableWithoutFeedback,
+  Dimensions,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -35,6 +36,21 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
+  }, []);
 
   const handleSubmit = async () => {
     if (!caption.trim()) {
@@ -180,174 +196,181 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <KeyboardAvoidingView 
-          style={styles.overlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-        >
-        <View style={styles.container}>
-          {/* Header */}
-          <LinearGradient
-            colors={['#4CAF50', '#81C784']}
-            style={styles.header}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <View style={styles.headerLeft}>
-              <View style={styles.chapiContainer}>
-                <Image 
-                  source={require('../assets/chapi-3d-post.png')}
-                  style={styles.chapiImage}
-                  resizeMode="cover"
-                />
-              </View>
-              <View style={styles.headerContent}>
-                <Text style={styles.title}>Crear Post</Text>
-                <Text style={styles.subtitle}>Comparte tu progreso</Text>
-              </View>
-            </View>
-            <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
-          </LinearGradient>
-
-          {/* Content */}
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            <View style={styles.form}>
-              {/* Caption */}
-              <View style={styles.field}>
-                <Text style={styles.fieldLabel}>¿Qué quieres compartir?</Text>
-                <TextInput
-                  style={styles.textArea}
-                  value={caption}
-                  onChangeText={setCaption}
-                  placeholder="Comparte tu progreso, logros, recetas o motivación..."
-                  multiline
-                  numberOfLines={4}
-                  placeholderTextColor="#999"
-                  maxLength={500}
-                  returnKeyType="done"
-                  onSubmitEditing={Keyboard.dismiss}
-                  blurOnSubmit={true}
-                  textAlignVertical="top"
-                />
-                <Text style={styles.characterCount}>
-                  {caption.length}/500 caracteres
-                </Text>
-              </View>
-
-              {/* Imagen */}
-              <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Imagen (opcional)</Text>
-                
-                {/* Botones de selección de imagen */}
-                <View style={styles.imageButtonsContainer}>
-                  <TouchableOpacity style={styles.imageButton} onPress={showImageOptions}>
-                    <Text style={styles.imageButtonText}>📷 Seleccionar imagen</Text>
-                  </TouchableOpacity>
-                  
-                  {(selectedImage || mediaUrl.trim()) && (
-                    <TouchableOpacity style={styles.removeImageButton} onPress={removeImage}>
-                      <Text style={styles.removeImageButtonText}>🗑️ Quitar</Text>
-                    </TouchableOpacity>
-                  )}
+      <KeyboardAvoidingView 
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={[styles.modalContainer, keyboardVisible && styles.modalContainerKeyboard]}>
+            <View style={[styles.container, keyboardVisible && styles.containerKeyboard]}>
+              {/* Header */}
+              <LinearGradient
+                colors={['#4CAF50', '#81C784']}
+                style={styles.header}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <View style={styles.headerLeft}>
+                  <View style={styles.chapiContainer}>
+                    <Image 
+                      source={require('../assets/chapi-3d-post.png')}
+                      style={styles.chapiImage}
+                      resizeMode="cover"
+                    />
+                  </View>
+                  <View style={styles.headerContent}>
+                    <Text style={styles.title}>Crear Post</Text>
+                    <Text style={styles.subtitle}>Comparte tu progreso</Text>
+                  </View>
                 </View>
+                <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+                  <Text style={styles.closeButtonText}>✕</Text>
+                </TouchableOpacity>
+              </LinearGradient>
 
-                {/* Input manual de URL (alternativo) */}
-                {!selectedImage && (
-                  <View style={styles.urlInputContainer}>
-                    <Text style={styles.urlInputLabel}>O ingresa una URL:</Text>
+              {/* Content */}
+              <ScrollView 
+                style={styles.content} 
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.scrollContent}
+              >
+                <View style={styles.form}>
+                  {/* Caption */}
+                  <View style={styles.field}>
+                    <Text style={styles.fieldLabel}>¿Qué quieres compartir?</Text>
                     <TextInput
-                      style={styles.textInput}
-                      value={mediaUrl}
-                      onChangeText={(text) => {
-                        setMediaUrl(text);
-                        if (text.trim()) setSelectedImage(null);
-                      }}
-                      placeholder="https://ejemplo.com/imagen.jpg"
+                      style={styles.textArea}
+                      value={caption}
+                      onChangeText={setCaption}
+                      placeholder="Comparte tu progreso, logros, recetas o motivación..."
+                      multiline
+                      numberOfLines={4}
                       placeholderTextColor="#999"
+                      maxLength={500}
                       returnKeyType="done"
                       onSubmitEditing={Keyboard.dismiss}
                       blurOnSubmit={true}
-                      autoCapitalize="none"
-                      autoCorrect={false}
+                      textAlignVertical="top"
                     />
+                    <Text style={styles.characterCount}>
+                      {caption.length}/500 caracteres
+                    </Text>
                   </View>
-                )}
-              </View>
 
-              {/* Preview de imagen */}
-              {(selectedImage || mediaUrl.trim()) && (
-                <View style={styles.imagePreview}>
-                  <Text style={styles.previewLabel}>Vista previa:</Text>
-                  <Image 
-                    source={{ uri: selectedImage || mediaUrl }} 
-                    style={styles.previewImage}
-                    onError={() => {
-                      Alert.alert('Error', 'No se pudo cargar la imagen.');
-                      if (selectedImage) {
-                        setSelectedImage(null);
-                      } else {
-                        setMediaUrl('');
-                      }
-                    }}
-                  />
-                  {uploading && (
-                    <View style={styles.uploadingOverlay}>
-                      <ActivityIndicator size="large" color="#4CAF50" />
-                      <Text style={styles.uploadingText}>Subiendo imagen...</Text>
+                  {/* Imagen */}
+                  <View style={styles.field}>
+                    <Text style={styles.fieldLabel}>Imagen (opcional)</Text>
+                    
+                    {/* Botones de selección de imagen */}
+                    <View style={styles.imageButtonsContainer}>
+                      <TouchableOpacity style={styles.imageButton} onPress={showImageOptions}>
+                        <Text style={styles.imageButtonText}>📷 Seleccionar imagen</Text>
+                      </TouchableOpacity>
+                      
+                      {(selectedImage || mediaUrl.trim()) && (
+                        <TouchableOpacity style={styles.removeImageButton} onPress={removeImage}>
+                          <Text style={styles.removeImageButtonText}>🗑️ Quitar</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {/* Input manual de URL (alternativo) */}
+                    {!selectedImage && (
+                      <View style={styles.urlInputContainer}>
+                        <Text style={styles.urlInputLabel}>O ingresa una URL:</Text>
+                        <TextInput
+                          style={styles.textInput}
+                          value={mediaUrl}
+                          onChangeText={(text) => {
+                            setMediaUrl(text);
+                            if (text.trim()) setSelectedImage(null);
+                          }}
+                          placeholder="https://ejemplo.com/imagen.jpg"
+                          placeholderTextColor="#999"
+                          returnKeyType="done"
+                          onSubmitEditing={Keyboard.dismiss}
+                          blurOnSubmit={true}
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                        />
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Preview de imagen */}
+                  {(selectedImage || mediaUrl.trim()) && (
+                    <View style={styles.imagePreview}>
+                      <Text style={styles.previewLabel}>Vista previa:</Text>
+                      <Image 
+                        source={{ uri: selectedImage || mediaUrl }} 
+                        style={styles.previewImage}
+                        onError={() => {
+                          Alert.alert('Error', 'No se pudo cargar la imagen.');
+                          if (selectedImage) {
+                            setSelectedImage(null);
+                          } else {
+                            setMediaUrl('');
+                          }
+                        }}
+                      />
+                      {uploading && (
+                        <View style={styles.uploadingOverlay}>
+                          <ActivityIndicator size="large" color="#4CAF50" />
+                          <Text style={styles.uploadingText}>Subiendo imagen...</Text>
+                        </View>
+                      )}
                     </View>
                   )}
-                </View>
-              )}
 
-              {/* Sugerencias */}
-              <View style={styles.suggestions}>
-                <Text style={styles.suggestionsTitle}>💡 Ideas para tu post:</Text>
-                <TouchableOpacity 
-                  style={styles.suggestionItem}
-                  onPress={() => setCaption('¡Día 3 del desafío, a full! 💪 #VidasSaludable #Motivación')}
-                >
-                  <Text style={styles.suggestionText}>💪 Progreso de desafío</Text>
+                  {/* Sugerencias */}
+                  <View style={styles.suggestions}>
+                    <Text style={styles.suggestionsTitle}>💡 Ideas para tu post:</Text>
+                    <TouchableOpacity 
+                      style={styles.suggestionItem}
+                      onPress={() => setCaption('¡Día 3 del desafío, a full! 💪 #VidasSaludable #Motivación')}
+                    >
+                      <Text style={styles.suggestionText}>💪 Progreso de desafío</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.suggestionItem}
+                      onPress={() => setCaption('¡Meta alcanzada! 🎯 Cada pequeño paso cuenta 🌟')}
+                    >
+                      <Text style={styles.suggestionText}>🎯 Logro personal</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.suggestionItem}
+                      onPress={() => setCaption('Receta saludable del día 🥗 ¡Deliciosa y nutritiva!')}
+                    >
+                      <Text style={styles.suggestionText}>🥗 Receta saludable</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </ScrollView>
+
+              {/* Footer */}
+              <View style={styles.footer}>
+                <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
+                  <Text style={styles.cancelButtonText}>Cancelar</Text>
                 </TouchableOpacity>
+                
                 <TouchableOpacity 
-                  style={styles.suggestionItem}
-                  onPress={() => setCaption('¡Meta alcanzada! 🎯 Cada pequeño paso cuenta 🌟')}
+                  style={[styles.submitButton, (submitting || uploading) && styles.buttonDisabled]}
+                  onPress={handleSubmit}
+                  disabled={submitting || uploading || !caption.trim()}
                 >
-                  <Text style={styles.suggestionText}>🎯 Logro personal</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.suggestionItem}
-                  onPress={() => setCaption('Receta saludable del día 🥗 ¡Deliciosa y nutritiva!')}
-                >
-                  <Text style={styles.suggestionText}>🥗 Receta saludable</Text>
+                  {submitting || uploading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.submitButtonText}>Publicar</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
-          </ScrollView>
-
-          {/* Footer */}
-          <View style={styles.footer}>
-            <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.submitButton, (submitting || uploading) && styles.buttonDisabled]}
-              onPress={handleSubmit}
-              disabled={submitting || uploading || !caption.trim()}
-            >
-              {submitting || uploading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.submitButtonText}>Publicar</Text>
-              )}
-            </TouchableOpacity>
           </View>
-        </View>
-        </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -356,9 +379,16 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+  },
+  modalContainerKeyboard: {
+    justifyContent: 'flex-start',
+    paddingTop: 50,
   },
   container: {
     backgroundColor: '#fff',
@@ -366,6 +396,9 @@ const styles = StyleSheet.create({
     width: '100%',
     maxHeight: '90%',
     minHeight: 600,
+  },
+  containerKeyboard: {
+    maxHeight: '90%',
   },
   header: {
     flexDirection: 'row',
@@ -433,7 +466,10 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
+  },
+  scrollContent: {
     paddingVertical: 15,
+    paddingBottom: 20,
   },
   form: {
     paddingBottom: 20,
@@ -454,8 +490,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 12,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#fff',
     color: '#000',
+    minHeight: 44,
   },
   textArea: {
     borderWidth: 1,
@@ -464,7 +501,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 12,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#fff',
     height: 120,
     textAlignVertical: 'top',
     color: '#000',
@@ -607,5 +644,4 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.6,
   },
-
 });

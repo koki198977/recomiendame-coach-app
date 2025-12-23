@@ -13,6 +13,7 @@ import {
   Platform,
   Keyboard,
   TouchableWithoutFeedback,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NutritionService } from '../services/nutritionService';
@@ -32,6 +33,7 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [existingCheckin, setExistingCheckin] = useState<Checkin | null>(null);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   
   // Form state
   const [weightKg, setWeightKg] = useState('');
@@ -44,6 +46,20 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
       loadTodayCheckin();
     }
   }, [visible]);
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
+  }, []);
 
   const loadTodayCheckin = async () => {
     try {
@@ -154,145 +170,146 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.overlay}>
-          <KeyboardAvoidingView 
-            style={styles.keyboardView}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-          >
-          <View style={styles.container}>
-          {/* Header */}
-          <LinearGradient
-            colors={['#4CAF50', '#45A049']}
-            style={styles.header}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <View style={styles.headerContent}>
-              <Text style={styles.title}>
-                {existingCheckin ? '📝 Actualizar Checkin' : '📝 Checkin Diario'}
-              </Text>
-              <Text style={styles.subtitle}>
-                {new Date().toLocaleDateString('es-ES', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
-          </LinearGradient>
-
-          {/* Content */}
-          <ScrollView 
-            style={styles.content} 
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#4CAF50" />
-                <Text style={styles.loadingText}>Cargando datos...</Text>
-              </View>
-            ) : (
-              <View style={styles.form}>
-                {/* Peso */}
-                <View style={styles.field}>
-                  <Text style={styles.fieldLabel}>Peso (kg) - Opcional</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    value={weightKg}
-                    onChangeText={setWeightKg}
-                    placeholder="Ej: 75.5"
-                    keyboardType="decimal-pad"
-                    placeholderTextColor="#999"
-                    returnKeyType="done"
-                    onSubmitEditing={Keyboard.dismiss}
-                    blurOnSubmit={true}
-                    selectTextOnFocus={true}
-                  />
-                </View>
-
-                {/* Adherencia */}
-                <View style={styles.field}>
-                  <Text style={styles.fieldLabel}>Adherencia al plan (%) - Opcional</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    value={adherencePct}
-                    onChangeText={setAdherencePct}
-                    placeholder="Ej: 85"
-                    keyboardType="number-pad"
-                    placeholderTextColor="#999"
-                    returnKeyType="done"
-                    onSubmitEditing={Keyboard.dismiss}
-                    blurOnSubmit={true}
-                    selectTextOnFocus={true}
-                  />
-                  <Text style={styles.fieldHint}>
-                    ¿Qué tan bien seguiste tu plan nutricional hoy?
+      <KeyboardAvoidingView 
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={[styles.modalContainer, keyboardVisible && styles.modalContainerKeyboard]}>
+            <View style={[styles.container, keyboardVisible && styles.containerKeyboard]}>
+              {/* Header */}
+              <LinearGradient
+                colors={['#4CAF50', '#45A049']}
+                style={styles.header}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <View style={styles.headerContent}>
+                  <Text style={styles.title}>
+                    {existingCheckin ? '📝 Actualizar Checkin' : '📝 Checkin Diario'}
+                  </Text>
+                  <Text style={styles.subtitle}>
+                    {new Date().toLocaleDateString('es-ES', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}
                   </Text>
                 </View>
+                <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                  <Text style={styles.closeButtonText}>✕</Text>
+                </TouchableOpacity>
+              </LinearGradient>
 
-                {/* Nivel de hambre */}
-                {renderHungerScale()}
+              {/* Content */}
+              <ScrollView 
+                style={styles.content} 
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.scrollContent}
+              >
+                {loading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#4CAF50" />
+                    <Text style={styles.loadingText}>Cargando datos...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.form}>
+                    {/* Peso */}
+                    <View style={styles.field}>
+                      <Text style={styles.fieldLabel}>Peso (kg) - Opcional</Text>
+                      <TextInput
+                        style={styles.textInput}
+                        value={weightKg}
+                        onChangeText={setWeightKg}
+                        placeholder="Ej: 75.5"
+                        keyboardType="decimal-pad"
+                        placeholderTextColor="#999"
+                        returnKeyType="done"
+                        onSubmitEditing={Keyboard.dismiss}
+                        blurOnSubmit={true}
+                        selectTextOnFocus={true}
+                      />
+                    </View>
 
-                {/* Notas */}
-                <View style={styles.field}>
-                  <Text style={styles.fieldLabel}>Notas del día - Opcional</Text>
-                  <TextInput
-                    style={[styles.textInput, styles.textArea]}
-                    value={notes}
-                    onChangeText={setNotes}
-                    placeholder="Ej: Día sólido, 10k pasos, me sentí con energía..."
-                    multiline
-                    numberOfLines={4}
-                    placeholderTextColor="#999"
-                    returnKeyType="done"
-                    onSubmitEditing={Keyboard.dismiss}
-                    blurOnSubmit={true}
-                    textAlignVertical="top"
-                  />
-                </View>
+                    {/* Adherencia */}
+                    <View style={styles.field}>
+                      <Text style={styles.fieldLabel}>Adherencia al plan (%) - Opcional</Text>
+                      <TextInput
+                        style={styles.textInput}
+                        value={adherencePct}
+                        onChangeText={setAdherencePct}
+                        placeholder="Ej: 85"
+                        keyboardType="number-pad"
+                        placeholderTextColor="#999"
+                        returnKeyType="done"
+                        onSubmitEditing={Keyboard.dismiss}
+                        blurOnSubmit={true}
+                        selectTextOnFocus={true}
+                      />
+                      <Text style={styles.fieldHint}>
+                        ¿Qué tan bien seguiste tu plan nutricional hoy?
+                      </Text>
+                    </View>
 
-                {existingCheckin && (
-                  <View style={styles.existingCheckinInfo}>
-                    <Text style={styles.existingCheckinText}>
-                      ✅ Ya tienes un checkin registrado para hoy. Los cambios actualizarán tu registro.
-                    </Text>
+                    {/* Nivel de hambre */}
+                    {renderHungerScale()}
+
+                    {/* Notas */}
+                    <View style={styles.field}>
+                      <Text style={styles.fieldLabel}>Notas del día - Opcional</Text>
+                      <TextInput
+                        style={[styles.textInput, styles.textArea]}
+                        value={notes}
+                        onChangeText={setNotes}
+                        placeholder="Ej: Día sólido, 10k pasos, me sentí con energía..."
+                        multiline
+                        numberOfLines={4}
+                        placeholderTextColor="#999"
+                        returnKeyType="done"
+                        onSubmitEditing={Keyboard.dismiss}
+                        blurOnSubmit={true}
+                        textAlignVertical="top"
+                      />
+                    </View>
+
+                    {existingCheckin && (
+                      <View style={styles.existingCheckinInfo}>
+                        <Text style={styles.existingCheckinText}>
+                          ✅ Ya tienes un checkin registrado para hoy. Los cambios actualizarán tu registro.
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 )}
-              </View>
-            )}
-          </ScrollView>
+              </ScrollView>
 
-          {/* Footer */}
-          <View style={styles.footer}>
-            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.submitButton, (submitting || loading) && styles.buttonDisabled]}
-              onPress={handleSubmit}
-              disabled={submitting || loading}
-            >
-              {submitting ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.submitButtonText}>
-                  {existingCheckin ? 'Actualizar' : 'Registrar'}
-                </Text>
-              )}
-            </TouchableOpacity>
+              {/* Footer */}
+              <View style={styles.footer}>
+                <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+                  <Text style={styles.cancelButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.submitButton, (submitting || loading) && styles.buttonDisabled]}
+                  onPress={handleSubmit}
+                  disabled={submitting || loading}
+                >
+                  {submitting ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.submitButtonText}>
+                      {existingCheckin ? 'Actualizar' : 'Registrar'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-          </View>
-          </KeyboardAvoidingView>
-        </View>
-      </TouchableWithoutFeedback>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -301,20 +318,26 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  keyboardView: {
-    width: '100%',
-    maxWidth: 500,
-    justifyContent: 'center',
     paddingHorizontal: 20,
+  },
+  modalContainerKeyboard: {
+    justifyContent: 'flex-start',
+    paddingTop: 50,
   },
   container: {
     backgroundColor: '#fff',
     borderRadius: 20,
     width: '100%',
+    maxWidth: 500,
     maxHeight: '85%',
+  },
+  containerKeyboard: {
+    maxHeight: '90%',
   },
   header: {
     flexDirection: 'row',
@@ -354,8 +377,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   content: {
+    flex: 1,
     paddingHorizontal: 20,
+  },
+  scrollContent: {
     paddingVertical: 15,
+    paddingBottom: 20,
   },
   loadingContainer: {
     alignItems: 'center',
@@ -391,8 +418,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 12,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
-    color: '#000', // Forzar color negro del texto
+    backgroundColor: '#fff',
+    color: '#000',
+    minHeight: 44,
   },
   textArea: {
     height: 100,

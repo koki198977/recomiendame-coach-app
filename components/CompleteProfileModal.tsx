@@ -733,56 +733,60 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView 
-          style={styles.container}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-        {/* Background Gradient */}
-        <LinearGradient
-          colors={['#4CAF50', '#81C784']}
-          style={styles.backgroundGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={[styles.modalContainer, keyboardVisible && styles.modalContainerKeyboard]}>
+            {/* Background Gradient */}
+            <LinearGradient
+              colors={['#4CAF50', '#81C784']}
+              style={styles.backgroundGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            />
 
-        {/* Header */}
-        <View style={styles.header}>
-          {/* Chapi Avatar */}
-          <View style={styles.chapiContainer}>
-            <View style={styles.chapiCircle}>
-              <Image 
-                source={getChapiImage()}
-                style={styles.chapiImage}
-                resizeMode="cover"
-              />
+            {/* Header */}
+            <View style={styles.header}>
+              {/* Chapi Avatar */}
+              <View style={styles.chapiContainer}>
+                <View style={styles.chapiCircle}>
+                  <Image 
+                    source={getChapiImage()}
+                    style={styles.chapiImage}
+                    resizeMode="cover"
+                  />
+                </View>
+              </View>
+
+              <Text style={styles.title}>{currentStepData.title}</Text>
+              <Text style={styles.subtitle}>{currentStepData.subtitle}</Text>
+
+              {/* Progress indicator */}
+              <View style={styles.progressContainer}>
+                {steps.map((_, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.progressDot,
+                      index <= currentStep && styles.progressDotActive
+                    ]}
+                  />
+                ))}
+              </View>
             </View>
-          </View>
 
-          <Text style={styles.title}>{currentStepData.title}</Text>
-          <Text style={styles.subtitle}>{currentStepData.subtitle}</Text>
-
-          {/* Progress indicator */}
-          <View style={styles.progressContainer}>
-            {steps.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.progressDot,
-                  index <= currentStep && styles.progressDotActive
-                ]}
-              />
-            ))}
-          </View>
-        </View>
-
-        {/* Content */}
-        <ScrollView 
-          ref={scrollViewRef}
-          style={styles.content} 
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-        >
+            {/* Content */}
+            <ScrollView 
+              ref={scrollViewRef}
+              style={styles.content} 
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              contentContainerStyle={styles.scrollContent}
+            >
           {/* Step 1: Welcome */}
           {currentStep === 0 && (
             <View style={styles.welcomeContent}>
@@ -1385,59 +1389,58 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
               </View>
             </View>
           )}
-        </ScrollView>
+            </ScrollView>
 
-        {/* Bottom Buttons */}
-        <View style={styles.buttonContainer}>
-          {!isFirstStep && (
-            <TouchableOpacity 
-              style={styles.backButton} 
-              onPress={() => {
-                setCurrentStep(currentStep - 1);
-                // Scroll automático hacia arriba al ir hacia atrás
-                setTimeout(() => {
-                  scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-                }, 100);
-              }}
-            >
-              <Text style={styles.backButtonText}>← Atrás</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity 
-            style={[styles.nextButtonFull, loading && styles.nextButtonDisabled, !isFirstStep && styles.nextButtonHalf]} 
-            onPress={handleNext}
-            disabled={loading}
-          >
-            <LinearGradient
-              colors={loading ? ['#ccc', '#999'] : ['#FF9800', '#F57C00']}
-              style={styles.nextButtonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              {loading && isLastStep ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.nextButtonText}>
-                  {isLastStep ? 'Completar' : 'Siguiente'}
-                </Text>
+            {/* Bottom Buttons */}
+            <View style={styles.buttonContainer}>
+              {!isFirstStep && (
+                <TouchableOpacity 
+                  style={styles.backButton} 
+                  onPress={() => {
+                    setCurrentStep(currentStep - 1);
+                    // Scroll automático hacia arriba al ir hacia atrás
+                    setTimeout(() => {
+                      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+                    }, 100);
+                  }}
+                >
+                  <Text style={styles.backButtonText}>← Atrás</Text>
+                </TouchableOpacity>
               )}
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+              <TouchableOpacity 
+                style={[styles.nextButtonFull, loading && styles.nextButtonDisabled, !isFirstStep && styles.nextButtonHalf]} 
+                onPress={handleNext}
+                disabled={loading}
+              >
+                <LinearGradient
+                  colors={loading ? ['#ccc', '#999'] : ['#FF9800', '#F57C00']}
+                  style={styles.nextButtonGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  {loading && isLastStep ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.nextButtonText}>
+                      {isLastStep ? 'Completar' : 'Siguiente'}
+                    </Text>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
 
-        {/* Botón flotante para ocultar teclado */}
-        {keyboardVisible && (
-          <TouchableOpacity 
-            style={styles.hideKeyboardButton}
-            onPress={Keyboard.dismiss}
-          >
-            <Text style={styles.hideKeyboardText}>⌨️ Ocultar teclado</Text>
-          </TouchableOpacity>
-        )}
-
-
-
-        </KeyboardAvoidingView>
+            {/* Botón flotante para ocultar teclado */}
+            {keyboardVisible && (
+              <TouchableOpacity 
+                style={styles.hideKeyboardButton}
+                onPress={Keyboard.dismiss}
+              >
+                <Text style={styles.hideKeyboardText}>⌨️ Ocultar teclado</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -1445,6 +1448,12 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  modalContainer: {
+    flex: 1,
+  },
+  modalContainerKeyboard: {
+    // Ajustes específicos cuando el teclado está visible
   },
   backgroundGradient: {
     position: 'absolute',
@@ -1520,6 +1529,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
   },
+  scrollContent: {
+    paddingBottom: 20,
+  },
   welcomeContent: {
     alignItems: 'center',
     paddingVertical: 20,
@@ -1552,7 +1564,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: '#fff',
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderRadius: 16,
@@ -1560,6 +1572,7 @@ const styles = StyleSheet.create({
     color: '#333',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
+    minHeight: 44,
   },
   optionsContainer: {
     flexDirection: 'row',
@@ -1676,7 +1689,7 @@ const styles = StyleSheet.create({
   fieldSubtitle: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.7)',
-    marginBottom: 12,
+    marginBottom: 15,
   },
   checkboxContainer: {
     gap: 8,
@@ -1705,7 +1718,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: '#fff',
     borderRadius: 12,
     paddingHorizontal: 15,
     paddingVertical: 12,
@@ -1713,6 +1726,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
+    minHeight: 44,
   },
   searchIcon: {
     fontSize: 18,
@@ -1721,12 +1735,12 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#fff',
+    color: '#333',
     fontWeight: '600',
   },
   clearSearch: {
     fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: '#666',
     paddingHorizontal: 5,
   },
   selectedContainer: {
@@ -2024,14 +2038,15 @@ const styles = StyleSheet.create({
   },
   addFoodInput: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: '#fff',
     paddingHorizontal: 15,
     paddingVertical: 12,
     borderRadius: 12,
     fontSize: 14,
-    color: '#fff',
+    color: '#333',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
+    minHeight: 44,
   },
   addFoodButton: {
     backgroundColor: '#FF9800',
@@ -2083,6 +2098,5 @@ const styles = StyleSheet.create({
     marginVertical: 25,
     marginHorizontal: 20,
   },
-
 
 });

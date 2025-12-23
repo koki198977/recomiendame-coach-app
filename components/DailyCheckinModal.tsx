@@ -34,12 +34,37 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [existingCheckin, setExistingCheckin] = useState<Checkin | null>(null);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [activeInputY, setActiveInputY] = useState(0);
   
   // Form state
   const [weightKg, setWeightKg] = useState('');
   const [adherencePct, setAdherencePct] = useState('');
   const [hungerLvl, setHungerLvl] = useState(5);
   const [notes, setNotes] = useState('');
+
+  const scrollViewRef = React.useRef<ScrollView>(null);
+
+  // Función para manejar el foco del input y calcular su posición
+  const handleInputFocus = (event: any) => {
+    const { target } = event;
+    if (target) {
+      // Usar setTimeout para asegurar que el layout esté completo
+      setTimeout(() => {
+        target.measure((x: number, y: number, width: number, height: number, pageX: number, pageY: number) => {
+          setActiveInputY(y);
+          
+          // Si el teclado ya está visible, hacer scroll inmediatamente
+          if (keyboardVisible) {
+            scrollViewRef.current?.scrollTo({ 
+              y: Math.max(0, y - 50), 
+              animated: true 
+            });
+          }
+        });
+      }, 50);
+    }
+  };
 
   useEffect(() => {
     if (visible) {
@@ -48,18 +73,35 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
   }, [visible]);
 
   useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', (event) => {
       setKeyboardVisible(true);
+      setKeyboardHeight(event.endCoordinates.height);
+      
+      // Scroll automático al input activo con un delay más corto
+      setTimeout(() => {
+        if (activeInputY > 0) {
+          scrollViewRef.current?.scrollTo({ 
+            y: Math.max(0, activeInputY - 80), 
+            animated: true 
+          });
+        }
+      }, 50);
     });
+    
     const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
       setKeyboardVisible(false);
+      setKeyboardHeight(0);
+      // No resetear activeInputY inmediatamente para mantener la posición
+      setTimeout(() => {
+        setActiveInputY(0);
+      }, 200);
     });
 
     return () => {
       keyboardDidShowListener?.remove();
       keyboardDidHideListener?.remove();
     };
-  }, []);
+  }, [activeInputY]);
 
   const loadTodayCheckin = async () => {
     try {
@@ -229,6 +271,7 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
                         placeholderTextColor="#999"
                         returnKeyType="done"
                         onSubmitEditing={Keyboard.dismiss}
+                        onFocus={handleInputFocus}
                         blurOnSubmit={true}
                         selectTextOnFocus={true}
                       />
@@ -246,6 +289,7 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
                         placeholderTextColor="#999"
                         returnKeyType="done"
                         onSubmitEditing={Keyboard.dismiss}
+                        onFocus={handleInputFocus}
                         blurOnSubmit={true}
                         selectTextOnFocus={true}
                       />
@@ -270,6 +314,7 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
                         placeholderTextColor="#999"
                         returnKeyType="done"
                         onSubmitEditing={Keyboard.dismiss}
+                        onFocus={handleInputFocus}
                         blurOnSubmit={true}
                         textAlignVertical="top"
                       />
@@ -324,20 +369,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
+    paddingVertical: 40,
   },
   modalContainerKeyboard: {
     justifyContent: 'flex-start',
-    paddingTop: 50,
+    paddingTop: 30,
   },
   container: {
     backgroundColor: '#fff',
     borderRadius: 20,
     width: '100%',
     maxWidth: 500,
-    maxHeight: '85%',
+    height: 'auto',
+    minHeight: '70%',
+    maxHeight: '90%',
   },
   containerKeyboard: {
-    maxHeight: '90%',
+    maxHeight: '95%',
+    minHeight: '60%',
   },
   header: {
     flexDirection: 'row',
@@ -381,8 +430,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   scrollContent: {
-    paddingVertical: 15,
-    paddingBottom: 20,
+    paddingVertical: 20,
+    paddingBottom: 30,
+    flexGrow: 1,
   },
   loadingContainer: {
     alignItems: 'center',
@@ -394,7 +444,8 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   form: {
-    paddingBottom: 20,
+    paddingBottom: 30,
+    minHeight: 300,
   },
   field: {
     marginBottom: 20,
@@ -479,10 +530,11 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingVertical: 20,
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
     gap: 10,
+    backgroundColor: '#fff',
   },
   cancelButton: {
     flex: 1,

@@ -31,7 +31,27 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [activeInputY, setActiveInputY] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // Función para manejar el foco del input y calcular su posición
+  const handleInputFocus = (event: any) => {
+    const { target } = event;
+    if (target) {
+      setTimeout(() => {
+        target.measure((x: number, y: number, width: number, height: number, pageX: number, pageY: number) => {
+          setActiveInputY(y);
+          
+          // Si el teclado ya está visible, hacer scroll inmediatamente
+          if (keyboardVisible) {
+            scrollViewRef.current?.scrollToEnd({ animated: true });
+          }
+        });
+      }, 50);
+    }
+  };
 
   // Cargar mensajes al abrir el modal
   useEffect(() => {
@@ -51,17 +71,27 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
 
   // Manejar apertura del teclado
   useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener(
-      'keyboardDidShow',
-      () => {
-        setTimeout(() => {
-          scrollViewRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-      }
-    );
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', (event) => {
+      setKeyboardVisible(true);
+      setKeyboardHeight(event.endCoordinates.height);
+      
+      // Scroll automático al final cuando aparece el teclado
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 50);
+    });
+
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+      setKeyboardHeight(0);
+      setTimeout(() => {
+        setActiveInputY(0);
+      }, 200);
+    });
 
     return () => {
-      keyboardDidShowListener.remove();
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
     };
   }, []);
 
@@ -237,74 +267,78 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
       animationType="slide"
       onRequestClose={onClose}
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <KeyboardAvoidingView
-          style={styles.container}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-        >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={styles.chapiAvatar}>
-              <Image 
-                source={require('../assets/chapi-3d.png')}
-                style={styles.chapiAvatarImage}
-                resizeMode="contain"
-              />
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={[styles.modalContainer, keyboardVisible && styles.modalContainerKeyboard]}>
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <View style={styles.chapiAvatar}>
+                  <Image 
+                    source={require('../assets/chapi-3d.png')}
+                    style={styles.chapiAvatarImage}
+                    resizeMode="contain"
+                  />
+                </View>
+                <View>
+                  <Text style={styles.headerTitle}>Chapi</Text>
+                  <Text style={styles.headerSubtitle}>
+                    {isSyncing ? 'Sincronizando...' : 'Tu asistente emocional'}
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
             </View>
-            <View>
-              <Text style={styles.headerTitle}>Chapi</Text>
-              <Text style={styles.headerSubtitle}>
-                {isSyncing ? 'Sincronizando...' : 'Tu asistente emocional'}
-              </Text>
+
+            {/* Messages */}
+            <ScrollView
+              ref={scrollViewRef}
+              style={styles.messagesContainer}
+              contentContainerStyle={styles.messagesContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              {messages.map(renderMessage)}
+
+              {isLoading && (
+                <View style={styles.loadingBubble}>
+                  <ActivityIndicator size="small" color="#4CAF50" />
+                  <Text style={styles.loadingText}>Chapi está escribiendo...</Text>
+                </View>
+              )}
+            </ScrollView>
+
+            {/* Input */}
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Escribe cómo te sientes..."
+                value={inputText}
+                onChangeText={setInputText}
+                onFocus={handleInputFocus}
+                multiline
+                maxLength={500}
+                editable={!isLoading}
+              />
+              <TouchableOpacity
+                style={[
+                  styles.sendButton,
+                  (!inputText.trim() || isLoading) && styles.sendButtonDisabled,
+                ]}
+                onPress={handleSendMessage}
+                disabled={!inputText.trim() || isLoading}
+              >
+                <Text style={styles.sendButtonText}>➤</Text>
+              </TouchableOpacity>
             </View>
           </View>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Text style={styles.closeButtonText}>✕</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Messages */}
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.messagesContainer}
-          contentContainerStyle={styles.messagesContent}
-        >
-          {messages.map(renderMessage)}
-
-          {isLoading && (
-            <View style={styles.loadingBubble}>
-              <ActivityIndicator size="small" color="#4CAF50" />
-              <Text style={styles.loadingText}>Chapi está escribiendo...</Text>
-            </View>
-          )}
-        </ScrollView>
-
-        {/* Input */}
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Escribe cómo te sientes..."
-            value={inputText}
-            onChangeText={setInputText}
-            multiline
-            maxLength={500}
-            editable={!isLoading}
-          />
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              (!inputText.trim() || isLoading) && styles.sendButtonDisabled,
-            ]}
-            onPress={handleSendMessage}
-            disabled={!inputText.trim() || isLoading}
-          >
-            <Text style={styles.sendButtonText}>➤</Text>
-          </TouchableOpacity>
-        </View>
-        </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -313,11 +347,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    ...Platform.select({
-      android: {
-        // En Android, dejamos que adjustResize maneje el teclado
-      },
-    }),
+  },
+  modalContainer: {
+    flex: 1,
+  },
+  modalContainerKeyboard: {
+    // Ajustes específicos cuando el teclado está visible
   },
   header: {
     flexDirection: 'row',
@@ -477,14 +512,17 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 16,
     maxHeight: 100,
     marginRight: 10,
-    color: '#000', // Forzar color negro del texto
+    color: '#000',
+    minHeight: 40,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
   sendButton: {
     width: 44,

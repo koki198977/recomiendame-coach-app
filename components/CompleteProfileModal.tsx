@@ -68,23 +68,61 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
   // Referencia al ScrollView para controlar el scroll
   const scrollViewRef = React.useRef<ScrollView>(null);
   
+  // Función para manejar el foco del input y calcular su posición
+  const handleInputFocus = (event: any) => {
+    const { target } = event;
+    if (target) {
+      setTimeout(() => {
+        target.measure((x: number, y: number, width: number, height: number, pageX: number, pageY: number) => {
+          setActiveInputY(y);
+          
+          // Si el teclado ya está visible, hacer scroll inmediatamente
+          if (keyboardVisible) {
+            scrollViewRef.current?.scrollTo({ 
+              y: Math.max(0, y - 50), 
+              animated: true 
+            });
+          }
+        });
+      }, 50);
+    }
+  };
+  
   // Estado para detectar si el teclado está visible
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [activeInputY, setActiveInputY] = useState(0);
 
   // Detectar cuando el teclado se muestra/oculta
   React.useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', (event) => {
       setKeyboardVisible(true);
+      setKeyboardHeight(event.endCoordinates.height);
+      
+      // Scroll automático al input activo
+      setTimeout(() => {
+        if (activeInputY > 0) {
+          scrollViewRef.current?.scrollTo({ 
+            y: Math.max(0, activeInputY - 80), 
+            animated: true 
+          });
+        }
+      }, 50);
     });
+    
     const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
       setKeyboardVisible(false);
+      setKeyboardHeight(0);
+      setTimeout(() => {
+        setActiveInputY(0);
+      }, 200);
     });
 
     return () => {
       keyboardDidShowListener?.remove();
       keyboardDidHideListener?.remove();
     };
-  }, []);
+  }, [activeInputY]);
   
   // Estados para búsqueda
   const [allergySearch, setAllergySearch] = useState('');
@@ -840,6 +878,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     placeholderTextColor="rgba(0, 0, 0, 0.4)"
                     value={formData[field.key as keyof typeof formData] as string}
                     onChangeText={(value) => updateFormData(field.key, value)}
+                    onFocus={handleInputFocus}
                     keyboardType={field.keyboardType as any || 'default'}
                     returnKeyType="done"
                     onSubmitEditing={Keyboard.dismiss}
@@ -964,6 +1003,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     placeholderTextColor="rgba(0, 0, 0, 0.4)"
                     value={formData.targetWeightKg}
                     onChangeText={(value) => updateFormData('targetWeightKg', value)}
+                    onFocus={handleInputFocus}
                     keyboardType="numeric"
                     returnKeyType="done"
                     onSubmitEditing={Keyboard.dismiss}
@@ -982,6 +1022,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                   placeholderTextColor="rgba(0, 0, 0, 0.4)"
                   value={formData.currentMotivation}
                   onChangeText={(value) => updateFormData('currentMotivation', value)}
+                  onFocus={handleInputFocus}
                   multiline
                   numberOfLines={3}
                   returnKeyType="done"
@@ -1136,6 +1177,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     placeholderTextColor="rgba(255, 255, 255, 0.6)"
                     value={newAllergyText}
                     onChangeText={setNewAllergyText}
+                    onFocus={handleInputFocus}
                     returnKeyType="done"
                     onSubmitEditing={addCustomAllergy}
                     blurOnSubmit={true}
@@ -1191,6 +1233,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     placeholder="Buscar otras alergias..."
                     value={allergySearch}
                     onChangeText={searchAllergies}
+                    onFocus={handleInputFocus}
                     placeholderTextColor="#999"
                     returnKeyType="done"
                     onSubmitEditing={Keyboard.dismiss}
@@ -1263,6 +1306,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     placeholderTextColor="rgba(255, 255, 255, 0.6)"
                     value={newConditionText}
                     onChangeText={setNewConditionText}
+                    onFocus={handleInputFocus}
                     returnKeyType="done"
                     onSubmitEditing={addCustomCondition}
                     blurOnSubmit={true}
@@ -1318,6 +1362,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     placeholder="Buscar otras condiciones..."
                     value={conditionSearch}
                     onChangeText={searchConditions}
+                    onFocus={handleInputFocus}
                     placeholderTextColor="#999"
                     returnKeyType="done"
                     onSubmitEditing={Keyboard.dismiss}

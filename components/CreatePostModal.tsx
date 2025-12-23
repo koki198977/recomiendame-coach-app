@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,6 @@ import {
   Platform,
   Keyboard,
   TouchableWithoutFeedback,
-  Dimensions,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -36,7 +35,6 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
@@ -196,14 +194,12 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <KeyboardAvoidingView 
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
-      >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={[styles.modalContainer, keyboardVisible && styles.modalContainerKeyboard]}>
-            <View style={[styles.container, keyboardVisible && styles.containerKeyboard]}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <KeyboardAvoidingView 
+          style={styles.overlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.container}>
               {/* Header */}
               <LinearGradient
                 colors={['#4CAF50', '#81C784']}
@@ -366,11 +362,10 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
                     <Text style={styles.submitButtonText}>Publicar</Text>
                   )}
                 </TouchableOpacity>
-              </View>
             </View>
           </View>
-        </TouchableWithoutFeedback>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };
@@ -379,16 +374,9 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContainer: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-  },
-  modalContainerKeyboard: {
-    justifyContent: 'flex-start',
-    paddingTop: 50,
   },
   container: {
     backgroundColor: '#fff',
@@ -396,9 +384,6 @@ const styles = StyleSheet.create({
     width: '100%',
     maxHeight: '90%',
     minHeight: 600,
-  },
-  containerKeyboard: {
-    maxHeight: '90%',
   },
   header: {
     flexDirection: 'row',

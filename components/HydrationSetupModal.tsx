@@ -104,7 +104,7 @@ export const HydrationSetupModal: React.FC<HydrationSetupModalProps> = ({
         value: recommendation.ranges.maximum,
         label: 'Máximo',
         description: 'Para alta actividad',
-        color: '#2196F3'
+        color: '#00BCD4'
       }
     ];
   };
@@ -112,7 +112,7 @@ export const HydrationSetupModal: React.FC<HydrationSetupModalProps> = ({
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <LinearGradient
-        colors={['#2196F3', '#21CBF3']}
+        colors={['#00BCD4', '#4CAF50']}
         style={styles.container}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -425,8 +425,16 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   targetOptionSelected: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
     borderWidth: 3,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   targetHeader: {
     flexDirection: 'row',
@@ -451,15 +459,25 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   selectedText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   tipsContainer: {

@@ -11,9 +11,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
-  Keyboard,
   Image,
-  TouchableWithoutFeedback,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ChapiService from '../services/chapiService';
@@ -31,27 +29,7 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [activeInputY, setActiveInputY] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
-
-  // Función para manejar el foco del input y calcular su posición
-  const handleInputFocus = (event: any) => {
-    const { target } = event;
-    if (target) {
-      setTimeout(() => {
-        target.measure((x: number, y: number, width: number, height: number, pageX: number, pageY: number) => {
-          setActiveInputY(y);
-          
-          // Si el teclado ya está visible, hacer scroll inmediatamente
-          if (keyboardVisible) {
-            scrollViewRef.current?.scrollToEnd({ animated: true });
-          }
-        });
-      }, 50);
-    }
-  };
 
   // Cargar mensajes al abrir el modal
   useEffect(() => {
@@ -68,32 +46,6 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
       }, 100);
     }
   }, [messages]);
-
-  // Manejar apertura del teclado
-  useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', (event) => {
-      setKeyboardVisible(true);
-      setKeyboardHeight(event.endCoordinates.height);
-      
-      // Scroll automático al final cuando aparece el teclado
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 50);
-    });
-
-    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardVisible(false);
-      setKeyboardHeight(0);
-      setTimeout(() => {
-        setActiveInputY(0);
-      }, 200);
-    });
-
-    return () => {
-      keyboardDidShowListener?.remove();
-      keyboardDidHideListener?.remove();
-    };
-  }, []);
 
   const loadMessages = async () => {
     try {
@@ -270,10 +222,8 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={[styles.modalContainer, keyboardVisible && styles.modalContainerKeyboard]}>
+        <View style={styles.modalContainer}>
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.headerLeft}>
@@ -301,7 +251,6 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
               ref={scrollViewRef}
               style={styles.messagesContainer}
               contentContainerStyle={styles.messagesContent}
-              keyboardShouldPersistTaps="handled"
             >
               {messages.map(renderMessage)}
 
@@ -320,7 +269,6 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
                 placeholder="Escribe cómo te sientes..."
                 value={inputText}
                 onChangeText={setInputText}
-                onFocus={handleInputFocus}
                 multiline
                 maxLength={500}
                 editable={!isLoading}
@@ -337,7 +285,6 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
               </TouchableOpacity>
             </View>
           </View>
-        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -350,9 +297,6 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-  },
-  modalContainerKeyboard: {
-    // Ajustes específicos cuando el teclado está visible
   },
   header: {
     flexDirection: 'row',

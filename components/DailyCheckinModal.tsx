@@ -11,9 +11,6 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Keyboard,
-  TouchableWithoutFeedback,
-  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NutritionService } from '../services/nutritionService';
@@ -33,9 +30,6 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [existingCheckin, setExistingCheckin] = useState<Checkin | null>(null);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [activeInputY, setActiveInputY] = useState(0);
   
   // Form state
   const [weightKg, setWeightKg] = useState('');
@@ -43,65 +37,11 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
   const [hungerLvl, setHungerLvl] = useState(5);
   const [notes, setNotes] = useState('');
 
-  const scrollViewRef = React.useRef<ScrollView>(null);
-
-  // Función para manejar el foco del input y calcular su posición
-  const handleInputFocus = (event: any) => {
-    const { target } = event;
-    if (target) {
-      // Usar setTimeout para asegurar que el layout esté completo
-      setTimeout(() => {
-        target.measure((x: number, y: number, width: number, height: number, pageX: number, pageY: number) => {
-          setActiveInputY(y);
-          
-          // Si el teclado ya está visible, hacer scroll inmediatamente
-          if (keyboardVisible) {
-            scrollViewRef.current?.scrollTo({ 
-              y: Math.max(0, y - 50), 
-              animated: true 
-            });
-          }
-        });
-      }, 50);
-    }
-  };
-
   useEffect(() => {
     if (visible) {
       loadTodayCheckin();
     }
   }, [visible]);
-
-  useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', (event) => {
-      setKeyboardVisible(true);
-      setKeyboardHeight(event.endCoordinates.height);
-      
-      // Scroll automático al input activo con un delay más corto
-      setTimeout(() => {
-        if (activeInputY > 0) {
-          scrollViewRef.current?.scrollTo({ 
-            y: Math.max(0, activeInputY - 80), 
-            animated: true 
-          });
-        }
-      }, 50);
-    });
-    
-    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardVisible(false);
-      setKeyboardHeight(0);
-      // No resetear activeInputY inmediatamente para mantener la posición
-      setTimeout(() => {
-        setActiveInputY(0);
-      }, 200);
-    });
-
-    return () => {
-      keyboardDidShowListener?.remove();
-      keyboardDidHideListener?.remove();
-    };
-  }, [activeInputY]);
 
   const loadTodayCheckin = async () => {
     try {
@@ -212,14 +152,12 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <KeyboardAvoidingView 
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
-      >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={[styles.modalContainer, keyboardVisible && styles.modalContainerKeyboard]}>
-            <View style={[styles.container, keyboardVisible && styles.containerKeyboard]}>
+      <View style={styles.overlay}>
+        <KeyboardAvoidingView 
+          style={styles.keyboardView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.container}>
               {/* Header */}
               <LinearGradient
                 colors={['#4CAF50', '#45A049']}
@@ -249,8 +187,6 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
               <ScrollView 
                 style={styles.content} 
                 showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={styles.scrollContent}
               >
                 {loading ? (
                   <View style={styles.loadingContainer}>
@@ -269,11 +205,6 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
                         placeholder="Ej: 75.5"
                         keyboardType="decimal-pad"
                         placeholderTextColor="#999"
-                        returnKeyType="done"
-                        onSubmitEditing={Keyboard.dismiss}
-                        onFocus={handleInputFocus}
-                        blurOnSubmit={true}
-                        selectTextOnFocus={true}
                       />
                     </View>
 
@@ -287,11 +218,6 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
                         placeholder="Ej: 85"
                         keyboardType="number-pad"
                         placeholderTextColor="#999"
-                        returnKeyType="done"
-                        onSubmitEditing={Keyboard.dismiss}
-                        onFocus={handleInputFocus}
-                        blurOnSubmit={true}
-                        selectTextOnFocus={true}
                       />
                       <Text style={styles.fieldHint}>
                         ¿Qué tan bien seguiste tu plan nutricional hoy?
@@ -312,10 +238,6 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
                         multiline
                         numberOfLines={4}
                         placeholderTextColor="#999"
-                        returnKeyType="done"
-                        onSubmitEditing={Keyboard.dismiss}
-                        onFocus={handleInputFocus}
-                        blurOnSubmit={true}
                         textAlignVertical="top"
                       />
                     </View>
@@ -352,9 +274,8 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
-        </TouchableWithoutFeedback>
-      </KeyboardAvoidingView>
+          </KeyboardAvoidingView>
+        </View>
     </Modal>
   );
 };
@@ -363,30 +284,21 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContainer: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 40,
   },
-  modalContainerKeyboard: {
-    justifyContent: 'flex-start',
-    paddingTop: 30,
+  keyboardView: {
+    width: '100%',
+    maxWidth: 500,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
   },
   container: {
     backgroundColor: '#fff',
     borderRadius: 20,
     width: '100%',
-    maxWidth: 500,
-    height: 'auto',
-    minHeight: '70%',
     maxHeight: '90%',
-  },
-  containerKeyboard: {
-    maxHeight: '95%',
-    minHeight: '60%',
+    minHeight: 400,
   },
   header: {
     flexDirection: 'row',
@@ -428,11 +340,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
-  },
-  scrollContent: {
-    paddingVertical: 20,
-    paddingBottom: 30,
-    flexGrow: 1,
+    paddingVertical: 15,
   },
   loadingContainer: {
     alignItems: 'center',
@@ -444,8 +352,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   form: {
-    paddingBottom: 30,
-    minHeight: 300,
+    paddingBottom: 20,
   },
   field: {
     marginBottom: 20,
@@ -463,15 +370,22 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   textInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
+    borderWidth: 2,
+    borderColor: '#4CAF50',
     borderRadius: 10,
     paddingHorizontal: 15,
     paddingVertical: 12,
     fontSize: 16,
     backgroundColor: '#fff',
     color: '#000',
-    minHeight: 44,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   textArea: {
     height: 100,
@@ -530,11 +444,10 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingVertical: 15,
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
     gap: 10,
-    backgroundColor: '#fff',
   },
   cancelButton: {
     flex: 1,

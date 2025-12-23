@@ -162,7 +162,10 @@ export const LogWaterModal: React.FC<LogWaterModalProps> = ({
           {/* Cantidad personalizada */}
           <View style={styles.customAmountContainer}>
             <Text style={styles.sectionTitle}>O ingresa una cantidad personalizada:</Text>
-            <View style={styles.customInputContainer}>
+            <View style={[
+              styles.customInputContainer,
+              customAmount && styles.customInputContainerActive
+            ]}>
               <TextInput
                 style={styles.customInput}
                 placeholder="Ej: 300"
@@ -338,9 +341,17 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   quickAmountButtonSelected: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
     borderColor: '#fff',
     borderWidth: 3,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   quickAmountIcon: {
     fontSize: 24,
@@ -376,6 +387,19 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  customInputContainerActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    borderColor: '#fff',
+    borderWidth: 3,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   customInput: {
     flex: 1,

@@ -40,7 +40,6 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [totalComments, setTotalComments] = useState(0);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   const COMMENTS_PER_PAGE = 20;
 
@@ -49,20 +48,6 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
       loadComments();
     }
   }, [visible, post]);
-
-  useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
-      setKeyboardVisible(true);
-    });
-    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardVisible(false);
-    });
-
-    return () => {
-      keyboardDidShowListener?.remove();
-      keyboardDidHideListener?.remove();
-    };
-  }, []);
 
   const loadComments = async () => {
     if (!post) return;
@@ -219,14 +204,12 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <KeyboardAvoidingView 
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
-      >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={[styles.modalContainer, keyboardVisible && styles.modalContainerKeyboard]}>
-            <View style={[styles.container, keyboardVisible && styles.containerKeyboard]}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <KeyboardAvoidingView 
+          style={styles.overlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.container}>
               {/* Header */}
               <LinearGradient
                 colors={['#4CAF50', '#45A049']}
@@ -345,11 +328,10 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
                     <Text style={styles.sendButtonText}>📤</Text>
                   )}
                 </TouchableOpacity>
-              </View>
             </View>
           </View>
-        </TouchableWithoutFeedback>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };
@@ -358,14 +340,7 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContainer: {
-    flex: 1,
     justifyContent: 'flex-end',
-  },
-  modalContainerKeyboard: {
-    justifyContent: 'flex-start',
-    paddingTop: 50,
   },
   container: {
     backgroundColor: '#fff',
@@ -373,10 +348,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     maxHeight: '90%',
     minHeight: '60%',
-  },
-  containerKeyboard: {
-    borderRadius: 20,
-    maxHeight: '90%',
   },
   header: {
     flexDirection: 'row',

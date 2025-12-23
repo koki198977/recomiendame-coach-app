@@ -13,8 +13,6 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  Keyboard,
-  TouchableWithoutFeedback,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Logo } from './Logo';
@@ -64,65 +62,6 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
   const [allergies, setAllergies] = useState<Allergy[]>([]);
   const [conditions, setConditions] = useState<Condition[]>([]);
   const [loading, setLoading] = useState(false);
-  
-  // Referencia al ScrollView para controlar el scroll
-  const scrollViewRef = React.useRef<ScrollView>(null);
-  
-  // Función para manejar el foco del input y calcular su posición
-  const handleInputFocus = (event: any) => {
-    const { target } = event;
-    if (target) {
-      setTimeout(() => {
-        target.measure((x: number, y: number, width: number, height: number, pageX: number, pageY: number) => {
-          setActiveInputY(y);
-          
-          // Si el teclado ya está visible, hacer scroll inmediatamente
-          if (keyboardVisible) {
-            scrollViewRef.current?.scrollTo({ 
-              y: Math.max(0, y - 50), 
-              animated: true 
-            });
-          }
-        });
-      }, 50);
-    }
-  };
-  
-  // Estado para detectar si el teclado está visible
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [activeInputY, setActiveInputY] = useState(0);
-
-  // Detectar cuando el teclado se muestra/oculta
-  React.useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', (event) => {
-      setKeyboardVisible(true);
-      setKeyboardHeight(event.endCoordinates.height);
-      
-      // Scroll automático al input activo
-      setTimeout(() => {
-        if (activeInputY > 0) {
-          scrollViewRef.current?.scrollTo({ 
-            y: Math.max(0, activeInputY - 80), 
-            animated: true 
-          });
-        }
-      }, 50);
-    });
-    
-    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardVisible(false);
-      setKeyboardHeight(0);
-      setTimeout(() => {
-        setActiveInputY(0);
-      }, 200);
-    });
-
-    return () => {
-      keyboardDidShowListener?.remove();
-      keyboardDidHideListener?.remove();
-    };
-  }, [activeInputY]);
   
   // Estados para búsqueda
   const [allergySearch, setAllergySearch] = useState('');
@@ -584,10 +523,6 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
-      // Scroll automático hacia arriba al cambiar de paso
-      setTimeout(() => {
-        scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-      }, 100);
     } else {
       handleComplete();
     }
@@ -774,10 +709,8 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
       <KeyboardAvoidingView 
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={[styles.modalContainer, keyboardVisible && styles.modalContainerKeyboard]}>
+        <View style={styles.modalContainer}>
             {/* Background Gradient */}
             <LinearGradient
               colors={['#4CAF50', '#81C784']}
@@ -818,11 +751,8 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
 
             {/* Content */}
             <ScrollView 
-              ref={scrollViewRef}
               style={styles.content} 
               showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              keyboardDismissMode="on-drag"
               contentContainerStyle={styles.scrollContent}
             >
           {/* Step 1: Welcome */}
@@ -878,10 +808,8 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     placeholderTextColor="rgba(0, 0, 0, 0.4)"
                     value={formData[field.key as keyof typeof formData] as string}
                     onChangeText={(value) => updateFormData(field.key, value)}
-                    onFocus={handleInputFocus}
                     keyboardType={field.keyboardType as any || 'default'}
                     returnKeyType="done"
-                    onSubmitEditing={Keyboard.dismiss}
                     blurOnSubmit={true}
                     selectTextOnFocus={true}
                   />
@@ -1003,10 +931,8 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     placeholderTextColor="rgba(0, 0, 0, 0.4)"
                     value={formData.targetWeightKg}
                     onChangeText={(value) => updateFormData('targetWeightKg', value)}
-                    onFocus={handleInputFocus}
                     keyboardType="numeric"
                     returnKeyType="done"
-                    onSubmitEditing={Keyboard.dismiss}
                     blurOnSubmit={true}
                     selectTextOnFocus={true}
                   />
@@ -1022,11 +948,9 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                   placeholderTextColor="rgba(0, 0, 0, 0.4)"
                   value={formData.currentMotivation}
                   onChangeText={(value) => updateFormData('currentMotivation', value)}
-                  onFocus={handleInputFocus}
                   multiline
                   numberOfLines={3}
                   returnKeyType="done"
-                  onSubmitEditing={Keyboard.dismiss}
                   blurOnSubmit={true}
                   textAlignVertical="top"
                 />
@@ -1177,7 +1101,6 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     placeholderTextColor="rgba(255, 255, 255, 0.6)"
                     value={newAllergyText}
                     onChangeText={setNewAllergyText}
-                    onFocus={handleInputFocus}
                     returnKeyType="done"
                     onSubmitEditing={addCustomAllergy}
                     blurOnSubmit={true}
@@ -1233,10 +1156,8 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     placeholder="Buscar otras alergias..."
                     value={allergySearch}
                     onChangeText={searchAllergies}
-                    onFocus={handleInputFocus}
                     placeholderTextColor="#999"
                     returnKeyType="done"
-                    onSubmitEditing={Keyboard.dismiss}
                     blurOnSubmit={true}
                   />
                   {allergySearch.length > 0 && (
@@ -1306,7 +1227,6 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     placeholderTextColor="rgba(255, 255, 255, 0.6)"
                     value={newConditionText}
                     onChangeText={setNewConditionText}
-                    onFocus={handleInputFocus}
                     returnKeyType="done"
                     onSubmitEditing={addCustomCondition}
                     blurOnSubmit={true}
@@ -1362,10 +1282,8 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     placeholder="Buscar otras condiciones..."
                     value={conditionSearch}
                     onChangeText={searchConditions}
-                    onFocus={handleInputFocus}
                     placeholderTextColor="#999"
                     returnKeyType="done"
-                    onSubmitEditing={Keyboard.dismiss}
                     blurOnSubmit={true}
                   />
                   {conditionSearch.length > 0 && (
@@ -1441,13 +1359,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
               {!isFirstStep && (
                 <TouchableOpacity 
                   style={styles.backButton} 
-                  onPress={() => {
-                    setCurrentStep(currentStep - 1);
-                    // Scroll automático hacia arriba al ir hacia atrás
-                    setTimeout(() => {
-                      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-                    }, 100);
-                  }}
+                  onPress={() => setCurrentStep(currentStep - 1)}
                 >
                   <Text style={styles.backButtonText}>← Atrás</Text>
                 </TouchableOpacity>
@@ -1473,18 +1385,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                 </LinearGradient>
               </TouchableOpacity>
             </View>
-
-            {/* Botón flotante para ocultar teclado */}
-            {keyboardVisible && (
-              <TouchableOpacity 
-                style={styles.hideKeyboardButton}
-                onPress={Keyboard.dismiss}
-              >
-                <Text style={styles.hideKeyboardText}>⌨️ Ocultar teclado</Text>
-              </TouchableOpacity>
-            )}
           </View>
-        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -1496,9 +1397,6 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-  },
-  modalContainerKeyboard: {
-    // Ajustes específicos cuando el teclado está visible
   },
   backgroundGradient: {
     position: 'absolute',
@@ -2048,29 +1946,12 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
   },
 
-  // Botón flotante para ocultar teclado
-  hideKeyboardButton: {
-    position: 'absolute',
-    top: 60,
-    right: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    zIndex: 1000,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 8,
-  },
-  hideKeyboardText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
+  // Separador entre secciones
+  sectionSeparator: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    marginVertical: 25,
+    marginHorizontal: 20,
   },
 
   // Estilos para agregar elementos personalizados
@@ -2134,14 +2015,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
-  },
-
-  // Separador entre secciones
-  sectionSeparator: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    marginVertical: 25,
-    marginHorizontal: 20,
   },
 
 });

@@ -54,7 +54,7 @@ export const HydrationCard: React.FC<HydrationCardProps> = ({
   if (loading) {
     return (
       <View style={styles.loadingCard}>
-        <ActivityIndicator size="small" color="#2196F3" />
+        <ActivityIndicator size="small" color="#00BCD4" />
         <Text style={styles.loadingText}>Cargando hidratación...</Text>
       </View>
     );
@@ -72,7 +72,7 @@ export const HydrationCard: React.FC<HydrationCardProps> = ({
     return (
       <TouchableOpacity style={styles.setupCard} onPress={onSetupPress}>
         <LinearGradient
-          colors={['#2196F3', '#21CBF3']}
+          colors={['#00BCD4', '#4CAF50']}
           style={styles.setupGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -124,7 +124,7 @@ export const HydrationCard: React.FC<HydrationCardProps> = ({
       <View style={styles.progressBarContainer}>
         <View style={styles.progressBar}>
           <LinearGradient
-            colors={['#2196F3', '#21CBF3']}
+            colors={['#00BCD4', '#4CAF50']}
             style={[
               styles.progressFill,
               { width: `${Math.min(progressPercentage, 100)}%` }
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
   progressPercentage: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2196F3',
+    color: '#00BCD4',
     minWidth: 35,
   },
   statsContainer: {

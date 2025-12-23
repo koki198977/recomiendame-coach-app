@@ -41,59 +41,8 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
   const [uploading, setUploading] = useState(false);
   const [analyzed, setAnalyzed] = useState<any>(null);
   const [description, setDescription] = useState('');
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [activeInputY, setActiveInputY] = useState(0);
 
   const scrollViewRef = React.useRef<ScrollView>(null);
-
-  // Función para manejar el foco del input y calcular su posición
-  const handleInputFocus = (event: any) => {
-    const { target } = event;
-    if (target) {
-      setTimeout(() => {
-        target.measure((x: number, y: number, width: number, height: number, pageX: number, pageY: number) => {
-          setActiveInputY(y);
-          
-          if (keyboardVisible) {
-            scrollViewRef.current?.scrollTo({ 
-              y: Math.max(0, y - 50), 
-              animated: true 
-            });
-          }
-        });
-      }, 50);
-    }
-  };
-
-  useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', (event) => {
-      setKeyboardVisible(true);
-      setKeyboardHeight(event.endCoordinates.height);
-      
-      setTimeout(() => {
-        if (activeInputY > 0) {
-          scrollViewRef.current?.scrollTo({ 
-            y: Math.max(0, activeInputY - 80), 
-            animated: true 
-          });
-        }
-      }, 50);
-    });
-    
-    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardVisible(false);
-      setKeyboardHeight(0);
-      setTimeout(() => {
-        setActiveInputY(0);
-      }, 200);
-    });
-
-    return () => {
-      keyboardDidShowListener?.remove();
-      keyboardDidHideListener?.remove();
-    };
-  }, [activeInputY]);
 
   const slots = [
     { value: 'BREAKFAST', label: '🌅 Desayuno', emoji: '🌅' },
@@ -214,22 +163,17 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
     setImageUri(null);
     setAnalyzed(null);
     setDescription('');
-    setKeyboardVisible(false);
-    setKeyboardHeight(0);
-    setActiveInputY(0);
     onClose();
   };
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <KeyboardAvoidingView 
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
-      >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={[styles.modalContainer, keyboardVisible && styles.modalContainerKeyboard]}>
-            <View style={[styles.container, keyboardVisible && styles.containerKeyboard]}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <KeyboardAvoidingView 
+          style={styles.overlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.container}>
               <ScrollView 
                 ref={scrollViewRef}
                 style={styles.scrollView}
@@ -318,7 +262,6 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
                   placeholder="Ej: Avena con plátano y miel"
                   value={description}
                   onChangeText={setDescription}
-                  onFocus={handleInputFocus}
                   multiline
                   numberOfLines={3}
                   maxLength={200}
@@ -391,11 +334,10 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
                 </TouchableOpacity>
               </View>
             )}
-              </ScrollView>
-            </View>
+            </ScrollView>
           </View>
-        </TouchableWithoutFeedback>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };
@@ -404,14 +346,7 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContainer: {
-    flex: 1,
     justifyContent: 'flex-end',
-  },
-  modalContainerKeyboard: {
-    justifyContent: 'flex-start',
-    paddingTop: 30,
   },
   container: {
     backgroundColor: '#fff',
@@ -419,11 +354,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 25,
     maxHeight: '95%',
     flex: 1,
-  },
-  containerKeyboard: {
-    borderRadius: 20,
-    maxHeight: '95%',
-    minHeight: '60%',
   },
   scrollView: {
     flex: 1,

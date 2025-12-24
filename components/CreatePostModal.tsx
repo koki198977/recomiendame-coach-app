@@ -12,8 +12,6 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  Keyboard,
-  TouchableWithoutFeedback,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -35,20 +33,6 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
-
-  useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
-      setKeyboardVisible(true);
-    });
-    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardVisible(false);
-    });
-
-    return () => {
-      keyboardDidShowListener?.remove();
-      keyboardDidHideListener?.remove();
-    };
-  }, []);
 
   const handleSubmit = async () => {
     if (!caption.trim()) {
@@ -130,7 +114,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
 
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 5],
         quality: 0.8,
@@ -194,12 +178,11 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <KeyboardAvoidingView 
-          style={styles.overlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <View style={styles.container}>
+      <KeyboardAvoidingView 
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={styles.container}>
               {/* Header */}
               <LinearGradient
                 colors={['#4CAF50', '#81C784']}
@@ -229,7 +212,6 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
               <ScrollView 
                 style={styles.content} 
                 showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
                 contentContainerStyle={styles.scrollContent}
               >
                 <View style={styles.form}>
@@ -246,8 +228,6 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
                       placeholderTextColor="#999"
                       maxLength={500}
                       returnKeyType="done"
-                      onSubmitEditing={Keyboard.dismiss}
-                      blurOnSubmit={true}
                       textAlignVertical="top"
                     />
                     <Text style={styles.characterCount}>
@@ -286,8 +266,6 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
                           placeholder="https://ejemplo.com/imagen.jpg"
                           placeholderTextColor="#999"
                           returnKeyType="done"
-                          onSubmitEditing={Keyboard.dismiss}
-                          blurOnSubmit={true}
                           autoCapitalize="none"
                           autoCorrect={false}
                         />
@@ -364,8 +342,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
                 </TouchableOpacity>
             </View>
           </View>
-        </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

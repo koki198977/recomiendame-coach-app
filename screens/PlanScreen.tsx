@@ -579,7 +579,7 @@ export const PlanScreen: React.FC = () => {
               style={styles.actionButton}
               onPress={handleGenerateShoppingList}
             >
-              <Text style={styles.actionButtonIcon}>🛒</Text>
+              <Text style={styles.actionButtonIcon}>📋</Text>
             </TouchableOpacity>
             {/* Share button commented out for now as in original
             <TouchableOpacity style={styles.actionButton}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,13 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Logo } from './Logo';
+import { AllergiesSelector } from './AllergiesSelector';
+import { MedicalConditionsSelector } from './MedicalConditionsSelector';
+import { MedicalInfoSummary } from './MedicalInfoSummary';
 import { NutritionService } from '../services/nutritionService';
 import { Cuisine, Allergy, Condition, NutritionGoal, TimeFrame, NutritionGoalDetails } from '../types/nutrition';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -57,21 +61,21 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
 
   const [currentStep, setCurrentStep] = useState(0);
 
+  // Referencia al ScrollView para controlar el scroll
+  const scrollViewRef = useRef<ScrollView>(null);
+
   // Estados para las listas de opciones
   const [cuisines, setCuisines] = useState<Cuisine[]>([]);
   const [allergies, setAllergies] = useState<Allergy[]>([]);
   const [conditions, setConditions] = useState<Condition[]>([]);
   const [loading, setLoading] = useState(false);
   
-  // Estados para búsqueda
-  const [allergySearch, setAllergySearch] = useState('');
-  const [conditionSearch, setConditionSearch] = useState('');
-  const [searchingAllergies, setSearchingAllergies] = useState(false);
-  const [searchingConditions, setSearchingConditions] = useState(false);
+  // Estado para detectar si el teclado está visible
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   
-  // Estados para agregar elementos personalizados
-  const [newAllergyText, setNewAllergyText] = useState('');
-  const [newConditionText, setNewConditionText] = useState('');
+  // Arrays para mantener todas las alergias y condiciones seleccionadas (para el resumen)
+  const [allSelectedAllergies, setAllSelectedAllergies] = useState<Allergy[]>([]);
+  const [allSelectedConditions, setAllSelectedConditions] = useState<Condition[]>([]);
 
   const steps = [
     {
@@ -103,13 +107,23 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
       fields: []
     },
     {
-      title: 'Alergias y condiciones',
-      subtitle: 'Información médica importante',
+      title: 'Alergias alimentarias',
+      subtitle: 'Información importante para tu seguridad',
+      fields: []
+    },
+    {
+      title: 'Condiciones médicas',
+      subtitle: 'Para personalizar tu plan nutricional',
       fields: []
     },
     {
       title: 'Preferencias culinarias',
       subtitle: 'Tipos de cocina que te gustan',
+      fields: []
+    },
+    {
+      title: '¡Perfil completado! 🎉',
+      subtitle: 'Revisa tu información antes de continuar',
       fields: []
     }
   ];
@@ -225,8 +239,37 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
   React.useEffect(() => {
     if (visible) {
       loadTaxonomies();
+      // Resetear al paso inicial y scroll al inicio cuando se abre el modal
+      setCurrentStep(0);
+      setTimeout(() => {
+        if (scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({ y: 0, animated: false });
+        }
+      }, 100);
     }
   }, [visible]);
+
+  // Resetear scroll cuando cambia el paso
+  useEffect(() => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: 0, animated: true });
+    }
+  }, [currentStep]);
+
+  // Detectar cuando el teclado se muestra/oculta
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
+  }, []);
 
   const loadTaxonomies = async () => {
     setLoading(true);
@@ -240,6 +283,12 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
       setCuisines(cuisinesData.items);
       setAllergies(allergiesData.items);
       setConditions(conditionsData.items);
+      
+      // Inicializar arrays de elementos seleccionados
+      const selectedAllergiesItems = allergiesData.items.filter(a => formData.allergies.includes(a.id));
+      const selectedConditionsItems = conditionsData.items.filter(c => formData.conditions.includes(c.id));
+      setAllSelectedAllergies(selectedAllergiesItems);
+      setAllSelectedConditions(selectedConditionsItems);
       
       // Solo mostrar error si todas las taxonomías fallaron
       if (cuisinesData.items.length === 0 && allergiesData.items.length === 0 && conditionsData.items.length === 0) {
@@ -257,16 +306,16 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
 
   const loadFallbackData = () => {
     // Datos básicos como fallback si la API no está disponible
-    setCuisines([
+    const fallbackCuisines = [
       { id: 1, name: 'Mediterránea' },
       { id: 2, name: 'Asiática' },
       { id: 3, name: 'Mexicana' },
       { id: 4, name: 'Italiana' },
       { id: 5, name: 'Vegetariana' },
       { id: 6, name: 'Vegana' },
-    ]);
+    ];
     
-    setAllergies([
+    const fallbackAllergies = [
       { id: 1, name: 'Maní (cacahuate)' },
       { id: 2, name: 'Frutos secos' },
       { id: 3, name: 'Mariscos' },
@@ -274,14 +323,24 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
       { id: 5, name: 'Soja' },
       { id: 6, name: 'Gluten' },
       { id: 7, name: 'Lactosa' },
-    ]);
+    ];
     
-    setConditions([
+    const fallbackConditions = [
       { id: 1, code: 'DIABETES', label: 'Diabetes' },
       { id: 2, code: 'HYPERTENSION', label: 'Hipertensión' },
       { id: 3, code: 'CELIAC', label: 'Celiaquía' },
       { id: 4, code: 'LACTOSE_INTOLERANT', label: 'Intolerancia a la lactosa' },
-    ]);
+    ];
+
+    setCuisines(fallbackCuisines);
+    setAllergies(fallbackAllergies);
+    setConditions(fallbackConditions);
+    
+    // Inicializar arrays de elementos seleccionados con datos fallback
+    const selectedAllergiesItems = fallbackAllergies.filter(a => formData.allergies.includes(a.id));
+    const selectedConditionsItems = fallbackConditions.filter(c => formData.conditions.includes(c.id));
+    setAllSelectedAllergies(selectedAllergiesItems);
+    setAllSelectedConditions(selectedConditionsItems);
   };
 
   const updateFormData = (key: string, value: string) => {
@@ -296,83 +355,36 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
         : [...currentArray, itemId];
       return { ...prev, [key]: newArray };
     });
-  };
 
-  // Agregar alergia personalizada
-  const addCustomAllergy = async () => {
-    if (!newAllergyText.trim()) return;
-
-    const allergyName = newAllergyText.trim().toLowerCase();
-
-    // 1. Verificar si ya existe en las alergias oficiales
-    const existingAllergy = allergies.find(a => a.name.toLowerCase() === allergyName);
-    if (existingAllergy) {
-      // Si ya existe, simplemente seleccionarla
-      if (!formData.allergies.includes(existingAllergy.id)) {
-        setFormData(prev => ({
-          ...prev,
-          allergies: [...prev.allergies, existingAllergy.id]
-        }));
-        Alert.alert('Alergia encontrada', `"${existingAllergy.name}" ya estaba en la lista y se ha seleccionado.`);
-      } else {
-        Alert.alert('Ya seleccionada', `"${existingAllergy.name}" ya está seleccionada en tu perfil.`);
+    // Actualizar arrays de elementos seleccionados para el resumen
+    if (key === 'allergies') {
+      const allergy = allergies.find(a => a.id === itemId);
+      if (allergy) {
+        setAllSelectedAllergies(prev => {
+          const exists = prev.find(a => a.id === itemId);
+          if (exists) {
+            // Remover si ya existe
+            return prev.filter(a => a.id !== itemId);
+          } else {
+            // Agregar si no existe
+            return [...prev, allergy];
+          }
+        });
       }
-      setNewAllergyText('');
-      return;
-    }
-
-    // 2. Verificar si ya existe en las alergias personalizadas
-    const existingCustom = formData.customAllergies.find(a => a.toLowerCase() === allergyName);
-    if (existingCustom) {
-      Alert.alert('Ya agregada', `"${existingCustom}" ya está en tu lista de alergias personalizadas.`);
-      setNewAllergyText('');
-      return;
-    }
-
-    try {
-      // 3. Intentar crear la alergia en la base de datos
-      const newAllergy = await NutritionService.createAllergy(newAllergyText.trim());
-      
-      // Agregar a la lista local de alergias disponibles
-      setAllergies(prev => [...prev, newAllergy]);
-      
-      // Seleccionar automáticamente la nueva alergia
-      setFormData(prev => ({
-        ...prev,
-        allergies: [...prev.allergies, newAllergy.id]
-      }));
-      
-      // Limpiar el campo de texto
-      setNewAllergyText('');
-      
-      // Mostrar mensaje de éxito
-      Alert.alert('¡Éxito!', `Se agregó "${newAllergy.name}" a la lista de alergias disponibles.`);
-      
-    } catch (error: any) {
-      console.log('Error creando alergia:', error);
-      
-      // Si el error es por duplicado (409 Conflict)
-      if (error.response?.status === 409) {
-        Alert.alert(
-          'Alergia ya existe', 
-          'Esta alergia ya existe en la base de datos. Intenta buscarla en la lista o usa el buscador.'
-        );
-        setNewAllergyText('');
-        return;
+    } else if (key === 'conditions') {
+      const condition = conditions.find(c => c.id === itemId);
+      if (condition) {
+        setAllSelectedConditions(prev => {
+          const exists = prev.find(c => c.id === itemId);
+          if (exists) {
+            // Remover si ya existe
+            return prev.filter(c => c.id !== itemId);
+          } else {
+            // Agregar si no existe
+            return [...prev, condition];
+          }
+        });
       }
-      
-      // Si es otro error, agregar como alergia personalizada
-      setFormData(prev => ({
-        ...prev,
-        customAllergies: [...prev.customAllergies, newAllergyText.trim()]
-      }));
-      setNewAllergyText('');
-      
-      // Mostrar mensaje informativo
-      Alert.alert(
-        'Alergia agregada localmente', 
-        'Se guardó tu alergia personalizada. Se sincronizará cuando sea posible.'
-      );
     }
   };
 
@@ -384,84 +396,6 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
     }));
   };
 
-  // Agregar condición personalizada
-  const addCustomCondition = async () => {
-    if (!newConditionText.trim()) return;
-
-    const conditionLabel = newConditionText.trim().toLowerCase();
-
-    // 1. Verificar si ya existe en las condiciones oficiales
-    const existingCondition = conditions.find(c => c.label.toLowerCase() === conditionLabel);
-    if (existingCondition) {
-      // Si ya existe, simplemente seleccionarla
-      if (!formData.conditions.includes(existingCondition.id)) {
-        setFormData(prev => ({
-          ...prev,
-          conditions: [...prev.conditions, existingCondition.id]
-        }));
-        Alert.alert('Condición encontrada', `"${existingCondition.label}" ya estaba en la lista y se ha seleccionado.`);
-      } else {
-        Alert.alert('Ya seleccionada', `"${existingCondition.label}" ya está seleccionada en tu perfil.`);
-      }
-      setNewConditionText('');
-      return;
-    }
-
-    // 2. Verificar si ya existe en las condiciones personalizadas
-    const existingCustom = formData.customConditions.find(c => c.toLowerCase() === conditionLabel);
-    if (existingCustom) {
-      Alert.alert('Ya agregada', `"${existingCustom}" ya está en tu lista de condiciones personalizadas.`);
-      setNewConditionText('');
-      return;
-    }
-
-    try {
-      // 3. Intentar crear la condición en la base de datos
-      const newCondition = await NutritionService.createCondition(newConditionText.trim());
-      
-      // Agregar a la lista local de condiciones disponibles
-      setConditions(prev => [...prev, newCondition]);
-      
-      // Seleccionar automáticamente la nueva condición
-      setFormData(prev => ({
-        ...prev,
-        conditions: [...prev.conditions, newCondition.id]
-      }));
-      
-      // Limpiar el campo de texto
-      setNewConditionText('');
-      
-      // Mostrar mensaje de éxito
-      Alert.alert('¡Éxito!', `Se agregó "${newCondition.label}" a la lista de condiciones disponibles.`);
-      
-    } catch (error: any) {
-      console.log('Error creando condición:', error);
-      
-      // Si el error es por duplicado (409 Conflict)
-      if (error.response?.status === 409) {
-        Alert.alert(
-          'Condición ya existe', 
-          'Esta condición ya existe en la base de datos. Intenta buscarla en la lista o usa el buscador.'
-        );
-        setNewConditionText('');
-        return;
-      }
-      
-      // Si es otro error, agregar como condición personalizada
-      setFormData(prev => ({
-        ...prev,
-        customConditions: [...prev.customConditions, newConditionText.trim()]
-      }));
-      setNewConditionText('');
-      
-      // Mostrar mensaje informativo
-      Alert.alert(
-        'Condición agregada localmente', 
-        'Se guardó tu condición personalizada. Se sincronizará cuando sea posible.'
-      );
-    }
-  };
-
   // Remover condición personalizada
   const removeCustomCondition = (condition: string) => {
     setFormData(prev => ({
@@ -470,62 +404,32 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
     }));
   };
 
-  // Búsqueda de alergias
-  const searchAllergies = async (searchText: string) => {
-    setAllergySearch(searchText);
-    
-    if (searchText.trim().length > 0) {
-      try {
-        setSearchingAllergies(true);
-        const response = await NutritionService.getAllergies(searchText, 20, 0);
-        setAllergies(response.items);
-      } catch (error) {
-        // Error silencioso
-      } finally {
-        setSearchingAllergies(false);
-      }
-    } else {
-      // Si borra el texto, volver a cargar las comunes
-      try {
-        const response = await NutritionService.getAllergies('', 5, 0);
-        setAllergies(response.items);
-      } catch (error) {
-        // Error silencioso
-      }
-    }
-  };
-
-  // Búsqueda de condiciones
-  const searchConditions = async (searchText: string) => {
-    setConditionSearch(searchText);
-    
-    if (searchText.trim().length > 0) {
-      try {
-        setSearchingConditions(true);
-        const response = await NutritionService.getConditions(searchText, 20, 0);
-        setConditions(response.items);
-      } catch (error) {
-        // Error silencioso
-      } finally {
-        setSearchingConditions(false);
-      }
-    } else {
-      // Si borra el texto, volver a cargar las comunes
-      try {
-        const response = await NutritionService.getConditions('', 5, 0);
-        setConditions(response.items);
-      } catch (error) {
-        // Error silencioso
-      }
-    }
-  };
-
   const handleNext = () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      handleComplete();
+    // Primero hacer scroll al inicio
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: 0, animated: true });
     }
+    
+    // Pequeño delay para que se complete la animación del scroll
+    setTimeout(() => {
+      if (currentStep < steps.length - 1) {
+        setCurrentStep(currentStep + 1);
+      } else {
+        handleComplete();
+      }
+    }, 100);
+  };
+
+  const handleBack = () => {
+    // Primero hacer scroll al inicio
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: 0, animated: true });
+    }
+    
+    // Pequeño delay para que se complete la animación del scroll
+    setTimeout(() => {
+      setCurrentStep(currentStep - 1);
+    }, 100);
   };
 
   // Seleccionar imagen de Chapi según el paso
@@ -709,6 +613,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
       <KeyboardAvoidingView 
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <View style={styles.modalContainer}>
             {/* Background Gradient */}
@@ -720,20 +625,24 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
             />
 
             {/* Header */}
-            <View style={styles.header}>
-              {/* Chapi Avatar */}
-              <View style={styles.chapiContainer}>
-                <View style={styles.chapiCircle}>
-                  <Image 
-                    source={getChapiImage()}
-                    style={styles.chapiImage}
-                    resizeMode="cover"
-                  />
+            <View style={[styles.header, keyboardVisible && styles.headerCompact]}>
+              {/* Chapi Avatar - más pequeño cuando hay teclado */}
+              {!keyboardVisible && (
+                <View style={styles.chapiContainer}>
+                  <View style={styles.chapiCircle}>
+                    <Image 
+                      source={getChapiImage()}
+                      style={styles.chapiImage}
+                      resizeMode="cover"
+                    />
+                  </View>
                 </View>
-              </View>
+              )}
 
-              <Text style={styles.title}>{currentStepData.title}</Text>
-              <Text style={styles.subtitle}>{currentStepData.subtitle}</Text>
+              <Text style={[styles.title, keyboardVisible && styles.titleCompact]}>{currentStepData.title}</Text>
+              {!keyboardVisible && (
+                <Text style={styles.subtitle}>{currentStepData.subtitle}</Text>
+              )}
 
               {/* Progress indicator */}
               <View style={styles.progressContainer}>
@@ -751,9 +660,12 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
 
             {/* Content */}
             <ScrollView 
+              ref={scrollViewRef}
               style={styles.content} 
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              scrollEventThrottle={16}
             >
           {/* Step 1: Welcome */}
           {currentStep === 0 && (
@@ -811,7 +723,6 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     keyboardType={field.keyboardType as any || 'default'}
                     returnKeyType="done"
                     blurOnSubmit={true}
-                    selectTextOnFocus={true}
                   />
                 </View>
               ))}
@@ -934,7 +845,6 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     keyboardType="numeric"
                     returnKeyType="done"
                     blurOnSubmit={true}
-                    selectTextOnFocus={true}
                   />
                 </View>
               )}
@@ -1066,262 +976,78 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
             </View>
           )}
 
-          {/* Step 6: Allergies and Conditions */}
+          {/* Step 6: Allergies */}
           {currentStep === 5 && (
-            <View style={styles.formSection}>
-              {/* Alergias */}
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Alergias alimentarias</Text>
-                <Text style={styles.fieldSubtitle}>Selecciona las que apliquen (opcional)</Text>
-                
-                {/* Mostrar alergias personalizadas agregadas */}
-                {formData.customAllergies.length > 0 && (
-                  <View style={styles.selectedContainer}>
-                    <Text style={styles.selectedLabel}>Mis alergias ({formData.customAllergies.length}):</Text>
-                    <View style={styles.selectedChips}>
-                      {formData.customAllergies.map((allergy, index) => (
-                        <TouchableOpacity
-                          key={index}
-                          style={styles.selectedChip}
-                          onPress={() => removeCustomAllergy(allergy)}
-                        >
-                          <Text style={styles.selectedChipText}>{allergy}</Text>
-                          <Text style={styles.selectedChipRemove}>✕</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                {/* Campo para agregar nueva alergia */}
-                <View style={styles.addFoodContainer}>
-                  <TextInput
-                    style={styles.addFoodInput}
-                    placeholder="Agregar nueva alergia..."
-                    placeholderTextColor="rgba(255, 255, 255, 0.6)"
-                    value={newAllergyText}
-                    onChangeText={setNewAllergyText}
-                    returnKeyType="done"
-                    onSubmitEditing={addCustomAllergy}
-                    blurOnSubmit={true}
-                  />
-                  <TouchableOpacity 
-                    style={[
-                      styles.addFoodButton,
-                      !newAllergyText.trim() && styles.addFoodButtonDisabled
-                    ]}
-                    onPress={addCustomAllergy}
-                    disabled={!newAllergyText.trim()}
-                  >
-                    <Text style={styles.addFoodButtonText}>+ Agregar</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Sugerencia si hay texto similar */}
-                {newAllergyText.trim().length > 2 && (
-                  (() => {
-                    const searchTerm = newAllergyText.trim().toLowerCase();
-                    const similarAllergy = allergies.find(a => 
-                      a.name.toLowerCase().includes(searchTerm) || 
-                      searchTerm.includes(a.name.toLowerCase())
-                    );
-                    
-                    if (similarAllergy && !formData.allergies.includes(similarAllergy.id)) {
-                      return (
-                        <TouchableOpacity 
-                          style={styles.suggestionContainer}
-                          onPress={() => {
-                            setFormData(prev => ({
-                              ...prev,
-                              allergies: [...prev.allergies, similarAllergy.id]
-                            }));
-                            setNewAllergyText('');
-                          }}
-                        >
-                          <Text style={styles.suggestionText}>
-                            💡 ¿Te refieres a "{similarAllergy.name}"? Toca para seleccionar
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    }
-                    return null;
-                  })()
-                )}
-
-                {/* Buscador de alergias */}
-                <View style={styles.searchContainer}>
-                  <Text style={styles.searchIcon}>🔍</Text>
-                  <TextInput
-                    style={styles.searchInput}
-                    placeholder="Buscar otras alergias..."
-                    value={allergySearch}
-                    onChangeText={searchAllergies}
-                    placeholderTextColor="#999"
-                    returnKeyType="done"
-                    blurOnSubmit={true}
-                  />
-                  {allergySearch.length > 0 && (
-                    <TouchableOpacity onPress={() => searchAllergies('')}>
-                      <Text style={styles.clearSearch}>✕</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {loading || searchingAllergies ? (
-                  <ActivityIndicator color="#fff" style={{ marginVertical: 20 }} />
-                ) : (
-                  <View style={styles.checkboxContainer}>
-                    {allergies.map((allergy) => (
-                      <TouchableOpacity
-                        key={allergy.id}
-                        style={[
-                          styles.checkboxOption,
-                          formData.allergies.includes(allergy.id) && styles.checkboxOptionActive
-                        ]}
-                        onPress={() => toggleArrayItem('allergies', allergy.id)}
-                      >
-                        <Text style={[
-                          styles.checkboxText,
-                          formData.allergies.includes(allergy.id) && styles.checkboxTextActive
-                        ]}>
-                          {formData.allergies.includes(allergy.id) ? '✓ ' : ''}{allergy.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
-
-              {/* Separador visual */}
-              <View style={styles.sectionSeparator} />
-
-              {/* Condiciones */}
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Condiciones médicas</Text>
-                <Text style={styles.fieldSubtitle}>Información para personalizar tu plan (opcional)</Text>
-                
-                {/* Mostrar condiciones personalizadas agregadas */}
-                {formData.customConditions.length > 0 && (
-                  <View style={styles.selectedContainer}>
-                    <Text style={styles.selectedLabel}>Mis condiciones ({formData.customConditions.length}):</Text>
-                    <View style={styles.selectedChips}>
-                      {formData.customConditions.map((condition, index) => (
-                        <TouchableOpacity
-                          key={index}
-                          style={styles.selectedChip}
-                          onPress={() => removeCustomCondition(condition)}
-                        >
-                          <Text style={styles.selectedChipText}>{condition}</Text>
-                          <Text style={styles.selectedChipRemove}>✕</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                {/* Campo para agregar nueva condición */}
-                <View style={styles.addFoodContainer}>
-                  <TextInput
-                    style={styles.addFoodInput}
-                    placeholder="Agregar nueva condición..."
-                    placeholderTextColor="rgba(255, 255, 255, 0.6)"
-                    value={newConditionText}
-                    onChangeText={setNewConditionText}
-                    returnKeyType="done"
-                    onSubmitEditing={addCustomCondition}
-                    blurOnSubmit={true}
-                  />
-                  <TouchableOpacity 
-                    style={[
-                      styles.addFoodButton,
-                      !newConditionText.trim() && styles.addFoodButtonDisabled
-                    ]}
-                    onPress={addCustomCondition}
-                    disabled={!newConditionText.trim()}
-                  >
-                    <Text style={styles.addFoodButtonText}>+ Agregar</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Sugerencia si hay texto similar */}
-                {newConditionText.trim().length > 2 && (
-                  (() => {
-                    const searchTerm = newConditionText.trim().toLowerCase();
-                    const similarCondition = conditions.find(c => 
-                      c.label.toLowerCase().includes(searchTerm) || 
-                      searchTerm.includes(c.label.toLowerCase())
-                    );
-                    
-                    if (similarCondition && !formData.conditions.includes(similarCondition.id)) {
-                      return (
-                        <TouchableOpacity 
-                          style={styles.suggestionContainer}
-                          onPress={() => {
-                            setFormData(prev => ({
-                              ...prev,
-                              conditions: [...prev.conditions, similarCondition.id]
-                            }));
-                            setNewConditionText('');
-                          }}
-                        >
-                          <Text style={styles.suggestionText}>
-                            💡 ¿Te refieres a "{similarCondition.label}"? Toca para seleccionar
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    }
-                    return null;
-                  })()
-                )}
-
-                {/* Buscador de condiciones */}
-                <View style={styles.searchContainer}>
-                  <Text style={styles.searchIcon}>🔍</Text>
-                  <TextInput
-                    style={styles.searchInput}
-                    placeholder="Buscar otras condiciones..."
-                    value={conditionSearch}
-                    onChangeText={searchConditions}
-                    placeholderTextColor="#999"
-                    returnKeyType="done"
-                    blurOnSubmit={true}
-                  />
-                  {conditionSearch.length > 0 && (
-                    <TouchableOpacity onPress={() => searchConditions('')}>
-                      <Text style={styles.clearSearch}>✕</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {loading || searchingConditions ? (
-                  <ActivityIndicator color="#fff" style={{ marginVertical: 20 }} />
-                ) : (
-                  <View style={styles.checkboxContainer}>
-                    {conditions.map((condition) => (
-                      <TouchableOpacity
-                        key={condition.id}
-                        style={[
-                          styles.checkboxOption,
-                          formData.conditions.includes(condition.id) && styles.checkboxOptionActive
-                        ]}
-                        onPress={() => toggleArrayItem('conditions', condition.id)}
-                      >
-                        <Text style={[
-                          styles.checkboxText,
-                          formData.conditions.includes(condition.id) && styles.checkboxTextActive
-                        ]}>
-                          {formData.conditions.includes(condition.id) ? '✓ ' : ''}{condition.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
+            <View style={[styles.formSection, keyboardVisible && styles.formSectionCompact]}>
+              <AllergiesSelector
+                allergies={allergies}
+                selectedAllergies={formData.allergies}
+                customAllergies={formData.customAllergies}
+                onToggleAllergy={(allergyId) => toggleArrayItem('allergies', allergyId)}
+                onAddCustomAllergy={(allergy) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    customAllergies: [...prev.customAllergies, allergy]
+                  }));
+                }}
+                onRemoveCustomAllergy={removeCustomAllergy}
+                onUpdateAllergies={(newAllergies) => {
+                  setAllergies(newAllergies);
+                  // Actualizar también el array de seleccionadas si hay nuevas
+                  const newSelectedItems = newAllergies.filter(a => formData.allergies.includes(a.id));
+                  setAllSelectedAllergies(prev => {
+                    // Combinar elementos existentes con nuevos, evitando duplicados
+                    const combined = [...prev];
+                    newSelectedItems.forEach(item => {
+                      if (!combined.find(existing => existing.id === item.id)) {
+                        combined.push(item);
+                      }
+                    });
+                    return combined;
+                  });
+                }}
+                compact={keyboardVisible}
+              />
             </View>
           )}
 
-          {/* Step 7: Cuisine Preferences */}
+          {/* Step 7: Medical Conditions */}
           {currentStep === 6 && (
+            <View style={[styles.formSection, keyboardVisible && styles.formSectionCompact]}>
+              <MedicalConditionsSelector
+                conditions={conditions}
+                selectedConditions={formData.conditions}
+                customConditions={formData.customConditions}
+                onToggleCondition={(conditionId) => toggleArrayItem('conditions', conditionId)}
+                onAddCustomCondition={(condition) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    customConditions: [...prev.customConditions, condition]
+                  }));
+                }}
+                onRemoveCustomCondition={removeCustomCondition}
+                onUpdateConditions={(newConditions) => {
+                  setConditions(newConditions);
+                  // Actualizar también el array de seleccionadas si hay nuevas
+                  const newSelectedItems = newConditions.filter(c => formData.conditions.includes(c.id));
+                  setAllSelectedConditions(prev => {
+                    // Combinar elementos existentes con nuevos, evitando duplicados
+                    const combined = [...prev];
+                    newSelectedItems.forEach(item => {
+                      if (!combined.find(existing => existing.id === item.id)) {
+                        combined.push(item);
+                      }
+                    });
+                    return combined;
+                  });
+                }}
+                compact={keyboardVisible}
+              />
+            </View>
+          )}
+
+          {/* Step 8: Cuisine Preferences */}
+          {currentStep === 7 && (
             <View style={styles.formSection}>
               <View style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>Tipos de cocina que te gustan</Text>
@@ -1352,6 +1078,67 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
               </View>
             </View>
           )}
+
+          {/* Step 9: Summary */}
+          {currentStep === 8 && (
+            <View style={styles.formSection}>
+              {/* Resumen de información médica */}
+              <MedicalInfoSummary
+                selectedAllergies={allSelectedAllergies.map(a => a.name)}
+                selectedConditions={allSelectedConditions.map(c => c.label)}
+                customAllergies={formData.customAllergies}
+                customConditions={formData.customConditions}
+                onEditAllergies={() => {
+                  if (scrollViewRef.current) {
+                    scrollViewRef.current.scrollTo({ y: 0, animated: true });
+                  }
+                  setTimeout(() => setCurrentStep(5), 100);
+                }}
+                onEditConditions={() => {
+                  if (scrollViewRef.current) {
+                    scrollViewRef.current.scrollTo({ y: 0, animated: true });
+                  }
+                  setTimeout(() => setCurrentStep(6), 100);
+                }}
+              />
+
+              {/* Resumen de preferencias culinarias */}
+              {formData.cuisinesLike.length > 0 && (
+                <View style={styles.summarySection}>
+                  <View style={styles.summarySectionHeader}>
+                    <Text style={styles.summarySectionTitle}>🍽️ Cocinas favoritas ({formData.cuisinesLike.length})</Text>
+                    <TouchableOpacity style={styles.editButton} onPress={() => {
+                      if (scrollViewRef.current) {
+                        scrollViewRef.current.scrollTo({ y: 0, animated: true });
+                      }
+                      setTimeout(() => setCurrentStep(7), 100);
+                    }}>
+                      <Text style={styles.editButtonText}>Editar</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={styles.cuisineChips}>
+                      {cuisines.filter(c => formData.cuisinesLike.includes(c.id)).map((cuisine) => (
+                        <View key={cuisine.id} style={styles.cuisineChip}>
+                          <Text style={styles.cuisineChipText}>{cuisine.name}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* Mensaje de confirmación */}
+              <View style={styles.confirmationContainer}>
+                <Text style={styles.confirmationIcon}>🎯</Text>
+                <Text style={styles.confirmationTitle}>¡Todo listo!</Text>
+                <Text style={styles.confirmationText}>
+                  Tu perfil está completo. Ahora podremos ofrecerte recomendaciones personalizadas 
+                  basadas en tus objetivos, preferencias y necesidades médicas.
+                </Text>
+              </View>
+            </View>
+          )}
             </ScrollView>
 
             {/* Bottom Buttons */}
@@ -1359,7 +1146,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
               {!isFirstStep && (
                 <TouchableOpacity 
                   style={styles.backButton} 
-                  onPress={() => setCurrentStep(currentStep - 1)}
+                  onPress={handleBack}
                 >
                   <Text style={styles.backButtonText}>← Atrás</Text>
                 </TouchableOpacity>
@@ -1411,6 +1198,10 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
     alignItems: 'center',
   },
+  headerCompact: {
+    paddingTop: 30,
+    paddingBottom: 10,
+  },
   chapiContainer: {
     marginBottom: 20,
     alignItems: 'center',
@@ -1447,6 +1238,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     textAlign: 'center',
     marginBottom: 10,
+  },
+  titleCompact: {
+    fontSize: 20,
+    marginBottom: 3,
   },
   subtitle: {
     fontSize: 16,
@@ -1496,6 +1291,9 @@ const styles = StyleSheet.create({
   },
   formSection: {
     paddingVertical: 20,
+  },
+  formSectionCompact: {
+    paddingVertical: 10,
   },
   fieldContainer: {
     marginBottom: 30,
@@ -1954,67 +1752,76 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
   },
 
-  // Estilos para agregar elementos personalizados
-  addFoodContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 15,
+  // Estilos para el resumen final
+  summarySection: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    padding: 20,
     marginBottom: 20,
   },
-  addFoodInput: {
-    flex: 1,
-    backgroundColor: '#fff',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    borderRadius: 12,
-    fontSize: 14,
-    color: '#333',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    minHeight: 44,
+  summarySectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
   },
-  addFoodButton: {
-    backgroundColor: '#FF9800',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    shadowColor: '#FF9800',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+  summarySectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
-  addFoodButtonText: {
+  editButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  editButtonText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
   },
-  addFoodButtonDisabled: {
-    backgroundColor: 'rgba(255, 152, 0, 0.5)',
-    shadowOpacity: 0,
-    elevation: 0,
+  cuisineChips: {
+    flexDirection: 'row',
+    gap: 8,
   },
-
-  // Estilos para sugerencias
-  suggestionContainer: {
-    backgroundColor: 'rgba(33, 150, 243, 0.2)',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginTop: 8,
-    marginBottom: 15,
+  cuisineChip: {
+    backgroundColor: 'rgba(156, 39, 176, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(33, 150, 243, 0.4)',
+    borderColor: 'rgba(156, 39, 176, 0.4)',
   },
-  suggestionText: {
-    color: '#2196F3',
+  cuisineChipText: {
+    color: '#fff',
     fontSize: 14,
     fontWeight: '500',
+  },
+  confirmationContainer: {
+    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+    borderRadius: 16,
+    padding: 25,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.4)',
+  },
+  confirmationIcon: {
+    fontSize: 48,
+    marginBottom: 15,
+  },
+  confirmationTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 12,
     textAlign: 'center',
+  },
+  confirmationText: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+    lineHeight: 22,
   },
 
 });

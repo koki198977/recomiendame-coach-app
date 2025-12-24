@@ -647,7 +647,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
                 end={{ x: 1, y: 0 }}
                 style={styles.shoppingButtonGradient}
               >
-                <Text style={styles.shoppingButtonText}>🛒 Lista de compras</Text>
+                <Text style={styles.shoppingButtonText}>📋 Lista de compras</Text>
               </LinearGradient>
             </TouchableOpacity>
           </>

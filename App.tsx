@@ -20,6 +20,8 @@ import { NutritionService } from './services/nutritionService';
 import { UserProfile } from './types/nutrition';
 import { setupErrorHandlers } from './utils/errorLogger';
 import { setUnauthorizedCallback } from './services/api';
+import { PushNotificationService } from './services/pushNotificationService';
+import { NotificationReminderService } from './services/notificationReminderService';
 
 // Configurar handlers de errores al inicio
 setupErrorHandlers();
@@ -208,6 +210,12 @@ export default function App() {
         setUserProfile(profile);
         setShowCompleteProfile(false); // Asegurar que el modal esté cerrado
         setCurrentScreen('home');
+        
+        // Registrar push notifications después de login exitoso
+        PushNotificationService.registerForPushNotificationsAsync();
+        
+        // Configurar recordatorios locales de Chapi
+        NotificationReminderService.setupReminders();
       } else {
         console.log('⚠️ Usuario necesita completar perfil');
         setUserProfile(profile);
@@ -268,6 +276,9 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
+      // Eliminar push token del backend antes de limpiar sesión
+      await PushNotificationService.unregisterPushToken();
+      
       await AsyncStorage.multiRemove(['authToken', 'userData', 'userProfile']);
       setCurrentScreen('login');
       setShowCompleteProfile(false);

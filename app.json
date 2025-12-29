@@ -14,6 +14,13 @@
           "photosPermission": "La app necesita acceso a tus fotos para subir imágenes de comidas y equipamiento.",
           "cameraPermission": "La app necesita acceso a tu cámara para tomar fotos de tus comidas."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#4CAF50"
+        }
       ]
     ],
     "splash": {

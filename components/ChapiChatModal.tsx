@@ -13,6 +13,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ChapiService from '../services/chapiService';
 import { ChapiMessage, ChapiAction } from '../types/nutrition';
@@ -30,6 +31,7 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  const insets = useSafeAreaInsets();
 
   // Cargar mensajes al abrir el modal
   useEffect(() => {
@@ -263,7 +265,7 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
             </ScrollView>
 
             {/* Input */}
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
               <TextInput
                 style={styles.input}
                 placeholder="Escribe cómo te sientes..."

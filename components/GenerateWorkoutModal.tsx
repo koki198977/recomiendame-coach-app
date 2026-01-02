@@ -9,6 +9,7 @@ import {
   Image,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { WorkoutGoal, WorkoutEnvironment } from '../types/nutrition';
 
@@ -32,6 +33,7 @@ export const GenerateWorkoutModal: React.FC<GenerateWorkoutModalProps> = ({
   const [selectedGoal, setSelectedGoal] = useState<WorkoutGoal>('HYPERTROPHY');
   const [selectedEnvironment, setSelectedEnvironment] = useState<WorkoutEnvironment>('GYM');
   const [equipmentImages, setEquipmentImages] = useState<string[]>([]);
+  const insets = useSafeAreaInsets();
 
   const goals: { value: WorkoutGoal; label: string; emoji: string; description: string }[] = [
     {
@@ -119,7 +121,7 @@ export const GenerateWorkoutModal: React.FC<GenerateWorkoutModalProps> = ({
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.overlay}>
-        <View style={styles.container}>
+        <View style={[styles.container, { paddingBottom: Math.max(insets.bottom + 20, 20) }]}>
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* Header */}
             <View style={styles.header}>
@@ -277,7 +279,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     maxHeight: '90%',
-    paddingBottom: 20,
   },
   header: {
     flexDirection: 'row',

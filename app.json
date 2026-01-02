@@ -47,9 +47,7 @@
         "android.permission.RECORD_AUDIO"
       ],
       "softwareKeyboardLayoutMode": "pan",
-      "navigationBar": {
-        "visible": "leanback"
-      },
+
       "statusBar": {
         "backgroundColor": "#ffffff",
         "barStyle": "dark-content"

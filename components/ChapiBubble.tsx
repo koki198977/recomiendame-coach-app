@@ -6,6 +6,8 @@ import {
   Animated,
   Text,
   Image,
+  Keyboard,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +22,36 @@ export const ChapiBubble: React.FC<ChapiBubbleProps> = ({ onPress, unreadCount =
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
   const blinkAnim = React.useRef(new Animated.Value(1)).current;
   const glowAnim = React.useRef(new Animated.Value(0)).current;
+  const fadeAnim = React.useRef(new Animated.Value(1)).current;
+  const [isKeyboardVisible, setIsKeyboardVisible] = React.useState(false);
+
+  React.useEffect(() => {
+    const keyboardShowEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const keyboardHideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const keyboardDidShowListener = Keyboard.addListener(keyboardShowEvent, () => {
+      setIsKeyboardVisible(true);
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    });
+
+    const keyboardDidHideListener = Keyboard.addListener(keyboardHideEvent, () => {
+      setIsKeyboardVisible(false);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    });
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
 
   React.useEffect(() => {
     // Animación de pulso suave
@@ -87,12 +119,24 @@ export const ChapiBubble: React.FC<ChapiBubbleProps> = ({ onPress, unreadCount =
     outputRange: [0.3, 0.6],
   });
 
+  // Si el teclado está visible, renderizamos null o una vista transparente para evitar toques
+  // Pero usamos opacity animada para que sea suave
+  
   return (
-    <View style={[styles.container, { bottom: 100 + insets.bottom }]}>
+    <Animated.View style={[
+      styles.container, 
+      { 
+        bottom: 100 + insets.bottom,
+        opacity: fadeAnim,
+        // Deshabilitar interacción cuando está invisible
+        transform: [{ scale: fadeAnim }] 
+      }
+    ]}>
       {/* Halo de fondo animado */}
       <Animated.View
         style={[
           styles.halo,
+
           {
             transform: [{ scale: pulseAnim }],
             opacity: glowOpacity,
@@ -125,7 +169,7 @@ export const ChapiBubble: React.FC<ChapiBubbleProps> = ({ onPress, unreadCount =
 
       {/* Texto descriptivo */}
       <Text style={styles.label}>Chapi</Text>
-    </View>
+    </Animated.View>
   );
 };
 

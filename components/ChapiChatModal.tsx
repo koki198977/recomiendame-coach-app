@@ -219,97 +219,109 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
     <Modal
       visible={visible}
       animationType="slide"
+      transparent={true}
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <View style={styles.modalContainer}>
-            {/* Header */}
-            <View style={styles.header}>
-              <View style={styles.headerLeft}>
-                <View style={styles.chapiAvatar}>
-                  <Image 
-                    source={require('../assets/chapi-3d.png')}
-                    style={styles.chapiAvatarImage}
-                    resizeMode="contain"
-                  />
+      <View style={styles.overlay}>
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        >
+          <View style={[styles.modalContainer, { marginBottom: Platform.OS === 'android' ? 0 : 0 }]}>
+              {/* Header */}
+              <View style={styles.header}>
+                <View style={styles.headerLeft}>
+                  <View style={styles.chapiAvatar}>
+                    <Image 
+                      source={require('../assets/chapi-3d.png')}
+                      style={styles.chapiAvatarImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                  <View>
+                    <Text style={styles.headerTitle}>Chapi</Text>
+                    <Text style={styles.headerSubtitle}>
+                      {isSyncing ? 'Sincronizando...' : 'Tu asistente emocional'}
+                    </Text>
+                  </View>
                 </View>
-                <View>
-                  <Text style={styles.headerTitle}>Chapi</Text>
-                  <Text style={styles.headerSubtitle}>
-                    {isSyncing ? 'Sincronizando...' : 'Tu asistente emocional'}
-                  </Text>
-                </View>
+                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                  <Text style={styles.closeButtonText}>✕</Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <Text style={styles.closeButtonText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Messages */}
-            <ScrollView
-              ref={scrollViewRef}
-              style={styles.messagesContainer}
-              contentContainerStyle={styles.messagesContent}
-            >
-              {messages.map(renderMessage)}
-
-              {isLoading && (
-                <View style={styles.loadingBubble}>
-                  <ActivityIndicator size="small" color="#4CAF50" />
-                  <Text style={styles.loadingText}>Chapi está escribiendo...</Text>
-                </View>
-              )}
-            </ScrollView>
-
-            {/* Input */}
-            <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-              <TextInput
-                style={styles.input}
-                placeholder="Escribe cómo te sientes..."
-                value={inputText}
-                onChangeText={setInputText}
-                multiline
-                maxLength={500}
-                editable={!isLoading}
-              />
-              <TouchableOpacity
-                style={[
-                  styles.sendButton,
-                  (!inputText.trim() || isLoading) && styles.sendButtonDisabled,
-                ]}
-                onPress={handleSendMessage}
-                disabled={!inputText.trim() || isLoading}
+  
+              {/* Messages */}
+              <ScrollView
+                ref={scrollViewRef}
+                style={styles.messagesContainer}
+                contentContainerStyle={styles.messagesContent}
+                keyboardShouldPersistTaps="handled"
               >
-                <Text style={styles.sendButtonText}>➤</Text>
-              </TouchableOpacity>
+                {messages.map(renderMessage)}
+  
+                {isLoading && (
+                  <View style={styles.loadingBubble}>
+                    <ActivityIndicator size="small" color="#4CAF50" />
+                    <Text style={styles.loadingText}>Chapi está escribiendo...</Text>
+                  </View>
+                )}
+              </ScrollView>
+  
+              {/* Input */}
+              <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Escribe cómo te sientes..."
+                  value={inputText}
+                  onChangeText={setInputText}
+                  multiline
+                  maxLength={500}
+                  editable={!isLoading}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.sendButton,
+                    (!inputText.trim() || isLoading) && styles.sendButtonDisabled,
+                  ]}
+                  onPress={handleSendMessage}
+                  disabled={!inputText.trim() || isLoading}
+                >
+                  <Text style={styles.sendButtonText}>➤</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  overlay: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  container: {
+    width: '100%',
+    height: '92%', // Ocupa el 92% de la altura, dejando espacio arriba
   },
   modalContainer: {
     flex: 1,
+    backgroundColor: '#f5f5f5',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 20,
     paddingBottom: 20,
     backgroundColor: '#4CAF50',
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
   },
   headerLeft: {
     flexDirection: 'row',

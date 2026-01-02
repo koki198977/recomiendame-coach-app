@@ -21,6 +21,7 @@ import { AllergiesSelector } from './AllergiesSelector';
 import { MedicalConditionsSelector } from './MedicalConditionsSelector';
 import { MedicalInfoSummary } from './MedicalInfoSummary';
 import { NutritionService } from '../services/nutritionService';
+import { AuthService } from '../services/authService';
 import { Cuisine, Allergy, Condition, NutritionGoal, TimeFrame, NutritionGoalDetails } from '../types/nutrition';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -31,12 +32,14 @@ interface CompleteProfileModalProps {
   visible: boolean;
   onComplete: (profileData: any) => void;
   onSkip?: () => void; // Opcional
+  onLogout?: () => void; // Callback para cerrar sesión
 }
 
 export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
   visible,
   onComplete,
   onSkip,
+  onLogout,
 }) => {
   const [formData, setFormData] = useState({
     sex: '',
@@ -508,6 +511,37 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
     return recommendations;
   };
 
+  const handleTemporaryLogout = async () => {
+    Alert.alert(
+      'Cerrar sesión temporal',
+      '¿Estás seguro que quieres cerrar sesión? Podrás volver a iniciar sesión más tarde para completar tu perfil.',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Cerrar sesión',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await AuthService.logout();
+              if (onLogout) {
+                onLogout();
+              }
+            } catch (error) {
+              console.log('Error during logout:', error);
+              // Aún así ejecutar el callback para cerrar sesión en la UI
+              if (onLogout) {
+                onLogout();
+              }
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleComplete = async () => {
     // Validar datos básicos requeridos
     if (!formData.heightCm || !formData.weightKg || !formData.activityLevel || !formData.sex || !formData.cookTimePerMeal) {
@@ -680,6 +714,16 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                 <Text style={styles.featureItem}>🤖 Recomendaciones con IA</Text>
                 <Text style={styles.featureItem}>🍎 Recetas adaptadas a ti</Text>
               </View>
+              
+              {/* Botón de cerrar sesión temporal */}
+              <TouchableOpacity 
+                style={styles.temporaryLogoutButton}
+                onPress={handleTemporaryLogout}
+              >
+                <Text style={styles.temporaryLogoutText}>
+                  Completar más tarde
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -1822,6 +1866,23 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
     lineHeight: 22,
+  },
+
+  // Estilos para el botón de cerrar sesión temporal
+  temporaryLogoutButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 30,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  temporaryLogoutText: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
   },
 
 });

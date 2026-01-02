@@ -177,33 +177,45 @@ export const HydrationSetupModal: React.FC<HydrationSetupModalProps> = ({
               <View style={styles.targetsContainer}>
                 <Text style={styles.targetsTitle}>Elige tu objetivo diario:</Text>
                 <View style={styles.targetsList}>
-                  {getTargetOptions().map((option) => (
-                    <TouchableOpacity
-                      key={option.value}
-                      style={[
-                        styles.targetOption,
-                        selectedTarget === option.value && styles.targetOptionSelected,
-                        { borderColor: option.color }
-                      ]}
-                      onPress={() => setSelectedTarget(option.value)}
-                    >
-                      <View style={styles.targetHeader}>
-                        <Text style={[styles.targetLabel, { color: option.color }]}>
-                          {option.label}
-                          {option.recommended && ' ⭐'}
-                        </Text>
-                        <Text style={styles.targetValue}>
-                          {HydrationService.formatMl(option.value)}
-                        </Text>
-                      </View>
-                      <Text style={styles.targetDescription}>{option.description}</Text>
-                      {selectedTarget === option.value && (
-                        <View style={[styles.selectedIndicator, { backgroundColor: option.color }]}>
-                          <Text style={styles.selectedText}>✓</Text>
+                  {getTargetOptions().map((option) => {
+                    const isSelected = selectedTarget === option.value;
+                    return (
+                      <TouchableOpacity
+                        key={option.value}
+                        style={[
+                          styles.targetOption,
+                          isSelected && styles.targetOptionSelected,
+                          { borderColor: option.color }
+                        ]}
+                        onPress={() => setSelectedTarget(option.value)}
+                      >
+                        <View style={styles.targetHeader}>
+                          <Text style={[styles.targetLabel, { color: option.color }]}>
+                            {option.label}
+                            {option.recommended && ' ⭐'}
+                          </Text>
+                          <Text style={[
+                            styles.targetValue,
+                            isSelected && styles.targetValueSelected,
+                            isSelected && { color: option.color }
+                          ]}>
+                            {HydrationService.formatMl(option.value)}
+                          </Text>
                         </View>
-                      )}
-                    </TouchableOpacity>
-                  ))}
+                        <Text style={[
+                          styles.targetDescription,
+                          isSelected && styles.targetDescriptionSelected
+                        ]}>
+                          {option.description}
+                        </Text>
+                        {isSelected && (
+                          <View style={[styles.selectedIndicator, { backgroundColor: option.color }]}>
+                            <Text style={styles.selectedText}>✓</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </View>
 
@@ -425,16 +437,16 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   targetOptionSelected: {
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
-    borderWidth: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderWidth: 2,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
-    elevation: 8,
+    elevation: 5,
   },
   targetHeader: {
     flexDirection: 'row',
@@ -451,9 +463,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
   },
+  targetValueSelected: {
+    color: '#333',
+  },
   targetDescription: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.8)',
+  },
+  targetDescriptionSelected: {
+    color: '#666',
   },
   selectedIndicator: {
     position: 'absolute',

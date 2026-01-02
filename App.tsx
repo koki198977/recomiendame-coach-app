@@ -343,6 +343,7 @@ export default function App() {
         <CompleteProfileModal
           visible={showCompleteProfile}
           onComplete={handleCompleteProfile}
+          onLogout={handleLogout}
         />
       </ErrorBoundary>
     </SafeAreaProvider>

@@ -9,10 +9,8 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
-  Keyboard,
   KeyboardAvoidingView,
   Platform,
-  TouchableWithoutFeedback,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NutritionService } from '../services/nutritionService';
@@ -228,10 +226,10 @@ export const EditPreferencesModal: React.FC<EditPreferencesModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <View style={styles.overlay}>
         <KeyboardAvoidingView 
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.overlay}
+          style={styles.keyboardView}
         >
           <View style={styles.container}>
             {/* Header */}
@@ -365,7 +363,7 @@ export const EditPreferencesModal: React.FC<EditPreferencesModalProps> = ({
             </View>
           </View>
         </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
+      </View>
     </Modal>
   );
 };
@@ -378,13 +376,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+  keyboardView: {
+    width: '100%',
+    maxWidth: 500,
+    justifyContent: 'center',
+  },
   container: {
     backgroundColor: '#fff',
     borderRadius: 20,
     width: '100%',
     maxHeight: '90%',
-    flex: 1, // Ensure it takes available space in keyboard avoiding view
-    maxWidth: 500, // Tablet constraint
   },
   header: {
     flexDirection: 'row',

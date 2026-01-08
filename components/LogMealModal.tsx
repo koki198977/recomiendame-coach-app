@@ -14,7 +14,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
-  TouchableWithoutFeedback,
   Dimensions,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -168,9 +167,9 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <View style={styles.overlay}>
         <KeyboardAvoidingView 
-          style={styles.overlay}
+          style={styles.keyboardView}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={styles.container}>
@@ -337,7 +336,7 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
+      </View>
     </Modal>
   );
 };
@@ -348,12 +347,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
+  keyboardView: {
+    width: '100%',
+    justifyContent: 'flex-end',
+  },
   container: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     maxHeight: '95%',
-    flex: 1,
   },
   scrollView: {
     flex: 1,

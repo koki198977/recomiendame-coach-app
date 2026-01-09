@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -48,6 +49,22 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
       }, 100);
     }
   }, [messages]);
+
+  // Scroll cuando aparece el teclado
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+    };
+  }, []);
 
   const loadMessages = async () => {
     try {
@@ -224,73 +241,75 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
     >
       <View style={styles.overlay}>
         <KeyboardAvoidingView
-          style={styles.container}
+          style={styles.keyboardView}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
-          <View style={[styles.modalContainer, { marginBottom: Platform.OS === 'android' ? 0 : 0 }]}>
-              {/* Header */}
-              <View style={styles.header}>
-                <View style={styles.headerLeft}>
-                  <View style={styles.chapiAvatar}>
-                    <Image 
-                      source={require('../assets/chapi-3d.png')}
-                      style={styles.chapiAvatarImage}
-                      resizeMode="contain"
-                    />
-                  </View>
-                  <View>
-                    <Text style={styles.headerTitle}>Chapi</Text>
-                    <Text style={styles.headerSubtitle}>
-                      {isSyncing ? 'Sincronizando...' : 'Tu asistente emocional'}
-                    </Text>
-                  </View>
+          <View style={styles.modalContainer}>
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <View style={styles.chapiAvatar}>
+                  <Image 
+                    source={require('../assets/chapi-3d.png')}
+                    style={styles.chapiAvatarImage}
+                    resizeMode="contain"
+                  />
                 </View>
-                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                  <Text style={styles.closeButtonText}>✕</Text>
-                </TouchableOpacity>
+                <View>
+                  <Text style={styles.headerTitle}>Chapi</Text>
+                  <Text style={styles.headerSubtitle}>
+                    {isSyncing ? 'Sincronizando...' : 'Tu asistente emocional'}
+                  </Text>
+                </View>
               </View>
-  
-              {/* Messages */}
-              <ScrollView
-                ref={scrollViewRef}
-                style={styles.messagesContainer}
-                contentContainerStyle={styles.messagesContent}
-                keyboardShouldPersistTaps="handled"
-              >
-                {messages.map(renderMessage)}
-  
-                {isLoading && (
-                  <View style={styles.loadingBubble}>
-                    <ActivityIndicator size="small" color="#4CAF50" />
-                    <Text style={styles.loadingText}>Chapi está escribiendo...</Text>
-                  </View>
-                )}
-              </ScrollView>
-  
-              {/* Input */}
-              <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Escribe cómo te sientes..."
-                  value={inputText}
-                  onChangeText={setInputText}
-                  multiline
-                  maxLength={500}
-                  editable={!isLoading}
-                />
-                <TouchableOpacity
-                  style={[
-                    styles.sendButton,
-                    (!inputText.trim() || isLoading) && styles.sendButtonDisabled,
-                  ]}
-                  onPress={handleSendMessage}
-                  disabled={!inputText.trim() || isLoading}
-                >
-                  <Text style={styles.sendButtonText}>➤</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
             </View>
+
+            {/* Messages */}
+            <ScrollView
+              ref={scrollViewRef}
+              style={styles.messagesContainer}
+              contentContainerStyle={styles.messagesContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {messages.map(renderMessage)}
+
+              {isLoading && (
+                <View style={styles.loadingBubble}>
+                  <ActivityIndicator size="small" color="#4CAF50" />
+                  <Text style={styles.loadingText}>Chapi está escribiendo...</Text>
+                </View>
+              )}
+            </ScrollView>
+
+            {/* Input - Fixed at bottom */}
+            <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+              <TextInput
+                style={styles.input}
+                placeholder="Escribe cómo te sientes..."
+                value={inputText}
+                onChangeText={setInputText}
+                multiline
+                maxLength={500}
+                editable={!isLoading}
+                textAlignVertical="top"
+              />
+              <TouchableOpacity
+                style={[
+                  styles.sendButton,
+                  (!inputText.trim() || isLoading) && styles.sendButtonDisabled,
+                ]}
+                onPress={handleSendMessage}
+                disabled={!inputText.trim() || isLoading}
+              >
+                <Text style={styles.sendButtonText}>➤</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </KeyboardAvoidingView>
       </View>
     </Modal>
@@ -303,24 +322,26 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
-  container: {
+  keyboardView: {
     width: '100%',
-    height: '92%', // Ocupa el 92% de la altura, dejando espacio arriba
+    maxHeight: '80%',
   },
   modalContainer: {
-    flex: 1,
     backgroundColor: '#f5f5f5',
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     overflow: 'hidden',
+    maxHeight: '80%',
+    minHeight: 400,
+    flexDirection: 'column',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
     backgroundColor: '#4CAF50',
   },
   headerLeft: {
@@ -328,48 +349,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   chapiAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 10,
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.5)',
     overflow: 'hidden',
   },
   chapiAvatarImage: {
-    width: 48,
-    height: 48,
+    width: 38,
+    height: 38,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: 'rgba(255, 255, 255, 0.8)',
   },
   closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   closeButtonText: {
-    fontSize: 24,
+    fontSize: 20,
     color: '#fff',
     fontWeight: '300',
   },
   messagesContainer: {
     flex: 1,
+    minHeight: 0,
   },
   messagesContent: {
-    padding: 20,
+    padding: 16,
+    paddingBottom: 8,
   },
   messageBubble: {
     maxWidth: '80%',
@@ -462,30 +485,31 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flexDirection: 'row',
-    padding: 16,
+    paddingHorizontal: 12,
+    paddingTop: 10,
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
-    alignItems: 'center',
+    alignItems: 'flex-end',
   },
   input: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f5f5f5',
     borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 16,
-    maxHeight: 100,
-    marginRight: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    fontSize: 15,
+    maxHeight: 90,
+    marginRight: 8,
     color: '#000',
-    minHeight: 40,
+    minHeight: 38,
     borderWidth: 1,
     borderColor: '#E0E0E0',
   },
   sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: '#4CAF50',
     justifyContent: 'center',
     alignItems: 'center',

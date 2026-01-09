@@ -228,8 +228,9 @@ export const EditPreferencesModal: React.FC<EditPreferencesModalProps> = ({
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
         <KeyboardAvoidingView 
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.keyboardView}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
           <View style={styles.container}>
             {/* Header */}
@@ -298,7 +299,13 @@ export const EditPreferencesModal: React.FC<EditPreferencesModalProps> = ({
               )}
 
               {/* Content List */}
-              <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <ScrollView 
+                style={styles.content} 
+                showsVerticalScrollIndicator={false} 
+                keyboardShouldPersistTaps="handled"
+                bounces={false}
+                nestedScrollEnabled={true}
+              >
                 {loading ? (
                   <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#4CAF50" />
@@ -386,6 +393,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     width: '100%',
     maxHeight: '90%',
+    minHeight: 400,
   },
   header: {
     flexDirection: 'row',
@@ -427,6 +435,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
     paddingVertical: 10,
+    minHeight: 200,
   },
   searchContainer: {
     flexDirection: 'row',

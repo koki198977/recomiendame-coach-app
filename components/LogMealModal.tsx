@@ -166,21 +166,21 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
       <View style={styles.overlay}>
         <KeyboardAvoidingView 
           style={styles.keyboardView}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={styles.container}>
-              <ScrollView 
-                ref={scrollViewRef}
-                style={styles.scrollView}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                bounces={false}
-              >
+            <ScrollView 
+              ref={scrollViewRef}
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              bounces={false}
+            >
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.headerLeft}>
@@ -349,13 +349,14 @@ const styles = StyleSheet.create({
   },
   keyboardView: {
     width: '100%',
-    justifyContent: 'flex-end',
+    maxHeight: '95%',
   },
   container: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     maxHeight: '95%',
+    minHeight: Dimensions.get('window').height * 0.6,
   },
   scrollView: {
     flex: 1,

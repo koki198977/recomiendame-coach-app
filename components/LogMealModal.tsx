@@ -165,177 +165,202 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
     onClose();
   };
 
+  const renderModalContent = () => (
+    <>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <View style={styles.chapiContainer}>
+            <Image 
+              source={require('../assets/chapi-3d-foto-alimento.png')}
+              style={styles.chapiImage}
+              resizeMode="cover"
+            />
+          </View>
+          <Text style={styles.title}>Registrar Comida</Text>
+        </View>
+        <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+          <Text style={styles.closeButtonText}>✕</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Slot selector */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>¿Qué comida es?</Text>
+        <View style={styles.slotsContainer}>
+          {slots.map((slot) => (
+            <TouchableOpacity
+              key={slot.value}
+              style={[
+                styles.slotButton,
+                selectedSlot === slot.value && styles.slotButtonActive,
+              ]}
+              onPress={() => setSelectedSlot(slot.value as any)}
+            >
+              <Text style={styles.slotEmoji}>{slot.emoji}</Text>
+              <Text
+                style={[
+                  styles.slotText,
+                  selectedSlot === slot.value && styles.slotTextActive,
+                ]}
+              >
+                {slot.label.replace(slot.emoji + ' ', '')}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Image picker */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Foto de la comida</Text>
+        {imageUri ? (
+          <View style={styles.imagePreview}>
+            <Image source={{ uri: imageUri }} style={styles.image} />
+            <TouchableOpacity
+              style={styles.removeImageButton}
+              onPress={() => setImageUri(null)}
+            >
+              <Text style={styles.removeImageText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.imageButtons}>
+            <TouchableOpacity style={styles.imageButton} onPress={takePhoto}>
+              <Text style={styles.imageButtonIcon}>📷</Text>
+              <Text style={styles.imageButtonText}>Tomar foto</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
+              <Text style={styles.imageButtonIcon}>🖼️</Text>
+              <Text style={styles.imageButtonText}>Galería</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+      {/* Description */}
+      {imageUri && !analyzed && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Descripción (opcional)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ej: Avena con plátano y miel"
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={3}
+            maxLength={200}
+            returnKeyType="done"
+            onSubmitEditing={Keyboard.dismiss}
+            blurOnSubmit={true}
+            selectTextOnFocus={true}
+            textAlignVertical="top"
+          />
+        </View>
+      )}
+
+      {/* Analyze button */}
+      {imageUri && !analyzed && (
+        <TouchableOpacity
+          style={[styles.analyzeButton, (analyzing || uploading) && styles.buttonDisabled]}
+          onPress={handleAnalyze}
+          disabled={analyzing || uploading}
+        >
+          {uploading ? (
+            <>
+              <ActivityIndicator size="small" color="#fff" />
+              <Text style={styles.analyzeButtonText}>Subiendo imagen...</Text>
+            </>
+          ) : analyzing ? (
+            <>
+              <ActivityIndicator size="small" color="#fff" />
+              <Text style={styles.analyzeButtonText}>Analizando con IA...</Text>
+            </>
+          ) : (
+            <Text style={styles.analyzeButtonText}>🤖 Analizar con IA</Text>
+          )}
+        </TouchableOpacity>
+      )}
+
+      {/* Analysis result */}
+      {analyzed && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Análisis de IA</Text>
+          <View style={styles.analysisCard}>
+            <Text style={styles.analysisTitle}>{analyzed.title}</Text>
+            <View style={styles.macrosGrid}>
+              <View style={styles.macroItem}>
+                <Text style={styles.macroValue}>{analyzed.kcal}</Text>
+                <Text style={styles.macroLabel}>kcal</Text>
+              </View>
+              <View style={styles.macroItem}>
+                <Text style={styles.macroValue}>{analyzed.protein_g}g</Text>
+                <Text style={styles.macroLabel}>Proteína</Text>
+              </View>
+              <View style={styles.macroItem}>
+                <Text style={styles.macroValue}>{analyzed.carbs_g}g</Text>
+                <Text style={styles.macroLabel}>Carbos</Text>
+              </View>
+              <View style={styles.macroItem}>
+                <Text style={styles.macroValue}>{analyzed.fat_g}g</Text>
+                <Text style={styles.macroLabel}>Grasas</Text>
+              </View>
+            </View>
+            {analyzed.notes && (
+              <Text style={styles.analysisNotes}>{analyzed.notes}</Text>
+            )}
+            <Text style={styles.confidenceBadge}>
+              Confianza: {analyzed.confidence === 'high' ? 'Alta ✓' : analyzed.confidence === 'medium' ? 'Media' : 'Baja'}
+            </Text>
+          </View>
+
+          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+            <Text style={styles.saveButtonText}>✓ Guardar comida</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </>
+  );
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
       <View style={styles.overlay}>
-        <KeyboardAvoidingView 
-          style={styles.keyboardView}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <View style={styles.container}>
+        {Platform.OS === 'ios' ? (
+          <KeyboardAvoidingView 
+            style={styles.keyboardView}
+            behavior="padding"
+            keyboardVerticalOffset={0}
+          >
+            <View style={styles.container}>
+              <ScrollView 
+                ref={scrollViewRef}
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                bounces={false}
+                nestedScrollEnabled={true}
+                keyboardDismissMode="on-drag"
+              >
+                {renderModalContent()}
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+        ) : (
+          <View style={styles.containerAndroid}>
             <ScrollView 
               ref={scrollViewRef}
               style={styles.scrollView}
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
-              bounces={false}
+              nestedScrollEnabled={true}
+              keyboardDismissMode="on-drag"
             >
-            {/* Header */}
-            <View style={styles.header}>
-              <View style={styles.headerLeft}>
-                <View style={styles.chapiContainer}>
-                  <Image 
-                    source={require('../assets/chapi-3d-foto-alimento.png')}
-                    style={styles.chapiImage}
-                    resizeMode="cover"
-                  />
-                </View>
-                <Text style={styles.title}>Registrar Comida</Text>
-              </View>
-              <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                <Text style={styles.closeButtonText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Slot selector */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>¿Qué comida es?</Text>
-              <View style={styles.slotsContainer}>
-                {slots.map((slot) => (
-                  <TouchableOpacity
-                    key={slot.value}
-                    style={[
-                      styles.slotButton,
-                      selectedSlot === slot.value && styles.slotButtonActive,
-                    ]}
-                    onPress={() => setSelectedSlot(slot.value as any)}
-                  >
-                    <Text style={styles.slotEmoji}>{slot.emoji}</Text>
-                    <Text
-                      style={[
-                        styles.slotText,
-                        selectedSlot === slot.value && styles.slotTextActive,
-                      ]}
-                    >
-                      {slot.label.replace(slot.emoji + ' ', '')}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Image picker */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Foto de la comida</Text>
-              {imageUri ? (
-                <View style={styles.imagePreview}>
-                  <Image source={{ uri: imageUri }} style={styles.image} />
-                  <TouchableOpacity
-                    style={styles.removeImageButton}
-                    onPress={() => setImageUri(null)}
-                  >
-                    <Text style={styles.removeImageText}>✕</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <View style={styles.imageButtons}>
-                  <TouchableOpacity style={styles.imageButton} onPress={takePhoto}>
-                    <Text style={styles.imageButtonIcon}>📷</Text>
-                    <Text style={styles.imageButtonText}>Tomar foto</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
-                    <Text style={styles.imageButtonIcon}>🖼️</Text>
-                    <Text style={styles.imageButtonText}>Galería</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-
-            {/* Description */}
-            {imageUri && !analyzed && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Descripción (opcional)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ej: Avena con plátano y miel"
-                  value={description}
-                  onChangeText={setDescription}
-                  multiline
-                  numberOfLines={3}
-                  maxLength={200}
-                  returnKeyType="done"
-                  onSubmitEditing={Keyboard.dismiss}
-                  blurOnSubmit={true}
-                  selectTextOnFocus={true}
-                  textAlignVertical="top"
-                />
-              </View>
-            )}
-
-            {/* Analyze button */}
-            {imageUri && !analyzed && (
-              <TouchableOpacity
-                style={[styles.analyzeButton, (analyzing || uploading) && styles.buttonDisabled]}
-                onPress={handleAnalyze}
-                disabled={analyzing || uploading}
-              >
-                {uploading ? (
-                  <>
-                    <ActivityIndicator size="small" color="#fff" />
-                    <Text style={styles.analyzeButtonText}>Subiendo imagen...</Text>
-                  </>
-                ) : analyzing ? (
-                  <>
-                    <ActivityIndicator size="small" color="#fff" />
-                    <Text style={styles.analyzeButtonText}>Analizando con IA...</Text>
-                  </>
-                ) : (
-                  <Text style={styles.analyzeButtonText}>🤖 Analizar con IA</Text>
-                )}
-              </TouchableOpacity>
-            )}
-
-            {/* Analysis result */}
-            {analyzed && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Análisis de IA</Text>
-                <View style={styles.analysisCard}>
-                  <Text style={styles.analysisTitle}>{analyzed.title}</Text>
-                  <View style={styles.macrosGrid}>
-                    <View style={styles.macroItem}>
-                      <Text style={styles.macroValue}>{analyzed.kcal}</Text>
-                      <Text style={styles.macroLabel}>kcal</Text>
-                    </View>
-                    <View style={styles.macroItem}>
-                      <Text style={styles.macroValue}>{analyzed.protein_g}g</Text>
-                      <Text style={styles.macroLabel}>Proteína</Text>
-                    </View>
-                    <View style={styles.macroItem}>
-                      <Text style={styles.macroValue}>{analyzed.carbs_g}g</Text>
-                      <Text style={styles.macroLabel}>Carbos</Text>
-                    </View>
-                    <View style={styles.macroItem}>
-                      <Text style={styles.macroValue}>{analyzed.fat_g}g</Text>
-                      <Text style={styles.macroLabel}>Grasas</Text>
-                    </View>
-                  </View>
-                  {analyzed.notes && (
-                    <Text style={styles.analysisNotes}>{analyzed.notes}</Text>
-                  )}
-                  <Text style={styles.confidenceBadge}>
-                    Confianza: {analyzed.confidence === 'high' ? 'Alta ✓' : analyzed.confidence === 'medium' ? 'Media' : 'Baja'}
-                  </Text>
-                </View>
-
-                <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                  <Text style={styles.saveButtonText}>✓ Guardar comida</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+              {renderModalContent()}
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        )}
       </View>
     </Modal>
   );
@@ -350,6 +375,8 @@ const styles = StyleSheet.create({
   keyboardView: {
     width: '100%',
     maxHeight: '95%',
+    flex: 1,
+    justifyContent: 'flex-end',
   },
   container: {
     backgroundColor: '#fff',
@@ -357,9 +384,19 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 25,
     maxHeight: '95%',
     minHeight: Dimensions.get('window').height * 0.6,
+    flexShrink: 1,
+  },
+  containerAndroid: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    maxHeight: '95%',
+    minHeight: Dimensions.get('window').height * 0.6,
+    width: '100%',
   },
   scrollView: {
     flex: 1,
+    minHeight: 0,
   },
   scrollContent: {
     paddingBottom: 40,

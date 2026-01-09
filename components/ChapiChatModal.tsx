@@ -240,12 +240,82 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <KeyboardAvoidingView
-          style={styles.keyboardView}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-        >
-          <View style={styles.modalContainer}>
+        {Platform.OS === 'ios' ? (
+          <KeyboardAvoidingView
+            style={styles.keyboardView}
+            behavior="padding"
+            keyboardVerticalOffset={0}
+          >
+            <View style={styles.modalContainer}>
+              {/* Header */}
+              <View style={styles.header}>
+                <View style={styles.headerLeft}>
+                  <View style={styles.chapiAvatar}>
+                    <Image 
+                      source={require('../assets/chapi-3d.png')}
+                      style={styles.chapiAvatarImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                  <View>
+                    <Text style={styles.headerTitle}>Chapi</Text>
+                    <Text style={styles.headerSubtitle}>
+                      {isSyncing ? 'Sincronizando...' : 'Tu asistente emocional'}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                  <Text style={styles.closeButtonText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Messages */}
+              <ScrollView
+                ref={scrollViewRef}
+                style={styles.messagesContainer}
+                contentContainerStyle={styles.messagesContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                nestedScrollEnabled={true}
+                keyboardDismissMode="on-drag"
+              >
+                {messages.map(renderMessage)}
+
+                {isLoading && (
+                  <View style={styles.loadingBubble}>
+                    <ActivityIndicator size="small" color="#4CAF50" />
+                    <Text style={styles.loadingText}>Chapi está escribiendo...</Text>
+                  </View>
+                )}
+              </ScrollView>
+
+              {/* Input - Fixed at bottom */}
+              <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Escribe cómo te sientes..."
+                  value={inputText}
+                  onChangeText={setInputText}
+                  multiline
+                  maxLength={500}
+                  editable={!isLoading}
+                  textAlignVertical="top"
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.sendButton,
+                    (!inputText.trim() || isLoading) && styles.sendButtonDisabled,
+                  ]}
+                  onPress={handleSendMessage}
+                  disabled={!inputText.trim() || isLoading}
+                >
+                  <Text style={styles.sendButtonText}>➤</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        ) : (
+          <View style={styles.modalContainerAndroid}>
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.headerLeft}>
@@ -275,6 +345,8 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
               contentContainerStyle={styles.messagesContent}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
+              nestedScrollEnabled={true}
+              keyboardDismissMode="on-drag"
             >
               {messages.map(renderMessage)}
 
@@ -310,7 +382,7 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
               </TouchableOpacity>
             </View>
           </View>
-        </KeyboardAvoidingView>
+        )}
       </View>
     </Modal>
   );
@@ -320,29 +392,62 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
   keyboardView: {
     width: '100%',
-    maxHeight: '80%',
+    maxWidth: 600,
+    maxHeight: '90%',
+    flex: 1,
+    justifyContent: 'center',
   },
   modalContainer: {
     backgroundColor: '#f5f5f5',
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
+    borderRadius: 25,
     overflow: 'hidden',
-    maxHeight: '80%',
-    minHeight: 400,
+    maxHeight: '90%',
+    minHeight: 450,
+    width: '100%',
     flexDirection: 'column',
+    flexShrink: 1,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  modalContainerAndroid: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 25,
+    overflow: 'hidden',
+    maxHeight: '90%',
+    minHeight: 450,
+    width: '100%',
+    flexDirection: 'column',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
     backgroundColor: '#4CAF50',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
   },
   headerLeft: {
     flexDirection: 'row',

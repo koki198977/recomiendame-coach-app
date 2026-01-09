@@ -254,6 +254,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
   const caloriesTarget = weeklyPlan?.macros.kcalTarget || 2000;
   const remainingCalories = Math.max(0, caloriesTarget - totalConsumedToday);
 
+  // Macros consumidos con valores por defecto
+  const consumedProtein = todayMealsConsumed?.totals?.protein_g || 0;
+  const consumedCarbs = todayMealsConsumed?.totals?.carbs_g || 0;
+  const consumedFat = todayMealsConsumed?.totals?.fat_g || 0;
+
   const getMealTypeLabel = (slot: string): string => {
     const labels: { [key: string]: string } = {
       'BREAKFAST': 'Desayuno',
@@ -432,30 +437,131 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
               )}
             </View>
 
-            {/* Progreso del día */}
-            <View style={styles.progressCard}>
-              <Text style={styles.cardTitle}>Progreso de hoy</Text>
-              <View style={styles.progressRow}>
-                <View style={styles.progressItem}>
-                  <Text style={styles.progressNumber}>{totalConsumedToday}</Text>
-                  <Text style={styles.progressLabel}>Consumidas</Text>
+            {/* Progreso Nutricional Futurista */}
+            <View style={styles.nutritionProgressCard}>
+              <LinearGradient
+                colors={['rgba(76, 175, 80, 0.1)', 'rgba(76, 175, 80, 0.05)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.nutritionProgressGradient}
+              >
+                <View style={styles.nutritionHeader}>
+                  <View>
+                    <Text style={styles.nutritionTitle}>Progreso Nutricional</Text>
+                    <Text style={styles.nutritionSubtitle}>Objetivos de hoy</Text>
+                  </View>
+                  <View style={styles.caloriesCircle}>
+                    <Text style={styles.caloriesNumber}>
+                      {caloriesTarget > 0 ? Math.round((totalConsumedToday / caloriesTarget) * 100) : 0}%
+                    </Text>
+                    <Text style={styles.caloriesLabel}>Completado</Text>
+                  </View>
                 </View>
-                <View style={styles.progressDivider} />
-                <View style={styles.progressItem}>
-                  <Text style={styles.progressNumber}>{caloriesTarget}</Text>
-                  <Text style={styles.progressLabel}>Objetivo</Text>
+
+                {/* Barra de progreso principal de calorías */}
+                <View style={styles.mainProgressContainer}>
+                  <View style={styles.mainProgressHeader}>
+                    <Text style={styles.mainProgressLabel}>Calorías</Text>
+                    <Text style={styles.mainProgressNumbers}>
+                      {totalConsumedToday} / {caloriesTarget} kcal
+                    </Text>
+                  </View>
+                  <View style={styles.mainProgressBar}>
+                    <LinearGradient
+                      colors={GRADIENTS.primary}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[
+                        styles.mainProgressFill,
+                        { width: `${caloriesTarget > 0 ? Math.min(100, (totalConsumedToday / caloriesTarget) * 100) : 0}%` }
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.remainingText}>
+                    {remainingCalories > 0 ? `${remainingCalories} kcal restantes` : '¡Objetivo alcanzado! 🎉'}
+                  </Text>
                 </View>
-                <View style={styles.progressDivider} />
-                <View style={styles.progressItem}>
-                  <Text style={[styles.progressNumber, styles.remaining]}>{remainingCalories}</Text>
-                  <Text style={styles.progressLabel}>Restantes</Text>
+
+                {/* Macronutrientes con barras de progreso */}
+                <View style={styles.macrosProgressContainer}>
+                  <Text style={styles.macrosProgressTitle}>Macronutrientes</Text>
+                  
+                  {/* Proteína */}
+                  <View style={styles.macroProgressItem}>
+                    <View style={styles.macroProgressHeader}>
+                      <View style={styles.macroIconContainer}>
+                        <Text style={styles.macroIcon}>🥩</Text>
+                        <Text style={styles.macroName}>Proteína</Text>
+                      </View>
+                      <Text style={styles.macroNumbers}>
+                        {consumedProtein}g / {weeklyPlan.macros.protein_g}g
+                      </Text>
+                    </View>
+                    <View style={styles.macroProgressBar}>
+                      <View 
+                        style={[
+                          styles.macroProgressFill,
+                          styles.proteinFill,
+                          { width: `${weeklyPlan.macros.protein_g > 0 ? Math.min(100, (consumedProtein / weeklyPlan.macros.protein_g) * 100) : 0}%` }
+                        ]} 
+                      />
+                    </View>
+                  </View>
+
+                  {/* Carbohidratos */}
+                  <View style={styles.macroProgressItem}>
+                    <View style={styles.macroProgressHeader}>
+                      <View style={styles.macroIconContainer}>
+                        <Text style={styles.macroIcon}>🍞</Text>
+                        <Text style={styles.macroName}>Carbohidratos</Text>
+                      </View>
+                      <Text style={styles.macroNumbers}>
+                        {consumedCarbs}g / {weeklyPlan.macros.carbs_g}g
+                      </Text>
+                    </View>
+                    <View style={styles.macroProgressBar}>
+                      <View 
+                        style={[
+                          styles.macroProgressFill,
+                          styles.carbsFill,
+                          { width: `${weeklyPlan.macros.carbs_g > 0 ? Math.min(100, (consumedCarbs / weeklyPlan.macros.carbs_g) * 100) : 0}%` }
+                        ]} 
+                      />
+                    </View>
+                  </View>
+
+                  {/* Grasas */}
+                  <View style={styles.macroProgressItem}>
+                    <View style={styles.macroProgressHeader}>
+                      <View style={styles.macroIconContainer}>
+                        <Text style={styles.macroIcon}>🥑</Text>
+                        <Text style={styles.macroName}>Grasas</Text>
+                      </View>
+                      <Text style={styles.macroNumbers}>
+                        {consumedFat}g / {weeklyPlan.macros.fat_g}g
+                      </Text>
+                    </View>
+                    <View style={styles.macroProgressBar}>
+                      <View 
+                        style={[
+                          styles.macroProgressFill,
+                          styles.fatFill,
+                          { width: `${weeklyPlan.macros.fat_g > 0 ? Math.min(100, (consumedFat / weeklyPlan.macros.fat_g) * 100) : 0}%` }
+                        ]} 
+                      />
+                    </View>
+                  </View>
                 </View>
-              </View>
-              {totalConsumedToday === 0 && (
-                <Text style={styles.progressHint}>
-                  💡 Marca las comidas que consumas para ver tu progreso real
-                </Text>
-              )}
+
+                {totalConsumedToday === 0 && (
+                  <View style={styles.hintContainer}>
+                    <Text style={styles.hintIcon}>💡</Text>
+                    <Text style={styles.hintText}>
+                      Registra tus comidas para ver tu progreso en tiempo real
+                    </Text>
+                  </View>
+                )}
+              </LinearGradient>
             </View>
 
             {/* Hidratación */}
@@ -464,30 +570,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
               onSetupPress={() => setShowHydrationSetup(true)}
               onLogPress={() => setShowLogWater(true)}
             />
-
-            {/* Macros del plan */}
-            <View style={styles.macrosCard}>
-              <View style={styles.macrosHeader}>
-                <Text style={styles.cardTitle}>Objetivos nutricionales</Text>
-                <View style={styles.dailyBadge}>
-                  <Text style={styles.dailyBadgeText}>Diarios</Text>
-                </View>
-              </View>
-              <View style={styles.macrosRow}>
-                <View style={styles.macroItem}>
-                  <Text style={styles.macroNumber}>{weeklyPlan.macros.protein_g}g</Text>
-                  <Text style={styles.macroLabel}>Proteína</Text>
-                </View>
-                <View style={styles.macroItem}>
-                  <Text style={styles.macroNumber}>{weeklyPlan.macros.carbs_g}g</Text>
-                  <Text style={styles.macroLabel}>Carbos</Text>
-                </View>
-                <View style={styles.macroItem}>
-                  <Text style={styles.macroNumber}>{weeklyPlan.macros.fat_g}g</Text>
-                  <Text style={styles.macroLabel}>Grasas</Text>
-                </View>
-              </View>
-            </View>
 
             {/* Workout Card */}
             <View style={styles.workoutSection}>
@@ -1360,5 +1442,177 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+
+  // Nutrition Progress Card - Futuristic Design
+  nutritionProgressCard: {
+    backgroundColor: COLORS.card,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 24,
+    overflow: 'hidden',
+    ...SHADOWS.glow,
+    shadowColor: COLORS.primaryStart,
+    shadowOpacity: 0.1,
+    borderWidth: 1,
+    borderColor: 'rgba(67, 233, 123, 0.2)',
+  },
+  nutritionProgressGradient: {
+    padding: 24,
+  },
+  nutritionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  nutritionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: COLORS.text,
+    letterSpacing: 0.5,
+  },
+  nutritionSubtitle: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  caloriesCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    borderWidth: 3,
+    borderColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  caloriesNumber: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  caloriesLabel: {
+    fontSize: 10,
+    color: COLORS.textLight,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+
+  // Main Progress Bar (Calories)
+  mainProgressContainer: {
+    marginBottom: 24,
+  },
+  mainProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  mainProgressLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  mainProgressNumbers: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textLight,
+  },
+  mainProgressBar: {
+    height: 12,
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  mainProgressFill: {
+    height: '100%',
+    borderRadius: 6,
+  },
+  remainingText: {
+    fontSize: 13,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+
+  // Macros Progress
+  macrosProgressContainer: {
+    marginBottom: 16,
+  },
+  macrosProgressTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 16,
+  },
+  macroProgressItem: {
+    marginBottom: 16,
+  },
+  macroProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  macroIconContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  macroIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  macroName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  macroNumbers: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textLight,
+  },
+  macroProgressBar: {
+    height: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  macroProgressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  proteinFill: {
+    backgroundColor: '#FF6B6B', // Rojo para proteína
+  },
+  carbsFill: {
+    backgroundColor: '#4ECDC4', // Turquesa para carbohidratos
+  },
+  fatFill: {
+    backgroundColor: '#45B7D1', // Azul para grasas
+  },
+
+  // Hint Container
+  hintContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(76, 175, 80, 0.05)',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 8,
+  },
+  hintIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  hintText: {
+    fontSize: 13,
+    color: COLORS.textLight,
+    fontWeight: '600',
+    flex: 1,
   },
 });

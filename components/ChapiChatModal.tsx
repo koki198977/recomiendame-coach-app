@@ -15,6 +15,7 @@ import {
   Image,
   Keyboard,
   StatusBar,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -204,11 +205,8 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
       // Convertir acciones del backend a formato ChapiAction
       const actions = ChapiService.convertBackendActions(response.actions);
 
-      // Construir el contenido del mensaje combinando advice y emotion
+      // Construir el contenido del mensaje solo con el advice (sin mostrar el estado emocional)
       let messageContent = response.advice;
-      if (response.emotion && response.emotion !== 'neutral') {
-        messageContent = `**Estado emocional detectado: ${response.emotion}**\n\n${response.advice}`;
-      }
 
       const chapiMessage: ChapiMessage = {
         id: ChapiService.generateMessageId(),
@@ -233,20 +231,79 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
     }
   };
 
+  const openYouTubeUrl = async (url: string) => {
+    try {
+      console.log('🎬 Intentando abrir YouTube URL:', url);
+      
+      // Diferentes formatos de URL para probar
+      const urlsToTry = [
+        url, // URL original
+        url.replace('https://www.youtube.com/watch?v=', 'youtube://watch?v='), // App de YouTube
+        url.replace('https://www.youtube.com/watch?v=', 'vnd.youtube://watch?v='), // Esquema alternativo
+        url, // Fallback al original
+      ];
+      
+      for (const testUrl of urlsToTry) {
+        try {
+          console.log('🧪 Probando URL:', testUrl);
+          const canOpen = await Linking.canOpenURL(testUrl);
+          console.log('🧪 ¿Se puede abrir?', canOpen);
+          
+          if (canOpen) {
+            await Linking.openURL(testUrl);
+            console.log('✅ URL abierta exitosamente:', testUrl);
+            return true;
+          }
+        } catch (error) {
+          console.log('❌ Error con URL:', testUrl, error);
+          continue;
+        }
+      }
+      
+      // Si ninguna funcionó, mostrar error
+      throw new Error('No se pudo abrir ningún formato de URL');
+      
+    } catch (error) {
+      console.error('❌ Error general abriendo YouTube:', error);
+      Alert.alert(
+        'Error',
+        'No se pudo abrir el video de YouTube. Verifica que tengas la app instalada o conexión a internet.',
+        [{ text: 'OK' }]
+      );
+      return false;
+    }
+  };
   const handleActionPress = (action: ChapiAction) => {
+    console.log('🎯 Acción presionada:', action);
+    
+    const buttons: Array<{
+      text: string;
+      style?: 'cancel' | 'destructive' | 'default';
+      onPress?: () => void;
+    }> = [
+      { text: 'Ahora no', style: 'cancel' },
+    ];
+
+    // Si tiene URL de YouTube, agregar botón para ver video
+    if (action.youtubeUrl) {
+      buttons.push({
+        text: '📺 Ver video',
+        onPress: () => openYouTubeUrl(action.youtubeUrl!),
+      });
+    }
+
+    // Botón para ayuda con texto
+    buttons.push({
+      text: 'Sí, ayúdame',
+      onPress: () => {
+        setInputText(`Ayúdame con: ${action.label}`);
+      },
+    });
+
     Alert.alert(
       action.label,
-      `${action.description}\n\n¿Quieres que te ayude a hacer este ejercicio?`,
-      [
-        { text: 'Ahora no', style: 'cancel' },
-        {
-          text: 'Sí, ayúdame',
-          onPress: () => {
-            // En el futuro, esto podría abrir una rutina guiada
-            setInputText(`Ayúdame con: ${action.label}`);
-          },
-        },
-      ]
+      `${action.description}${action.duration ? `\n\nDuración: ${action.duration} minutos` : ''}\n\n¿Cómo te gustaría proceder?`,
+      buttons
     );
   };
 
@@ -269,18 +326,35 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
         {message.suggestedActions && message.suggestedActions.length > 0 && (
           <View style={styles.actionsContainer}>
             <Text style={styles.actionsTitle}>Acciones sugeridas:</Text>
-            {message.suggestedActions.map((action) => (
-              <TouchableOpacity
-                key={action.id}
-                style={styles.actionButton}
-                onPress={() => handleActionPress(action)}
-              >
-                <Text style={styles.actionButtonText}>
-                  {action.label}
-                  {action.duration && ` (${action.duration} min)`}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {message.suggestedActions.map((action) => {
+              // Log para debug
+              console.log('Renderizando acción:', {
+                id: action.id,
+                label: action.label,
+                youtubeUrl: action.youtubeUrl,
+                hasYouTubeUrl: !!action.youtubeUrl
+              });
+              
+              return (
+                <TouchableOpacity
+                  key={action.id}
+                  style={[
+                    styles.actionButton,
+                    action.youtubeUrl && styles.actionButtonWithVideo
+                  ]}
+                  onPress={() => handleActionPress(action)}
+                >
+                  <Text style={[
+                    styles.actionButtonText,
+                    action.youtubeUrl && styles.actionButtonTextWithVideo
+                  ]}>
+                    {action.youtubeUrl && '📺 '}
+                    {action.label}
+                    {action.duration && ` (${action.duration} min)`}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
 
@@ -564,10 +638,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#4CAF50',
   },
+  actionButtonWithVideo: {
+    backgroundColor: '#E3F2FD',
+    borderColor: '#2196F3',
+    shadowColor: '#2196F3',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
   actionButtonText: {
     fontSize: 14,
     color: '#2E7D32',
     fontWeight: '500',
+  },
+  actionButtonTextWithVideo: {
+    color: '#1565C0',
+    fontWeight: '600',
   },
   loadingBubble: {
     flexDirection: 'row',

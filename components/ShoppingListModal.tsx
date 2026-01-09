@@ -8,8 +8,12 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
+  Alert,
+  Share,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ShoppingListItem } from '../types/nutrition';
 
 
@@ -28,7 +32,10 @@ export const ShoppingListModal: React.FC<ShoppingListModalProps> = ({
   items,
   loading,
   total,
+  planId,
 }) => {
+  const [isExporting, setIsExporting] = React.useState(false);
+
   // Agrupar items por categoría
   const groupedItems = items.reduce((groups, item) => {
     const category = item.category || 'Otros';
@@ -56,6 +63,110 @@ export const ShoppingListModal: React.FC<ShoppingListModalProps> = ({
       'Otros': '🛒',
     };
     return icons[category] || '📦';
+  };
+
+  const handleExport = async () => {
+    if (!planId) {
+      Alert.alert('Error', 'No se puede exportar: ID del plan no disponible');
+      return;
+    }
+
+    try {
+      setIsExporting(true);
+
+      // Obtener token de autenticación
+      const token = await AsyncStorage.getItem('authToken');
+      if (!token) {
+        Alert.alert('Error', 'No se encontró token de autenticación');
+        return;
+      }
+
+      // Generar URL del CSV
+      const csvUrl = `https://api-coach.recomiendameapp.cl/plans/${planId}/shopping-list.csv`;
+      
+      console.log('Descargando CSV desde:', csvUrl);
+
+      // Hacer petición al endpoint CSV
+      const response = await fetch(csvUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'text/csv',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+
+      // Obtener el contenido CSV
+      const csvContent = await response.text();
+      
+      console.log('CSV descargado exitosamente');
+
+      // Compartir el contenido CSV
+      const result = await Share.share({
+        message: csvContent,
+        title: 'Lista de Compras - Recomiéndame Coach (CSV)',
+      });
+
+      if (result.action === Share.sharedAction) {
+        console.log('CSV compartido exitosamente');
+      }
+
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      
+      // Fallback: exportar como texto si el CSV falla
+      Alert.alert(
+        'Error descargando CSV',
+        'No se pudo descargar el archivo CSV. ¿Quieres exportar como texto?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Sí', onPress: handleTextExport }
+        ]
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleTextExport = async () => {
+    try {
+      // Generar contenido de texto para la lista
+      let content = '📋 LISTA DE COMPRAS - RECOMIÉNDAME COACH\n';
+      content += '=' .repeat(50) + '\n\n';
+      
+      // Agregar fecha
+      const today = new Date();
+      content += `📅 Fecha: ${today.toLocaleDateString('es-ES')}\n`;
+      content += `🛍️ Total de ingredientes: ${total}\n\n`;
+      
+      // Agregar items por categoría
+      Object.entries(groupedItems).forEach(([category, categoryItems]) => {
+        content += `${getCategoryIcon(category)} ${category.toUpperCase()}\n`;
+        content += '-'.repeat(30) + '\n';
+        
+        categoryItems.forEach((item) => {
+          content += `• ${item.name} - ${formatQuantity(item)}\n`;
+        });
+        
+        content += '\n';
+      });
+      
+      content += '\n' + '='.repeat(50) + '\n';
+      content += '✨ Generado por Recomiéndame Coach\n';
+      content += '💚 ¡Que disfrutes tus compras saludables!';
+
+      // Compartir usando Share nativo
+      await Share.share({
+        message: content,
+        title: 'Lista de Compras - Recomiéndame Coach',
+      });
+    } catch (error) {
+      console.error('Error exporting text:', error);
+      Alert.alert('Error', 'No se pudo exportar la lista.');
+    }
   };
 
   return (
@@ -120,9 +231,35 @@ export const ShoppingListModal: React.FC<ShoppingListModalProps> = ({
 
           {/* Footer */}
           <View style={styles.footer}>
-            <TouchableOpacity style={styles.closeFooterButton} onPress={onClose}>
-              <Text style={styles.closeFooterButtonText}>Cerrar</Text>
-            </TouchableOpacity>
+            <View style={styles.footerButtons}>
+              <TouchableOpacity 
+                style={[
+                  styles.footerButton, 
+                  styles.exportButton,
+                  (loading || items.length === 0 || isExporting || !planId) && styles.exportButtonDisabled
+                ]} 
+                onPress={handleExport}
+                disabled={loading || items.length === 0 || isExporting || !planId}
+              >
+                {isExporting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={[
+                    styles.exportButtonText,
+                    (loading || items.length === 0 || !planId) && styles.exportButtonTextDisabled
+                  ]}>
+                    📊 CSV
+                  </Text>
+                )}
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.footerButton, styles.closeFooterButton]} 
+                onPress={onClose}
+              >
+                <Text style={styles.closeFooterButtonText}>Cerrar</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </View>
@@ -267,10 +404,31 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
   },
-  closeFooterButton: {
+  footerButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  footerButton: {
+    flex: 1,
     paddingVertical: 15,
     borderRadius: 25,
     alignItems: 'center',
+  },
+  exportButton: {
+    backgroundColor: '#2196F3',
+  },
+  exportButtonDisabled: {
+    backgroundColor: '#BDBDBD',
+  },
+  exportButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  exportButtonTextDisabled: {
+    color: '#757575',
+  },
+  closeFooterButton: {
     backgroundColor: '#4CAF50',
   },
   closeFooterButtonText: {

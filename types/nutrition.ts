@@ -404,6 +404,7 @@ export interface ChapiAction {
   type: "exercise" | "breathing" | "walk" | "shower" | "sunlight" | "routine";
   duration?: number; // en minutos
   description: string;
+  youtubeUrl?: string; // URL de YouTube para el ejercicio guiado
 }
 
 export interface ChapiMessage {

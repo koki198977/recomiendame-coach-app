@@ -45,13 +45,29 @@ class ChapiService {
   convertBackendActions(backendActions: any[]): ChapiAction[] {
     if (!backendActions || backendActions.length === 0) return [];
     
-    return backendActions.map((action, index) => ({
-      id: `action_${index}_${Date.now()}`,
-      label: action.title,
-      type: action.type === 'PHYSICAL' ? 'exercise' : 'breathing',
-      duration: action.durationMinutes,
-      description: action.title,
-    }));
+    console.log('🔄 Convirtiendo acciones del backend:', backendActions);
+    
+    const convertedActions = backendActions.map((action, index) => {
+      const converted = {
+        id: `action_${index}_${Date.now()}`,
+        label: action.title,
+        type: action.type === 'PHYSICAL' ? 'exercise' : 'breathing',
+        duration: action.durationMinutes,
+        description: action.title,
+        youtubeUrl: action.youtubeUrl, // Agregar soporte para URLs de YouTube
+      };
+      
+      console.log(`📺 Acción ${index}:`, {
+        original: action,
+        converted: converted,
+        hasYouTubeUrl: !!converted.youtubeUrl
+      });
+      
+      return converted;
+    });
+    
+    console.log('✅ Acciones convertidas:', convertedActions);
+    return convertedActions;
   }
 
   /**

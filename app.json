@@ -30,7 +30,13 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "cl.recomiendameapp.coach"
+      "bundleIdentifier": "cl.recomiendameapp.coach",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": [
+          "youtube",
+          "vnd.youtube"
+        ]
+      }
     },
     "android": {
       "package": "cl.recomiendameapp.coach",
@@ -44,10 +50,24 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.INTERNET"
       ],
       "softwareKeyboardLayoutMode": "pan",
-
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "https"
+            },
+            {
+              "scheme": "http"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "statusBar": {
         "backgroundColor": "#ffffff",
         "barStyle": "dark-content"

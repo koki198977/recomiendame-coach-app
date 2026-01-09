@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NutritionService } from '../services/nutritionService';
 import { WeeklyPlan, WeeklyPlanMeal, WeeklyPlanIngredient, ShoppingListItem } from '../types/nutrition';
 import { IngredientsModal } from '../components/IngredientsModal';
@@ -49,7 +50,44 @@ export const PlanScreen: React.FC = () => {
   useEffect(() => {
     loadWeeklyPlan();
     loadTodayMeals();
+    loadConsumedMealsState();
   }, []);
+
+  // Cargar estado de comidas consumidas cuando cambie la semana
+  useEffect(() => {
+    if (currentWeek) {
+      loadConsumedMealsState();
+    }
+  }, [currentWeek]);
+
+  // Cargar estado de comidas consumidas desde AsyncStorage
+  const loadConsumedMealsState = async () => {
+    try {
+      const weekKey = currentWeek || NutritionService.getCurrentWeek();
+      const stored = await AsyncStorage.getItem(`consumedMeals_${weekKey}`);
+      if (stored) {
+        setConsumedMeals(new Set(JSON.parse(stored)));
+      } else {
+        setConsumedMeals(new Set());
+      }
+    } catch (error) {
+      console.log('Error loading consumed meals state:', error);
+      setConsumedMeals(new Set());
+    }
+  };
+
+  // Guardar estado de comidas consumidas en AsyncStorage
+  const saveConsumedMealsState = async (newConsumedMeals: Set<string>) => {
+    try {
+      const weekKey = currentWeek || NutritionService.getCurrentWeek();
+      await AsyncStorage.setItem(
+        `consumedMeals_${weekKey}`, 
+        JSON.stringify([...newConsumedMeals])
+      );
+    } catch (error) {
+      console.log('Error saving consumed meals state:', error);
+    }
+  };
 
   const loadTodayMeals = async () => {
     try {
@@ -474,7 +512,11 @@ export const PlanScreen: React.FC = () => {
       });
       
       // Agregar al set de comidas consumidas
-      setConsumedMeals(prev => new Set(prev).add(markKey));
+      const newConsumedMeals = new Set(consumedMeals).add(markKey);
+      setConsumedMeals(newConsumedMeals);
+      
+      // Guardar estado en AsyncStorage
+      await saveConsumedMealsState(newConsumedMeals);
       
       // Recargar comidas del día para actualizar el progreso
       await loadTodayMeals();

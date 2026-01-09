@@ -228,9 +228,8 @@ export const EditPreferencesModal: React.FC<EditPreferencesModalProps> = ({
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
         <KeyboardAvoidingView 
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.keyboardView}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={styles.container}>
             {/* Header */}
@@ -303,8 +302,6 @@ export const EditPreferencesModal: React.FC<EditPreferencesModalProps> = ({
                 style={styles.content} 
                 showsVerticalScrollIndicator={false} 
                 keyboardShouldPersistTaps="handled"
-                bounces={false}
-                nestedScrollEnabled={true}
               >
                 {loading ? (
                   <View style={styles.loadingContainer}>

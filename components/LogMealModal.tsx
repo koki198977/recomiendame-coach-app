@@ -10,10 +10,6 @@ import {
   Image,
   ActivityIndicator,
   Alert,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  Keyboard,
   Dimensions,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -39,7 +35,6 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
   const [analyzing, setAnalyzing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [analyzed, setAnalyzed] = useState<any>(null);
-  const [description, setDescription] = useState('');
 
   const scrollViewRef = React.useRef<ScrollView>(null);
 
@@ -104,8 +99,8 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
       setUploading(false);
       setAnalyzing(true);
       
-      // Analizar con IA
-      const result = await NutritionService.analyzeMeal(uploadResult.url, description);
+      // Analizar con IA (sin descripción)
+      const result = await NutritionService.analyzeMeal(uploadResult.url, '');
       
       setAnalyzed({
         ...result,
@@ -161,7 +156,6 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
   const handleClose = () => {
     setImageUri(null);
     setAnalyzed(null);
-    setDescription('');
     onClose();
   };
 
@@ -238,26 +232,7 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
         )}
       </View>
 
-      {/* Description */}
-      {imageUri && !analyzed && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Descripción (opcional)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Ej: Avena con plátano y miel"
-            value={description}
-            onChangeText={setDescription}
-            multiline
-            numberOfLines={3}
-            maxLength={200}
-            returnKeyType="done"
-            onSubmitEditing={Keyboard.dismiss}
-            blurOnSubmit={true}
-            selectTextOnFocus={true}
-            textAlignVertical="top"
-          />
-        </View>
-      )}
+      {/* Description - REMOVED */}
 
       {/* Analyze button */}
       {imageUri && !analyzed && (
@@ -325,42 +300,19 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
       <View style={styles.overlay}>
-        {Platform.OS === 'ios' ? (
-          <KeyboardAvoidingView 
-            style={styles.keyboardView}
-            behavior="padding"
-            keyboardVerticalOffset={0}
+        <View style={styles.container}>
+          <ScrollView 
+            ref={scrollViewRef}
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            bounces={true}
+            keyboardDismissMode="interactive"
           >
-            <View style={styles.container}>
-              <ScrollView 
-                ref={scrollViewRef}
-                style={styles.scrollView}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                bounces={false}
-                nestedScrollEnabled={true}
-                keyboardDismissMode="on-drag"
-              >
-                {renderModalContent()}
-              </ScrollView>
-            </View>
-          </KeyboardAvoidingView>
-        ) : (
-          <View style={styles.containerAndroid}>
-            <ScrollView 
-              ref={scrollViewRef}
-              style={styles.scrollView}
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              nestedScrollEnabled={true}
-              keyboardDismissMode="on-drag"
-            >
-              {renderModalContent()}
-            </ScrollView>
-          </View>
-        )}
+            {renderModalContent()}
+          </ScrollView>
+        </View>
       </View>
     </Modal>
   );
@@ -370,37 +322,24 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  keyboardView: {
-    width: '100%',
-    maxHeight: '95%',
-    flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingTop: 90,
   },
   container: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    maxHeight: '95%',
-    minHeight: Dimensions.get('window').height * 0.6,
-    flexShrink: 1,
-  },
-  containerAndroid: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    maxHeight: '95%',
-    minHeight: Dimensions.get('window').height * 0.6,
-    width: '100%',
+    borderRadius: 25,
+    maxHeight: '94%',
+    minHeight: Dimensions.get('window').height * 0.78,
+    width: '93%',
+    maxWidth: 550,
   },
   scrollView: {
     flex: 1,
-    minHeight: 0,
   },
   scrollContent: {
     paddingBottom: 40,
-    flexGrow: 1,
   },
   header: {
     flexDirection: 'row',
@@ -544,18 +483,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 14,
-    minHeight: 60,
-    maxHeight: 100,
-    textAlignVertical: 'top',
-    color: '#000',
-    backgroundColor: '#fff',
   },
   analyzeButton: {
     backgroundColor: '#4CAF50',

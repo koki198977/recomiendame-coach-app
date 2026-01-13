@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Platform,
+  KeyboardAvoidingView,
   ActivityIndicator,
   Alert,
   Image,
@@ -32,6 +33,7 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  const insets = useSafeAreaInsets();
 
   // Cargar mensajes al abrir el modal
   useEffect(() => {
@@ -291,10 +293,15 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
     <Modal
       visible={visible}
       animationType="slide"
-      presentationStyle="pageSheet"
+      transparent
       onRequestClose={onClose}
     >
-      <View style={styles.modalContainer}>
+      <KeyboardAvoidingView
+        style={styles.modalOverlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={insets.bottom}
+      >
+        <View style={styles.modalContainer}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.backButton}>
@@ -362,15 +369,24 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
             <Text style={styles.sendButtonText}>➤</Text>
           </TouchableOpacity>
         </View>
-      </View>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  modalContainer: {
+  modalOverlay: {
     flex: 1,
+    justifyContent: 'flex-start',
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+  },
+  modalContainer: {
+    height: '80%',
     backgroundColor: '#f5f5f5',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',

@@ -13,6 +13,8 @@ import {
 import { NutritionService } from '../services/nutritionService';
 import { SocialService } from '../services/socialService';
 import { AchievementsService } from '../services/achievementsService';
+import { FoodPhotoStreakService } from '../services/foodPhotoStreakService';
+import StorageService from '../services/storage';
 import WorkoutService from '../services/workoutService';
 import { Checkin, Achievement, ActivityStat } from '../types/nutrition';
 import { TrophyModal } from '../components/TrophyModal';
@@ -236,6 +238,18 @@ export const ProgressScreen: React.FC = () => {
         console.log('Error checking profile/plans:', error);
       }
 
+      // Obtener datos de racha de fotos de comida
+      const foodPhotoStreakData = await FoodPhotoStreakService.getStreakData();
+
+      // Cargar logros ya desbloqueados
+      let unlockedAchievementIds: string[] = [];
+      try {
+        const existingAchievements = await StorageService.getItem('unlocked_achievements');
+        unlockedAchievementIds = existingAchievements ? JSON.parse(existingAchievements) : [];
+      } catch (error) {
+        console.log('Error loading unlocked achievements:', error);
+      }
+
       // Calcular logros
       const calculatedAchievements = AchievementsService.calculateAchievements({
         streakDays,
@@ -254,6 +268,13 @@ export const ProgressScreen: React.FC = () => {
         totalCaloriesBurned: workoutStats.totalCaloriesBurned,
         workoutStreakDays: workoutStats.workoutStreakDays,
         workoutsThisWeek: workoutStats.workoutsThisWeek,
+        // Datos de fotos de comida
+        foodPhotoStreak: foodPhotoStreakData.currentStreak,
+        foodPhotoLongestStreak: foodPhotoStreakData.longestStreak,
+        foodPhotoTotalPhotos: foodPhotoStreakData.totalPhotos,
+        foodPhotoTodayPhotos: foodPhotoStreakData.todayPhotos,
+        // Logros ya desbloqueados
+        unlockedAchievementIds,
       });
 
       // Cargar estado de trofeos compartidos

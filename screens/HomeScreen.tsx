@@ -21,6 +21,9 @@ import { NotificationBadge } from '../components/NotificationBadge';
 import { HydrationCard } from '../components/HydrationCard';
 import { HydrationSetupModal } from '../components/HydrationSetupModal';
 import { LogWaterModal } from '../components/LogWaterModal';
+import { FoodPhotoStreakCard } from '../components/FoodPhotoStreakCard';
+import { FoodPhotoStreakService } from '../services/foodPhotoStreakService';
+import { NotificationService } from '../services/notificationService';
 import WorkoutService from '../services/workoutService';
 import type { WorkoutPlan, WorkoutDay, Exercise } from '../types/nutrition';
 import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
@@ -53,6 +56,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
   const [showHydrationSetup, setShowHydrationSetup] = React.useState(false);
   const [showLogWater, setShowLogWater] = React.useState(false);
   const [hydrationKey, setHydrationKey] = React.useState(0); // Para forzar refresh
+  const [streakRefreshKey, setStreakRefreshKey] = React.useState(0); // Para refrescar racha de fotos
 
   const loadData = async () => {
     try {
@@ -80,6 +84,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
 
       // Cargar workout del día
       loadWorkoutPlan();
+
+      // Inicializar servicio de notificaciones
+      await NotificationService.initialize();
     } catch (error) {
       console.log('Error loading data:', error);
     } finally {
@@ -319,6 +326,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
     try {
       const mealsConsumed = await NutritionService.getTodayMeals();
       setTodayMealsConsumed(mealsConsumed);
+      
+      // Refrescar la tarjeta de racha de fotos
+      setStreakRefreshKey(prev => prev + 1);
     } catch (error) {
       console.log('Error reloading meals:', error);
     }
@@ -339,9 +349,31 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
           onPress: async () => {
             try {
               await NutritionService.deleteMealLog(logId);
+              
               // Recargar comidas consumidas
               const mealsConsumed = await NutritionService.getTodayMeals();
               setTodayMealsConsumed(mealsConsumed);
+              
+              // Actualizar racha de fotos después de eliminar
+              try {
+                console.log('🔄 Updating streak after meal deletion...');
+                const { streakData, achievementsRevoked } = await FoodPhotoStreakService.updateStreakAfterPhotoDelete();
+                
+                // Refrescar la tarjeta de racha
+                setStreakRefreshKey(prev => prev + 1);
+                
+                // Mostrar notificación si se perdió la racha
+                if (achievementsRevoked.includes('food_photo_streak_3')) {
+                  Alert.alert(
+                    '📸 Racha perdida',
+                    `Ahora tienes ${streakData.todayPhotos}/3 fotos hoy. ¡Sube más fotos para recuperar tu racha!`,
+                    [{ text: 'Entendido' }]
+                  );
+                }
+              } catch (streakError) {
+                console.log('Error updating streak after delete:', streakError);
+              }
+              
               Alert.alert("Éxito", "Comida eliminada correctamente");
             } catch (error) {
               console.log('Error deleting meal:', error);
@@ -436,6 +468,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
                 </View>
               )}
             </View>
+
+            {/* Racha de Fotos de Comida */}
+            <FoodPhotoStreakCard 
+              refreshKey={streakRefreshKey}
+              onPress={() => setShowLogMealModal(true)}
+            />
 
             {/* Progreso Nutricional Futurista */}
             <View style={styles.nutritionProgressCard}>

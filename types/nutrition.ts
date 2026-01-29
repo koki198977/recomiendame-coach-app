@@ -374,7 +374,7 @@ export interface Achievement {
   title: string;
   description: string;
   icon: string;
-  category: "streak" | "weight" | "adherence" | "social" | "milestone" | "workout";
+  category: "streak" | "weight" | "adherence" | "social" | "milestone" | "workout" | "food_photos";
   requirement: number;
   isUnlocked: boolean;
   unlockedAt?: string;

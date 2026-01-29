@@ -38,6 +38,10 @@ export const WorkoutsTab: React.FC = () => {
   const [workoutSummary, setWorkoutSummary] = useState<any>(null);
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [currentRestSeconds, setCurrentRestSeconds] = useState(60);
+  
+  // Estados para controles individuales de ejercicios
+  const [activeExercises, setActiveExercises] = useState<Set<number>>(new Set());
+  const [exerciseTimers, setExerciseTimers] = useState<{[key: number]: number}>({});
 
   useEffect(() => {
     loadWorkoutPlan();
@@ -55,6 +59,24 @@ export const WorkoutsTab: React.FC = () => {
     }
     return () => clearInterval(interval);
   }, [isWorkoutActive, workoutStartTime]);
+
+  // Timer effect para ejercicios individuales
+  useEffect(() => {
+    let intervals: { [key: number]: NodeJS.Timeout } = {};
+    
+    activeExercises.forEach(exerciseIndex => {
+      intervals[exerciseIndex] = setInterval(() => {
+        setExerciseTimers(prev => ({
+          ...prev,
+          [exerciseIndex]: (prev[exerciseIndex] || 0) + 1
+        }));
+      }, 1000);
+    });
+
+    return () => {
+      Object.values(intervals).forEach(interval => clearInterval(interval));
+    };
+  }, [activeExercises]);
 
   const loadWorkoutPlan = async () => {
     try {
@@ -244,7 +266,7 @@ export const WorkoutsTab: React.FC = () => {
     setExerciseEdits({});
     Alert.alert(
       '¡Rutina iniciada! 💪', 
-      'Presiona el botón "Marcar" en cada ejercicio cuando lo completes. El cronómetro está corriendo. ¡A entrenar!',
+      'Usa los controles individuales de cada ejercicio para iniciar, pausar y completar. El cronómetro está corriendo. ¡A entrenar!',
       [{ text: 'Entendido' }]
     );
   };
@@ -374,6 +396,51 @@ export const WorkoutsTab: React.FC = () => {
       .filter(step => step.length > 0);
   };
 
+  // Funciones para controles individuales de ejercicios
+  const startExercise = (exerciseIndex: number) => {
+    setActiveExercises(prev => new Set([...prev, exerciseIndex]));
+    setExerciseTimers(prev => ({ ...prev, [exerciseIndex]: 0 }));
+    
+    // Si no hay rutina activa, iniciarla automáticamente
+    if (!isWorkoutActive) {
+      startWorkout();
+    }
+  };
+
+  const pauseExercise = (exerciseIndex: number) => {
+    setActiveExercises(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(exerciseIndex);
+      return newSet;
+    });
+  };
+
+  const completeExercise = (exerciseIndex: number, restSeconds: number = 60) => {
+    // Marcar como completado
+    setCompletedExercises(prev => new Set([...prev, exerciseIndex]));
+    
+    // Pausar el ejercicio
+    pauseExercise(exerciseIndex);
+    
+    // Mostrar timer de descanso
+    setCurrentRestSeconds(restSeconds);
+    setShowRestTimer(true);
+  };
+
+  const resetExercise = (exerciseIndex: number) => {
+    setActiveExercises(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(exerciseIndex);
+      return newSet;
+    });
+    setExerciseTimers(prev => ({ ...prev, [exerciseIndex]: 0 }));
+    setCompletedExercises(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(exerciseIndex);
+      return newSet;
+    });
+  };
+
   const renderExercise = (exercise: Exercise, index: number) => {
     const isCompleted = completedExercises.has(index);
     const edits = exerciseEdits[index] || {};
@@ -386,26 +453,6 @@ export const WorkoutsTab: React.FC = () => {
         styles.exerciseCard,
         isCompleted && styles.exerciseCardCompleted
       ]}>
-        {/* Check button */}
-        {isWorkoutActive && (
-          <TouchableOpacity
-            style={[styles.checkButton, isCompleted && styles.checkButtonCompleted]}
-            onPress={() => toggleExerciseComplete(index, exercise.restSeconds || 60)}
-            activeOpacity={0.7}
-          >
-            {isCompleted ? (
-              <View style={styles.checkButtonContent}>
-                <Text style={styles.checkButtonIcon}>✓</Text>
-              </View>
-            ) : (
-              <View style={styles.checkButtonContent}>
-                <View style={styles.checkButtonInner} />
-                <Text style={styles.checkButtonLabel}>Marcar</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        )}
-
         <View style={styles.exerciseHeader}>
           <Text style={[styles.exerciseNumber, isCompleted && styles.exerciseNumberCompleted]}>
             {index + 1}
@@ -418,14 +465,55 @@ export const WorkoutsTab: React.FC = () => {
               <Text style={styles.muscleGroup}>🎯 {exercise.muscleGroup}</Text>
             )}
           </View>
-          {exercise.videoQuery && (
-            <TouchableOpacity 
-              style={styles.videoButton}
-              onPress={() => handleOpenVideo(exercise.videoQuery!)}
-            >
-              <Text style={styles.videoButtonText}>📺</Text>
-            </TouchableOpacity>
-          )}
+          
+          {/* Controles individuales de ejercicio */}
+          <View style={styles.exerciseControls}>
+            {activeExercises.has(index) ? (
+              <View style={styles.activeExerciseControls}>
+                <Text style={styles.exerciseTimer}>
+                  {formatTime(exerciseTimers[index] || 0)}
+                </Text>
+                <TouchableOpacity 
+                  style={styles.pauseButton}
+                  onPress={() => pauseExercise(index)}
+                >
+                  <Text style={styles.pauseButtonText}>⏸️</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.completeButton}
+                  onPress={() => completeExercise(index, exercise.restSeconds || 60)}
+                >
+                  <Text style={styles.completeButtonText}>✓</Text>
+                </TouchableOpacity>
+              </View>
+            ) : isCompleted ? (
+              <View style={styles.completedExerciseControls}>
+                <Text style={styles.completedText}>Completado ✓</Text>
+                <TouchableOpacity 
+                  style={styles.resetButton}
+                  onPress={() => resetExercise(index)}
+                >
+                  <Text style={styles.resetButtonText}>🔄</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity 
+                style={styles.playButton}
+                onPress={() => startExercise(index)}
+              >
+                <Text style={styles.playButtonText}>▶️</Text>
+              </TouchableOpacity>
+            )}
+            
+            {exercise.videoQuery && (
+              <TouchableOpacity 
+                style={styles.videoButton}
+                onPress={() => handleOpenVideo(exercise.videoQuery!)}
+              >
+                <Text style={styles.videoButtonText}>📺</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {/* Editable details */}
@@ -601,15 +689,6 @@ export const WorkoutsTab: React.FC = () => {
         {/* Timer and controls */}
         {isWorkoutActive && (
           <>
-            {/* Hint banner */}
-            {completedExercises.size === 0 && (
-              <View style={styles.hintBanner}>
-                <Text style={styles.hintBannerText}>
-                  👉 Presiona "Marcar" en cada ejercicio al completarlo
-                </Text>
-              </View>
-            )}
-            
             <View style={styles.timerContainer}>
               <View style={styles.timerContent}>
                 <Text style={styles.timerLabel}>⏱️ Tiempo</Text>
@@ -1234,49 +1313,6 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     backgroundColor: 'rgba(67, 233, 123, 0.1)',
   },
-  checkButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    minWidth: 80,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-    ...SHADOWS.card,
-  },
-  checkButtonCompleted: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  checkButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  checkButtonInner: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    backgroundColor: '#fff',
-  },
-  checkButtonIcon: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#fff',
-  },
-  checkButtonLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
   exerciseNumberCompleted: {
     backgroundColor: 'rgba(67, 233, 123, 0.3)',
   },
@@ -1400,5 +1436,92 @@ const styles = StyleSheet.create({
     color: COLORS.textLight,
     fontSize: 14,
     fontWeight: '600',
+  },
+  // Estilos para controles individuales de ejercicios
+  exerciseControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  playButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  playButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  activeExerciseControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(67, 233, 123, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
+  exerciseTimer: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: COLORS.primary,
+    minWidth: 50,
+    textAlign: 'center',
+  },
+  pauseButton: {
+    backgroundColor: '#FF9500',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  pauseButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  completeButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  completeButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  completedExerciseControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(67, 233, 123, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  completedText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  resetButton: {
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  resetButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

@@ -98,6 +98,96 @@ export class AchievementsService {
 
       // Logros de adherencia
       {
+        id: 'adherence_80',
+        title: 'Buen Seguimiento',
+        description: 'Mantén 80% de adherencia por una semana',
+        icon: '📊',
+        category: 'adherence',
+        requirement: 80,
+        isUnlocked: false,
+        progress: 0,
+        maxProgress: 80,
+      },
+      {
+        id: 'adherence_90',
+        title: 'Excelente Adherencia',
+        description: 'Mantén 90% de adherencia por una semana',
+        icon: '🎯',
+        category: 'adherence',
+        requirement: 90,
+        isUnlocked: false,
+        progress: 0,
+        maxProgress: 90,
+      },
+
+      // Logros de fotos de comida (NUEVOS)
+      {
+        id: 'food_photo_first',
+        title: 'Primera Foto',
+        description: 'Sube tu primera foto de comida',
+        icon: '📸',
+        category: 'food_photos',
+        requirement: 1,
+        isUnlocked: false,
+        progress: 0,
+        maxProgress: 1,
+      },
+      {
+        id: 'food_photo_streak_3',
+        title: 'Racha Fotográfica',
+        description: 'Sube 3 fotos de comida en un día',
+        icon: '🔥',
+        category: 'food_photos',
+        requirement: 3,
+        isUnlocked: false,
+        progress: 0,
+        maxProgress: 3,
+      },
+      {
+        id: 'food_photo_streak_7',
+        title: 'Semana Completa',
+        description: 'Completa rachas de 3 fotos durante 7 días consecutivos',
+        icon: '🏆',
+        category: 'food_photos',
+        requirement: 7,
+        isUnlocked: false,
+        progress: 0,
+        maxProgress: 7,
+      },
+      {
+        id: 'food_photo_streak_30',
+        title: 'Mes Fotográfico',
+        description: 'Completa rachas de 3 fotos durante 30 días consecutivos',
+        icon: '👑',
+        category: 'food_photos',
+        requirement: 30,
+        isUnlocked: false,
+        progress: 0,
+        maxProgress: 30,
+      },
+      {
+        id: 'food_photo_total_50',
+        title: 'Coleccionista',
+        description: 'Sube un total de 50 fotos de comida',
+        icon: '📚',
+        category: 'food_photos',
+        requirement: 50,
+        isUnlocked: false,
+        progress: 0,
+        maxProgress: 50,
+      },
+      {
+        id: 'food_photo_total_100',
+        title: 'Fotógrafo Culinario',
+        description: 'Sube un total de 100 fotos de comida',
+        icon: '📷',
+        category: 'food_photos',
+        requirement: 100,
+        isUnlocked: false,
+        progress: 0,
+        maxProgress: 100,
+      },
+      {
         id: 'adherence_perfect',
         title: 'Día Perfecto',
         description: 'Logra 100% de adherencia en un día',
@@ -300,12 +390,22 @@ export class AchievementsService {
     totalCaloriesBurned?: number;
     workoutStreakDays?: number;
     workoutsThisWeek?: number;
+    // Datos de fotos de comida
+    foodPhotoStreak?: number;
+    foodPhotoLongestStreak?: number;
+    foodPhotoTotalPhotos?: number;
+    foodPhotoTodayPhotos?: number;
+    // Logros ya desbloqueados (para persistencia)
+    unlockedAchievementIds?: string[];
   }): Achievement[] {
     const achievements = this.getAllAchievements();
 
     return achievements.map(achievement => {
       let progress = 0;
       let isUnlocked = false;
+
+      // Verificar si ya está desbloqueado en storage
+      const wasAlreadyUnlocked = data.unlockedAchievementIds?.includes(achievement.id) || false;
 
       switch (achievement.id) {
         // Logros de racha
@@ -415,6 +515,33 @@ export class AchievementsService {
           progress = data.hasProfile ? 1 : 0;
           isUnlocked = data.hasProfile;
           break;
+
+        // Logros de fotos de comida
+        case 'food_photo_first':
+          progress = Math.min(data.foodPhotoTotalPhotos || 0, 1);
+          isUnlocked = wasAlreadyUnlocked && (data.foodPhotoTotalPhotos || 0) >= 1;
+          break;
+        case 'food_photo_streak_3':
+          progress = Math.min(data.foodPhotoTodayPhotos || 0, 3);
+          // Solo está desbloqueado si cumple la condición Y está en storage
+          isUnlocked = wasAlreadyUnlocked && (data.foodPhotoTodayPhotos || 0) >= 3;
+          break;
+        case 'food_photo_streak_7':
+          progress = Math.min(data.foodPhotoStreak || 0, 7);
+          isUnlocked = wasAlreadyUnlocked && (data.foodPhotoStreak || 0) >= 7;
+          break;
+        case 'food_photo_streak_30':
+          progress = Math.min(data.foodPhotoStreak || 0, 30);
+          isUnlocked = wasAlreadyUnlocked && (data.foodPhotoStreak || 0) >= 30;
+          break;
+        case 'food_photo_total_50':
+          progress = Math.min(data.foodPhotoTotalPhotos || 0, 50);
+          isUnlocked = wasAlreadyUnlocked && (data.foodPhotoTotalPhotos || 0) >= 50;
+          break;
+        case 'food_photo_total_100':
+          progress = Math.min(data.foodPhotoTotalPhotos || 0, 100);
+          isUnlocked = wasAlreadyUnlocked && (data.foodPhotoTotalPhotos || 0) >= 100;
+          break;
       }
 
       return {
@@ -471,6 +598,13 @@ export class AchievementsService {
       'workout_streak_7': '¡7 días consecutivos entrenando! 🏆 #SemanaImparable #RecomiendameCoach',
       'first_plan': '¡Mi primer plan nutricional personalizado con IA! 🤖 #PlanPersonalizado #RecomiendameCoach',
       'profile_complete': '¡Perfil 100% completo! Listo para la transformación ✅ #PerfilCompleto #RecomiendameCoach',
+      // Logros de fotos de comida
+      'food_photo_first': '¡Subí mi primera foto de comida! 📸 #PrimeraFoto #RecomiendameCoach',
+      'food_photo_streak_3': '¡3 fotos de comida en un día! Racha fotográfica 🔥 #RachaFotografica #RecomiendameCoach',
+      'food_photo_streak_7': '¡7 días consecutivos con 3 fotos diarias! 🏆 #SemanaCompleta #RecomiendameCoach',
+      'food_photo_streak_30': '¡30 días de rachas fotográficas! Soy un fotógrafo culinario 👑 #MesFotografico #RecomiendameCoach',
+      'food_photo_total_50': '¡50 fotos de comida subidas! Coleccionista gastronómico 📚 #Coleccionista #RecomiendameCoach',
+      'food_photo_total_100': '¡100 fotos de comida! Fotógrafo culinario profesional 📷 #FotografoCulinario #RecomiendameCoach',
     };
 
     return messages[achievement.id as keyof typeof messages] || 

@@ -15,6 +15,8 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { NutritionService } from '../services/nutritionService';
 import { SocialService } from '../services/socialService';
+import { FoodPhotoStreakService } from '../services/foodPhotoStreakService';
+import { NotificationService } from '../services/notificationService';
 import { COLORS } from '../theme/theme';
 
 interface LogMealModalProps {
@@ -142,6 +144,46 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
         } catch (err) {
           console.warn('Could not delete replaced meal:', err);
         }
+      }
+
+      // Actualizar racha de fotos de comida
+      try {
+        console.log('🔄 Updating food photo streak...');
+        const { streakData, achievementsUnlocked } = await FoodPhotoStreakService.updateStreakAfterPhotoUpload();
+        
+        console.log('📊 Streak updated:', streakData);
+        console.log('🏆 Achievements unlocked:', achievementsUnlocked);
+        
+        // Enviar notificación si se completó la racha del día
+        if (streakData.todayPhotos >= 3) {
+          await NotificationService.sendStreakNotification(streakData.currentStreak, streakData.todayPhotos);
+          
+          const streakAchievement = achievementsUnlocked.find(a => a.id === 'food_photo_streak_3');
+          if (streakAchievement) {
+            Alert.alert(
+              '🔥 ¡Racha completada!',
+              `Has subido 3 fotos hoy. ¡Sigue así para mantener tu racha de ${streakData.currentStreak} días!`,
+              [{ text: '¡Genial!' }]
+            );
+          }
+        }
+
+        // Enviar notificaciones para logros desbloqueados
+        for (const achievement of achievementsUnlocked) {
+          await NotificationService.sendAchievementNotification(achievement);
+          
+          // Mostrar alert solo para logros que no sean la racha diaria
+          if (achievement.id !== 'food_photo_streak_3') {
+            Alert.alert(
+              '🏆 ¡Logro desbloqueado!',
+              `${achievement.icon} ${achievement.title}: ${achievement.description}`,
+              [{ text: '¡Increíble!' }]
+            );
+          }
+        }
+      } catch (streakError) {
+        console.log('Error updating food photo streak:', streakError);
+        // No mostrar error al usuario, la comida se guardó correctamente
       }
 
       // Cerrar automáticamente sin alert

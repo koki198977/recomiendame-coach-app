@@ -283,6 +283,7 @@ class WorkoutService {
       throw error;
     }
   }
+
 }
 
 export default new WorkoutService();

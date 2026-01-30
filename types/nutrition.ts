@@ -428,10 +428,58 @@ export interface ChapiBackendAction {
 }
 
 export interface ChapiCheckInResponse {
-  logId: string;
-  emotion: string;
-  advice: string;
-  actions: ChapiBackendAction[];
+  success: boolean;
+  data: {
+    response: {
+      message: string;
+      messageType: string;
+      personalizedInsights: string[];
+      actions: ChapiBackendAction[];
+      followUpSuggestions: string[];
+    };
+    conversationId: string;
+    sessionId: string;
+  };
+}
+
+export interface ChapiInsightsResponse {
+  success: boolean;
+  data: {
+    insights: string[];
+    recommendations: ChapiRecommendation[];
+    predictiveAlerts: string[];
+    userContext: {
+      todayProgress: {
+        checkinCompleted: boolean;
+        hydrationProgress: number;
+        mealsLogged: number;
+        workoutCompleted: boolean;
+        sleepLogged: boolean;
+      };
+      recentTrends: {
+        weightTrend: string;
+        adherenceTrend: string;
+        emotionalTrend: string;
+      };
+      upcomingEvents: {
+        goalDeadlines: any[];
+        planExpirations: any[];
+        streakMilestones: any[];
+      };
+    };
+    conversationOpportunities: {
+      suggestedTopics: string[];
+      followUpQuestions: string[];
+      motivationalMessages: string[];
+    };
+  };
+}
+
+export interface ChapiRecommendation {
+  type: 'NUTRITION' | 'ACTIVITY' | 'EMOTIONAL' | 'MOTIVATION';
+  title: string;
+  description: string;
+  priority: 'high' | 'medium' | 'low';
 }
 
 export interface ChapiConversation {

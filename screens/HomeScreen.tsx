@@ -16,13 +16,12 @@ import { PlanGeneratingModal } from '../components/PlanGeneratingModal';
 import { ShoppingListModal } from '../components/ShoppingListModal';
 import { DailyCheckinModal } from '../components/DailyCheckinModal';
 import { LogMealModal } from '../components/LogMealModal';
+import { ChapiInsightsCard } from '../components/ChapiInsightsCard';
 import { AppHeader } from '../components/AppHeader';
 import { NotificationBadge } from '../components/NotificationBadge';
 import { HydrationCard } from '../components/HydrationCard';
 import { HydrationSetupModal } from '../components/HydrationSetupModal';
 import { LogWaterModal } from '../components/LogWaterModal';
-import { FoodPhotoStreakCard } from '../components/FoodPhotoStreakCard';
-import { FoodPhotoStreakService } from '../services/foodPhotoStreakService';
 import { NotificationService } from '../services/notificationService';
 import WorkoutService from '../services/workoutService';
 import type { WorkoutPlan, WorkoutDay, Exercise } from '../types/nutrition';
@@ -56,7 +55,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
   const [showHydrationSetup, setShowHydrationSetup] = React.useState(false);
   const [showLogWater, setShowLogWater] = React.useState(false);
   const [hydrationKey, setHydrationKey] = React.useState(0); // Para forzar refresh
-  const [streakRefreshKey, setStreakRefreshKey] = React.useState(0); // Para refrescar racha de fotos
 
   const loadData = async () => {
     try {
@@ -326,9 +324,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
     try {
       const mealsConsumed = await NutritionService.getTodayMeals();
       setTodayMealsConsumed(mealsConsumed);
-      
-      // Refrescar la tarjeta de racha de fotos
-      setStreakRefreshKey(prev => prev + 1);
     } catch (error) {
       console.log('Error reloading meals:', error);
     }
@@ -353,26 +348,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
               // Recargar comidas consumidas
               const mealsConsumed = await NutritionService.getTodayMeals();
               setTodayMealsConsumed(mealsConsumed);
-              
-              // Actualizar racha de fotos después de eliminar
-              try {
-                console.log('🔄 Updating streak after meal deletion...');
-                const { streakData, achievementsRevoked } = await FoodPhotoStreakService.updateStreakAfterPhotoDelete();
-                
-                // Refrescar la tarjeta de racha
-                setStreakRefreshKey(prev => prev + 1);
-                
-                // Mostrar notificación si se perdió la racha
-                if (achievementsRevoked.includes('food_photo_streak_3')) {
-                  Alert.alert(
-                    '📸 Racha perdida',
-                    `Ahora tienes ${streakData.todayPhotos}/3 fotos hoy. ¡Sube más fotos para recuperar tu racha!`,
-                    [{ text: 'Entendido' }]
-                  );
-                }
-              } catch (streakError) {
-                console.log('Error updating streak after delete:', streakError);
-              }
               
               Alert.alert("Éxito", "Comida eliminada correctamente");
             } catch (error) {
@@ -469,11 +444,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
               )}
             </View>
 
-            {/* Racha de Fotos de Comida */}
-            <FoodPhotoStreakCard 
-              refreshKey={streakRefreshKey}
-              onPress={() => setShowLogMealModal(true)}
-            />
+            {/* Insights Personalizados de Chapi */}
+            <ChapiInsightsCard />
 
             {/* Progreso Nutricional Futurista */}
             <View style={styles.nutritionProgressCard}>
@@ -733,7 +705,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
                   </View>
                 ))
               ) : (
-                <View style={styles.noMealsCard}>
+                <TouchableOpacity 
+                  style={styles.noMealsCard}
+                  onPress={() => setShowLogMealModal(true)}
+                  activeOpacity={0.7}
+                >
                   <View style={styles.chapiMealContainer}>
                     <Image 
                       source={require('../assets/chapi-3d-foto-alimento.png')}
@@ -745,19 +721,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
                     No has registrado comidas hoy
                   </Text>
                   <Text style={styles.noMealsHint}>
-                    Usa el botón flotante para registrar tus comidas
+                    Toca aquí para registrar tus comidas
                   </Text>
-                </View>
+                </TouchableOpacity>
               )}
             </View>
-
-            {/* Notas del plan */}
-            {weeklyPlan.notes && (
-              <View style={styles.notesCard}>
-                <Text style={styles.cardTitle}>Motivación</Text>
-                <Text style={styles.notesText}>{weeklyPlan.notes}</Text>
-              </View>
-            )}
 
             {/* Botón de lista de compras */}
             <TouchableOpacity style={styles.shoppingButtonFull} onPress={handleGenerateShoppingList}>

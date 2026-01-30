@@ -270,12 +270,27 @@ export class FoodPhotoStreakService {
     longestStreak: number;
     progressPercentage: number;
   }> {
+    // Siempre sincronizar con los datos reales del día actual
+    const todayMeals = await NutritionService.getTodayMeals();
+    const actualTodayPhotos = this.countPhotosInMeals(todayMeals);
+    
+    console.log(`📊 Syncing streak progress - actual photos today: ${actualTodayPhotos}`);
+    
+    // Obtener datos del storage
     const streakData = await this.getStreakData();
-    const photosNeeded = Math.max(0, this.PHOTOS_PER_STREAK - streakData.todayPhotos);
-    const progressPercentage = Math.min((streakData.todayPhotos / this.PHOTOS_PER_STREAK) * 100, 100);
+    
+    // Actualizar el contador del día con los datos reales
+    if (streakData.todayPhotos !== actualTodayPhotos) {
+      console.log(`🔄 Updating today photos: ${streakData.todayPhotos} -> ${actualTodayPhotos}`);
+      streakData.todayPhotos = actualTodayPhotos;
+      await this.saveStreakData(streakData);
+    }
+    
+    const photosNeeded = Math.max(0, this.PHOTOS_PER_STREAK - actualTodayPhotos);
+    const progressPercentage = Math.min((actualTodayPhotos / this.PHOTOS_PER_STREAK) * 100, 100);
 
     return {
-      todayPhotos: streakData.todayPhotos,
+      todayPhotos: actualTodayPhotos, // Usar los datos reales, no del storage
       photosNeeded,
       currentStreak: streakData.currentStreak,
       longestStreak: streakData.longestStreak,

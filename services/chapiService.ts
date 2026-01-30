@@ -3,6 +3,7 @@ import { API_CONFIG } from '../config/api';
 import { 
   ChapiCheckInRequest, 
   ChapiCheckInResponse, 
+  ChapiInsightsResponse,
   ChapiMessage,
   ChapiConversation,
   EmotionalState,
@@ -24,17 +25,25 @@ class ChapiService {
         request
       );
       
-      console.log('✅ Respuesta de Chapi:', response.data);
+      console.log('✅ Respuesta de Chapi 2.0:', response.data);
       return response.data;
     } catch (error: any) {
-      console.error('❌ Error sending message to Chapi:', error);
+      console.error('❌ Error sending message to Chapi 2.0:', error);
       
       // Fallback response si hay error
       return {
-        logId: 'error',
-        emotion: 'neutral',
-        advice: 'Lo siento, estoy teniendo problemas para conectarme en este momento. Por favor, intenta de nuevo más tarde.',
-        actions: [],
+        success: false,
+        data: {
+          response: {
+            message: 'Lo siento, estoy teniendo problemas para conectarme en este momento. Por favor, intenta de nuevo más tarde.',
+            messageType: 'error',
+            personalizedInsights: [],
+            actions: [],
+            followUpSuggestions: [],
+          },
+          conversationId: 'error',
+          sessionId: 'error',
+        },
       };
     }
   }
@@ -45,16 +54,22 @@ class ChapiService {
   convertBackendActions(backendActions: any[]): ChapiAction[] {
     if (!backendActions || backendActions.length === 0) return [];
     
-    console.log('🔄 Convirtiendo acciones del backend:', backendActions);
+    console.log('🔄 Convirtiendo acciones del backend (Chapi 2.0):', backendActions);
     
     const convertedActions = backendActions.map((action, index) => {
-      const converted = {
+      // Mapear tipos de acción
+      let actionType: ChapiAction['type'] = 'routine';
+      if (action.type === 'create_plan') actionType = 'routine';
+      else if (action.type === 'PHYSICAL') actionType = 'exercise';
+      else if (action.type === 'MENTAL') actionType = 'breathing';
+      
+      const converted: ChapiAction = {
         id: `action_${index}_${Date.now()}`,
-        label: action.title,
-        type: action.type === 'PHYSICAL' ? 'exercise' : 'breathing',
+        label: action.type === 'create_plan' ? 'Crear plan personalizado' : action.title || 'Acción sugerida',
+        type: actionType,
         duration: action.durationMinutes,
-        description: action.title,
-        youtubeUrl: action.youtubeUrl, // Agregar soporte para URLs de YouTube
+        description: action.type === 'create_plan' ? 'Te ayudo a crear un plan personalizado' : (action.title || 'Acción recomendada'),
+        youtubeUrl: action.youtubeUrl, // Mantener soporte para URLs de YouTube
       };
       
       console.log(`📺 Acción ${index}:`, {
@@ -66,44 +81,57 @@ class ChapiService {
       return converted;
     });
     
-    console.log('✅ Acciones convertidas:', convertedActions);
+    console.log('✅ Acciones convertidas (Chapi 2.0):', convertedActions);
     return convertedActions;
   }
 
   /**
-   * Obtener historial de conversación con Chapi desde el backend
+   * Obtener insights personalizados de Chapi 2.0
    */
-  async getConversationHistory(): Promise<ChapiMessage[]> {
+  async getInsights(): Promise<ChapiInsightsResponse> {
     try {
-      const response = await api.get<{ messages: ChapiMessage[] }>(
-        API_CONFIG.ENDPOINTS.CHAPI.CONVERSATION_HISTORY
+      const response = await api.get<ChapiInsightsResponse>(
+        API_CONFIG.ENDPOINTS.CHAPI.INSIGHTS
       );
       
-      return response.data.messages || [];
+      console.log('✅ Insights de Chapi 2.0:', response.data);
+      return response.data;
     } catch (error: any) {
-      console.error('Error fetching Chapi conversation history:', error);
+      console.error('❌ Error obteniendo insights de Chapi 2.0:', error);
       
-      // Si el endpoint no existe o hay error, retornar array vacío
-      if (error.response?.status === 404) {
-        return [];
-      }
-      
-      throw error;
-    }
-  }
-
-  /**
-   * Guardar mensaje en el historial del backend
-   * (Si el backend lo soporta en el futuro)
-   */
-  async saveMessage(message: ChapiMessage): Promise<boolean> {
-    try {
-      // Por ahora, el endpoint check-in ya guarda internamente
-      // Esta función está preparada para futuras implementaciones
-      return true;
-    } catch (error) {
-      console.error('Error saving message to backend:', error);
-      return false;
+      // Fallback response si hay error
+      return {
+        success: false,
+        data: {
+          insights: ['No se pudieron cargar los insights en este momento.'],
+          recommendations: [],
+          predictiveAlerts: [],
+          userContext: {
+            todayProgress: {
+              checkinCompleted: false,
+              hydrationProgress: 0,
+              mealsLogged: 0,
+              workoutCompleted: false,
+              sleepLogged: false,
+            },
+            recentTrends: {
+              weightTrend: 'stable',
+              adherenceTrend: 'stable',
+              emotionalTrend: 'neutral',
+            },
+            upcomingEvents: {
+              goalDeadlines: [],
+              planExpirations: [],
+              streakMilestones: [],
+            },
+          },
+          conversationOpportunities: {
+            suggestedTopics: [],
+            followUpQuestions: [],
+            motivationalMessages: [],
+          },
+        },
+      };
     }
   }
 

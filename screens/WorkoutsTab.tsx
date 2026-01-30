@@ -42,6 +42,8 @@ export const WorkoutsTab: React.FC = () => {
   // Estados para controles individuales de ejercicios
   const [activeExercises, setActiveExercises] = useState<Set<number>>(new Set());
   const [exerciseTimers, setExerciseTimers] = useState<{[key: number]: number}>({});
+  const [pausedExercises, setPausedExercises] = useState<Set<number>>(new Set());
+  const [exerciseStartTimes, setExerciseStartTimes] = useState<{[key: number]: number}>({});
 
   useEffect(() => {
     loadWorkoutPlan();
@@ -65,18 +67,26 @@ export const WorkoutsTab: React.FC = () => {
     let intervals: { [key: number]: NodeJS.Timeout } = {};
     
     activeExercises.forEach(exerciseIndex => {
-      intervals[exerciseIndex] = setInterval(() => {
-        setExerciseTimers(prev => ({
-          ...prev,
-          [exerciseIndex]: (prev[exerciseIndex] || 0) + 1
-        }));
-      }, 1000);
+      const startTime = exerciseStartTimes[exerciseIndex];
+      const previousTime = exerciseTimers[exerciseIndex] || 0;
+      
+      if (startTime) {
+        intervals[exerciseIndex] = setInterval(() => {
+          const now = Date.now();
+          const currentElapsed = Math.floor((now - startTime) / 1000);
+          
+          setExerciseTimers(prev => ({
+            ...prev,
+            [exerciseIndex]: previousTime + currentElapsed
+          }));
+        }, 1000);
+      }
     });
 
     return () => {
       Object.values(intervals).forEach(interval => clearInterval(interval));
     };
-  }, [activeExercises]);
+  }, [activeExercises, exerciseStartTimes]);
 
   const loadWorkoutPlan = async () => {
     try {
@@ -342,6 +352,12 @@ export const WorkoutsTab: React.FC = () => {
     setWorkoutSummary(summary);
     setShowWorkoutSummary(true);
     setIsWorkoutActive(false);
+    
+    // Limpiar estados de ejercicios individuales
+    setActiveExercises(new Set());
+    setExerciseTimers({});
+    setPausedExercises(new Set());
+    setExerciseStartTimes({});
   };
 
   const saveWorkoutProgress = async () => {
@@ -364,7 +380,8 @@ export const WorkoutsTab: React.FC = () => {
       
       // Recargar el plan para ver los datos actualizados
       await loadWorkoutPlan();
-    } catch (error) {
+    } catch (error: any) {
+      console.log('❌ Error guardando progreso de rutina:', error);
       Alert.alert('Error', 'No se pudo guardar el progreso. Intenta de nuevo.');
     }
   };
@@ -398,8 +415,18 @@ export const WorkoutsTab: React.FC = () => {
 
   // Funciones para controles individuales de ejercicios
   const startExercise = (exerciseIndex: number) => {
+    const now = Date.now();
+    
     setActiveExercises(prev => new Set([...prev, exerciseIndex]));
-    setExerciseTimers(prev => ({ ...prev, [exerciseIndex]: 0 }));
+    setPausedExercises(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(exerciseIndex);
+      return newSet;
+    });
+    
+    // Solo establecer nuevo tiempo de inicio si no hay tiempo previo acumulado
+    // Esto permite reanudar correctamente desde donde se pausó
+    setExerciseStartTimes(prev => ({ ...prev, [exerciseIndex]: now }));
     
     // Si no hay rutina activa, iniciarla automáticamente
     if (!isWorkoutActive) {
@@ -408,19 +435,32 @@ export const WorkoutsTab: React.FC = () => {
   };
 
   const pauseExercise = (exerciseIndex: number) => {
+    const now = Date.now();
+    const startTime = exerciseStartTimes[exerciseIndex];
+    
+    if (startTime) {
+      // Calcular tiempo transcurrido y agregarlo al total
+      const elapsedSeconds = Math.floor((now - startTime) / 1000);
+      setExerciseTimers(prev => ({
+        ...prev,
+        [exerciseIndex]: (prev[exerciseIndex] || 0) + elapsedSeconds
+      }));
+    }
+    
     setActiveExercises(prev => {
       const newSet = new Set(prev);
       newSet.delete(exerciseIndex);
       return newSet;
     });
+    setPausedExercises(prev => new Set([...prev, exerciseIndex]));
   };
 
   const completeExercise = (exerciseIndex: number, restSeconds: number = 60) => {
+    // Pausar el ejercicio primero para guardar el tiempo
+    pauseExercise(exerciseIndex);
+    
     // Marcar como completado
     setCompletedExercises(prev => new Set([...prev, exerciseIndex]));
-    
-    // Pausar el ejercicio
-    pauseExercise(exerciseIndex);
     
     // Mostrar timer de descanso
     setCurrentRestSeconds(restSeconds);
@@ -433,7 +473,17 @@ export const WorkoutsTab: React.FC = () => {
       newSet.delete(exerciseIndex);
       return newSet;
     });
+    setPausedExercises(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(exerciseIndex);
+      return newSet;
+    });
     setExerciseTimers(prev => ({ ...prev, [exerciseIndex]: 0 }));
+    setExerciseStartTimes(prev => {
+      const newTimes = { ...prev };
+      delete newTimes[exerciseIndex];
+      return newTimes;
+    });
     setCompletedExercises(prev => {
       const newSet = new Set(prev);
       newSet.delete(exerciseIndex);
@@ -478,6 +528,24 @@ export const WorkoutsTab: React.FC = () => {
                   onPress={() => pauseExercise(index)}
                 >
                   <Text style={styles.pauseButtonText}>⏸️</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.completeButton}
+                  onPress={() => completeExercise(index, exercise.restSeconds || 60)}
+                >
+                  <Text style={styles.completeButtonText}>✓</Text>
+                </TouchableOpacity>
+              </View>
+            ) : pausedExercises.has(index) ? (
+              <View style={styles.pausedExerciseControls}>
+                <Text style={styles.exerciseTimer}>
+                  {formatTime(exerciseTimers[index] || 0)}
+                </Text>
+                <TouchableOpacity 
+                  style={styles.resumeButton}
+                  onPress={() => startExercise(index)}
+                >
+                  <Text style={styles.resumeButtonText}>▶️</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.completeButton}
@@ -1470,6 +1538,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.primary,
   },
+  pausedExerciseControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255, 149, 0, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#FF9500',
+  },
   exerciseTimer: {
     fontSize: 14,
     fontWeight: '800',
@@ -1484,6 +1563,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   pauseButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  resumeButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  resumeButtonText: {
     color: '#fff',
     fontSize: 12,
     fontWeight: '700',

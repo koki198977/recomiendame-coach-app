@@ -55,21 +55,10 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
     try {
       setIsSyncing(true);
       
-      // Cargar mensajes locales primero
+      // Cargar mensajes locales
       const localMessages = await AsyncStorage.getItem(STORAGE_KEY);
       if (localMessages) {
         setMessages(JSON.parse(localMessages));
-      }
-
-      // Intentar sincronizar con el backend
-      try {
-        const backendMessages = await ChapiService.getConversationHistory();
-        if (backendMessages.length > 0) {
-          setMessages(backendMessages);
-          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(backendMessages));
-        }
-      } catch (error) {
-        console.log('No se pudo sincronizar con el backend, usando mensajes locales');
       }
 
       // Si no hay mensajes, mostrar mensaje de bienvenida
@@ -77,7 +66,7 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
         const welcomeMessage: ChapiMessage = {
           id: ChapiService.generateMessageId(),
           sender: 'chapi',
-          content: '¡Hola! Soy Chapi, tu asistente de acompañamiento emocional 🧠\n\nEstoy aquí para ayudarte a entender y mejorar tu bienestar. Cuéntame, ¿cómo te sientes hoy?',
+          content: '¡Hola! Soy Chapi 2.0, tu asistente de acompañamiento emocional mejorado 🧠✨\n\nAhora tengo nuevas capacidades para entenderte mejor y ofrecerte recomendaciones más personalizadas. Cuéntame, ¿cómo te sientes hoy?',
           timestamp: new Date().toISOString(),
         };
         setMessages([welcomeMessage]);
@@ -118,34 +107,49 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
     await saveMessages(updatedMessages);
 
     try {
-      // Enviar mensaje a Chapi
+      // Enviar mensaje a Chapi 2.0
       const response = await ChapiService.sendMessage(userMessage.content);
       
-      console.log('📨 Respuesta recibida:', response);
+      console.log('📨 Respuesta recibida (Chapi 2.0):', response);
 
+      if (!response.success) {
+        throw new Error('Respuesta no exitosa de Chapi 2.0');
+      }
+
+      // Extraer datos de la nueva estructura
+      const chapiResponse = response.data.response;
+      
       // Convertir acciones del backend a formato ChapiAction
-      const actions = ChapiService.convertBackendActions(response.actions);
+      const actions = ChapiService.convertBackendActions(chapiResponse.actions);
 
-      // Construir el contenido del mensaje solo con el advice (sin mostrar el estado emocional)
-      let messageContent = response.advice;
+      // Construir el contenido del mensaje con el mensaje principal
+      let messageContent = chapiResponse.message;
+
+      // Agregar sugerencias de seguimiento si las hay
+      if (chapiResponse.followUpSuggestions && chapiResponse.followUpSuggestions.length > 0) {
+        messageContent += '\n\n💭 Algunas ideas para continuar:\n';
+        chapiResponse.followUpSuggestions.forEach((suggestion, index) => {
+          messageContent += `• ${suggestion}\n`;
+        });
+      }
 
       const chapiMessage: ChapiMessage = {
         id: ChapiService.generateMessageId(),
         sender: 'chapi',
         content: messageContent,
         timestamp: new Date().toISOString(),
-        emotionalState: response.emotion?.toLowerCase() as any,
+        emotionalState: chapiResponse.messageType?.toLowerCase() as any,
         suggestedActions: actions,
       };
 
-      console.log('💬 Mensaje de Chapi creado:', chapiMessage);
+      console.log('💬 Mensaje de Chapi 2.0 creado:', chapiMessage);
 
       const finalMessages = [...updatedMessages, chapiMessage];
       setMessages(finalMessages);
       await saveMessages(finalMessages);
 
     } catch (error) {
-      console.error('❌ Error sending message to Chapi:', error);
+      console.error('❌ Error sending message to Chapi 2.0:', error);
       Alert.alert('Error', 'No se pudo enviar el mensaje. Verifica tu conexión.');
     } finally {
       setIsLoading(false);
@@ -248,14 +252,6 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
           <View style={styles.actionsContainer}>
             <Text style={styles.actionsTitle}>Acciones sugeridas:</Text>
             {message.suggestedActions.map((action) => {
-              // Log para debug
-              console.log('Renderizando acción:', {
-                id: action.id,
-                label: action.label,
-                youtubeUrl: action.youtubeUrl,
-                hasYouTubeUrl: !!action.youtubeUrl
-              });
-              
               return (
                 <TouchableOpacity
                   key={action.id}
@@ -296,11 +292,14 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
       transparent
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        style={styles.modalOverlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={insets.bottom}
-      >
+      <View style={styles.modalOverlay}>
+        {/* Área clickeable para cerrar el modal */}
+        <TouchableOpacity 
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+        
         <View style={styles.modalContainer}>
         {/* Header */}
         <View style={styles.header}>
@@ -316,9 +315,9 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
               />
             </View>
             <View>
-              <Text style={styles.headerTitle}>Chapi</Text>
+              <Text style={styles.headerTitle}>Chapi 2.0</Text>
               <Text style={styles.headerSubtitle}>
-                {isSyncing ? 'Sincronizando...' : 'Tu asistente emocional'}
+                {isSyncing ? 'Sincronizando...' : 'Tu asistente emocional mejorado'}
               </Text>
             </View>
           </View>
@@ -370,7 +369,7 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
           </TouchableOpacity>
         </View>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 };
@@ -378,14 +377,26 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    justifyContent: 'flex-start',
     backgroundColor: 'rgba(0, 0, 0, 0.25)',
   },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   modalContainer: {
-    height: '80%',
+    position: 'absolute',
+    top: '10%', // Bajado 10% desde arriba
+    left: 0,
+    right: 0,
+    height: '50%', // Reducido a 50% de altura
     backgroundColor: '#f5f5f5',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     overflow: 'hidden',
   },
   header: {
@@ -451,6 +462,7 @@ const styles = StyleSheet.create({
   },
   messagesContainer: {
     flex: 1,
+    paddingBottom: 80, // Espacio para el input fijo
   },
   messagesContent: {
     padding: 16,
@@ -559,6 +571,10 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   inputContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     paddingHorizontal: 12,
     paddingVertical: 12,

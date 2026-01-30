@@ -17,6 +17,8 @@ import { ShoppingListModal } from '../components/ShoppingListModal';
 import { DailyCheckinModal } from '../components/DailyCheckinModal';
 import { LogMealModal } from '../components/LogMealModal';
 import { ChapiInsightsCard } from '../components/ChapiInsightsCard';
+import NutritionScannerCard from '../components/NutritionScannerCard';
+import CacheService from '../services/cacheService';
 import { AppHeader } from '../components/AppHeader';
 import { NotificationBadge } from '../components/NotificationBadge';
 import { HydrationCard } from '../components/HydrationCard';
@@ -55,10 +57,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
   const [showHydrationSetup, setShowHydrationSetup] = React.useState(false);
   const [showLogWater, setShowLogWater] = React.useState(false);
   const [hydrationKey, setHydrationKey] = React.useState(0); // Para forzar refresh
+  const [chapiRefreshKey, setChapiRefreshKey] = React.useState(0); // Para forzar refresh de Chapi
 
   const loadData = async () => {
     try {
       setLoading(true);
+      
+      // Limpiar cache expirado al cargar la app
+      await CacheService.cleanExpiredCache();
+      
       const userData = await AsyncStorage.getItem('userData');
       const profileData = await AsyncStorage.getItem('userProfile');
 
@@ -241,6 +248,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
     }
   };
 
+  // Función para recargar comidas consumidas
+  const refreshTodayMeals = async () => {
+    try {
+      console.log('🔄 Refrescando comidas del día...');
+      const mealsConsumed = await NutritionService.getTodayMeals();
+      setTodayMealsConsumed(mealsConsumed);
+      console.log('✅ Comidas refrescadas:', mealsConsumed.totals);
+      
+      // Limpiar cache de Chapi para que se actualice con las nuevas comidas
+      await CacheService.clearChapiCache();
+      setChapiRefreshKey(prev => prev + 1);
+      console.log('✅ Cache de Chapi invalidado después de agregar comida');
+    } catch (error) {
+      console.error('❌ Error refrescando comidas:', error);
+    }
+  };
+
   // Obtener las comidas del día actual
   const getTodayMeals = (): WeeklyPlanMeal[] => {
     if (!weeklyPlan) return [];
@@ -306,6 +330,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
     try {
       const checkin = await NutritionService.getTodayCheckin();
       setTodayCheckin(checkin);
+      
+      // Limpiar cache de Chapi para que se actualice con el nuevo check-in
+      await CacheService.clearChapiCache();
+      setChapiRefreshKey(prev => prev + 1);
+      console.log('✅ Cache de Chapi invalidado después del check-in');
     } catch (error) {
       console.log('Error reloading checkin:', error);
     }
@@ -348,6 +377,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
               // Recargar comidas consumidas
               const mealsConsumed = await NutritionService.getTodayMeals();
               setTodayMealsConsumed(mealsConsumed);
+              
+              // Limpiar cache de Chapi para que se actualice
+              await CacheService.clearChapiCache();
+              setChapiRefreshKey(prev => prev + 1);
+              console.log('✅ Cache de Chapi invalidado después de eliminar comida');
               
               Alert.alert("Éxito", "Comida eliminada correctamente");
             } catch (error) {
@@ -445,7 +479,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
             </View>
 
             {/* Insights Personalizados de Chapi */}
-            <ChapiInsightsCard />
+            <ChapiInsightsCard refreshKey={chapiRefreshKey} />
+
+            {/* Análisis Nutricional de Productos */}
+            <NutritionScannerCard 
+              userProfile={userProfile}
+              onProductScanned={(analysis) => {
+                console.log('Producto escaneado:', analysis.productName);
+              }}
+              onMealAdded={refreshTodayMeals}
+            />
 
             {/* Progreso Nutricional Futurista */}
             <View style={styles.nutritionProgressCard}>

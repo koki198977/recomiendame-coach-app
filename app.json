@@ -21,6 +21,12 @@
           "icon": "./assets/notification-icon.png",
           "color": "#4CAF50"
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "La app necesita acceso a tu cámara para escanear códigos de barras de productos."
+        }
       ]
     ],
     "splash": {
@@ -65,7 +71,10 @@
               "scheme": "http"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "statusBar": {

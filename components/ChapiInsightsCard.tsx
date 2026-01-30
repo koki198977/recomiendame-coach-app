@@ -8,10 +8,28 @@ import {
   ScrollView,
   Image,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import ChapiService from '../services/chapiService';
 import { ChapiInsightsResponse, ChapiRecommendation } from '../types/nutrition';
 import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
+
+interface ChapiInsightsCardProps {
+  onPress?: () => void;
+  refreshKey?: number;
+}
+
+// Cache configuration
+const CACHE_KEY = 'chapi_insights_cache';
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutos en millisegundos
+const CACHE_VERSION = '1.0'; // Para invalidar cache cuando cambie la estructura
+
+interface CachedInsights {
+  data: ChapiInsightsResponse;
+  timestamp: number;
+  version: string;
+  hash: string; // Hash del contexto del usuario para detectar cambios
+}
 
 interface ChapiInsightsCardProps {
   onPress?: () => void;
@@ -25,22 +43,174 @@ export const ChapiInsightsCard: React.FC<ChapiInsightsCardProps> = ({
   const [loading, setLoading] = useState(true);
   const [insights, setInsights] = useState<ChapiInsightsResponse | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [isFromCache, setIsFromCache] = useState(false);
 
   useEffect(() => {
     loadInsights();
   }, [refreshKey]);
 
+  // Generar hash simple del contexto del usuario para detectar cambios
+  const generateContextHash = (data: ChapiInsightsResponse): string => {
+    const context = data.data.userContext;
+    const contextString = JSON.stringify({
+      checkinCompleted: context.todayProgress.checkinCompleted,
+      mealsLogged: context.todayProgress.mealsLogged,
+      workoutCompleted: context.todayProgress.workoutCompleted,
+      hydrationProgress: context.todayProgress.hydrationProgress,
+      date: new Date().toDateString() // Incluir fecha para cache diario
+    });
+    
+    // Hash simple (no criptográfico, solo para detectar cambios)
+    let hash = 0;
+    for (let i = 0; i < contextString.length; i++) {
+      const char = contextString.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convertir a 32bit integer
+    }
+    return hash.toString();
+  };
+
+  // Cargar desde cache
+  const loadFromCache = async (): Promise<ChapiInsightsResponse | null> => {
+    try {
+      const cachedData = await AsyncStorage.getItem(CACHE_KEY);
+      if (!cachedData) return null;
+
+      const parsed: CachedInsights = JSON.parse(cachedData);
+      
+      // Verificar versión del cache
+      if (parsed.version !== CACHE_VERSION) {
+        console.log('🗑️ Cache version mismatch, invalidating');
+        await AsyncStorage.removeItem(CACHE_KEY);
+        return null;
+      }
+
+      // Verificar si el cache ha expirado
+      const now = Date.now();
+      if (now - parsed.timestamp > CACHE_DURATION) {
+        console.log('⏰ Cache expired, will refresh');
+        await AsyncStorage.removeItem(CACHE_KEY);
+        return null;
+      }
+
+      console.log('📦 Loading insights from cache');
+      setIsFromCache(true);
+      return parsed.data;
+    } catch (error) {
+      console.error('❌ Error loading cache:', error);
+      return null;
+    }
+  };
+
+  // Guardar en cache
+  const saveToCache = async (data: ChapiInsightsResponse) => {
+    try {
+      const contextHash = generateContextHash(data);
+      const cacheData: CachedInsights = {
+        data,
+        timestamp: Date.now(),
+        version: CACHE_VERSION,
+        hash: contextHash
+      };
+      
+      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+      console.log('💾 Insights saved to cache');
+    } catch (error) {
+      console.error('❌ Error saving cache:', error);
+    }
+  };
+
+  // Verificar si el contexto ha cambiado
+  const hasContextChanged = async (newData: ChapiInsightsResponse): Promise<boolean> => {
+    try {
+      const cachedData = await AsyncStorage.getItem(CACHE_KEY);
+      if (!cachedData) return true;
+
+      const parsed: CachedInsights = JSON.parse(cachedData);
+      const newHash = generateContextHash(newData);
+      
+      const changed = parsed.hash !== newHash;
+      if (changed) {
+        console.log('🔄 User context changed, cache will be updated');
+      }
+      
+      return changed;
+    } catch (error) {
+      console.error('❌ Error checking context change:', error);
+      return true;
+    }
+  };
+
   const loadInsights = async () => {
     try {
       setLoading(true);
+      setIsFromCache(false);
+
+      // Si refreshKey cambió, forzar carga desde API (sin cache)
+      if (refreshKey > 0) {
+        console.log('🔄 RefreshKey changed, forcing API load');
+        await loadFromAPI();
+        return;
+      }
+
+      // Intentar cargar desde cache primero solo si no hay refreshKey
+      const cachedInsights = await loadFromCache();
+      if (cachedInsights) {
+        setInsights(cachedInsights);
+        setLoading(false);
+        
+        // Verificar en background si necesita actualización
+        checkForUpdatesInBackground();
+        return;
+      }
+
+      // Si no hay cache, cargar desde API
+      await loadFromAPI();
+    } catch (error) {
+      console.log('❌ Error loading insights:', error);
+      setLoading(false);
+    }
+  };
+
+  const loadFromAPI = async () => {
+    try {
+      console.log('🌐 Loading insights from API');
       const response = await ChapiService.getInsights();
+      
       if (response.success) {
         setInsights(response);
+        setIsFromCache(false);
+        
+        // Guardar en cache
+        await saveToCache(response);
       }
     } catch (error) {
-      console.log('Error loading insights:', error);
+      console.log('❌ Error loading from API:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Verificar actualizaciones en background (sin mostrar loading)
+  const checkForUpdatesInBackground = async () => {
+    try {
+      console.log('🔍 Checking for updates in background');
+      const response = await ChapiService.getInsights();
+      
+      if (response.success) {
+        const contextChanged = await hasContextChanged(response);
+        
+        if (contextChanged) {
+          console.log('🔄 Context changed, updating insights');
+          setInsights(response);
+          setIsFromCache(false);
+          await saveToCache(response);
+        } else {
+          console.log('✅ No changes detected, keeping cache');
+        }
+      }
+    } catch (error) {
+      console.log('⚠️ Background update failed (using cache):', error);
     }
   };
 
@@ -86,8 +256,8 @@ export const ChapiInsightsCard: React.FC<ChapiInsightsCardProps> = ({
   }
 
   const { data } = insights;
-  const displayInsights = showAll ? data.insights : data.insights.slice(0, 2);
-  const displayRecommendations = showAll ? data.recommendations : data.recommendations.slice(0, 2);
+  const displayInsights = showAll ? data.insights : data.insights.slice(0, 1);
+  const displayRecommendations = showAll ? data.recommendations : data.recommendations.slice(0, 1);
 
   return (
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.8}>
@@ -108,7 +278,9 @@ export const ChapiInsightsCard: React.FC<ChapiInsightsCardProps> = ({
             </View>
             <View>
               <Text style={styles.title}>Chapi recomienda</Text>
-              <Text style={styles.subtitle}>Recomendaciones personalizadas</Text>
+              <Text style={styles.subtitle}>
+                Recomendaciones personalizadas
+              </Text>
             </View>
           </View>
           
@@ -205,19 +377,19 @@ export const ChapiInsightsCard: React.FC<ChapiInsightsCardProps> = ({
 const styles = StyleSheet.create({
   container: {
     marginHorizontal: 16,
-    marginVertical: 8,
-    borderRadius: 20,
+    marginVertical: 6,
+    borderRadius: 16,
     overflow: 'hidden',
     ...SHADOWS.card,
   },
   gradient: {
-    padding: 20,
+    padding: 16,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   titleContainer: {
     flexDirection: 'row',
@@ -272,13 +444,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   section: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '700',
     color: COLORS.text,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   insightItem: {
     marginBottom: 6,
@@ -290,9 +462,9 @@ const styles = StyleSheet.create({
   },
   recommendationItem: {
     backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 8,
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 6,
   },
   recommendationHeader: {
     flexDirection: 'row',
@@ -331,7 +503,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   progressSection: {
-    marginTop: 8,
+    marginTop: 6,
   },
   progressGrid: {
     flexDirection: 'row',

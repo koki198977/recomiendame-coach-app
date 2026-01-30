@@ -481,7 +481,18 @@ export class NutritionService {
    * Registrar comida consumida
    */
   static async logMeal(mealData: LogMealRequest): Promise<LogMealResponse> {
-    const response = await api.post<LogMealResponse>('/meals/log', mealData);
+    // Normalizar los datos nutricionales para asegurar que sean enteros
+    const normalizedMealData = {
+      ...mealData,
+      protein_g: Math.round(mealData.protein_g),
+      carbs_g: Math.round(mealData.carbs_g),
+      fat_g: Math.round(mealData.fat_g),
+      kcal: Math.round(mealData.kcal)
+    };
+
+    console.log('🍽️ Logging meal with normalized data:', normalizedMealData);
+    
+    const response = await api.post<LogMealResponse>('/meals/log', normalizedMealData);
     return response.data;
   }
 

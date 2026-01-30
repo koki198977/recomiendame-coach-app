@@ -41,10 +41,16 @@ export const API_CONFIG = {
     CHAPI: {
       CHECK_IN: '/chapi-v2/chat',
       INSIGHTS: '/chapi-v2/insights',
+      PRODUCT_ANALYSIS: '/chapi-v2/product-analysis',
     },
     WORKOUTS: {
       GENERATE: '/workouts/generate',
       GET_PLAN: '/workouts',
+    },
+    NUTRITION_ANALYSIS: {
+      SCAN_PRODUCT: '/nutrition/scan-product',
+      SEARCH_PRODUCTS: '/nutrition/search-products',
+      ANALYZE_MEAL: '/nutrition/analyze-meal',
     },
   },
 };

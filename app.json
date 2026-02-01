@@ -27,12 +27,6 @@
         {
           "cameraPermission": "La app necesita acceso a tu cámara para escanear códigos de barras de productos."
         }
-      ],
-      [
-        "expo-barcode-scanner",
-        {
-          "cameraPermission": "La app necesita acceso a tu cámara para escanear códigos de barras de productos."
-        }
       ]
     ],
     "splash": {

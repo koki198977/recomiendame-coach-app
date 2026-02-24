@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   StyleSheet,
   ScrollView,
   Dimensions,
+  Linking,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WeeklyPlanIngredient } from '../types/nutrition';
@@ -18,15 +20,21 @@ interface IngredientsModalProps {
   onClose: () => void;
   ingredients: (WeeklyPlanIngredient | string)[];
   mealTitle: string;
+  instructions?: string; // Instrucciones de preparación
+  videoUrl?: string; // URL de YouTube
 }
+
+type TabType = 'ingredients' | 'preparation' | 'video';
 
 export const IngredientsModal: React.FC<IngredientsModalProps> = ({
   visible,
   onClose,
   ingredients,
   mealTitle,
+  instructions,
+  videoUrl,
 }) => {
-
+  const [activeTab, setActiveTab] = useState<TabType>('ingredients');
 
   const formatIngredient = (ingredient: WeeklyPlanIngredient | string): string => {
     if (typeof ingredient === 'string') {
@@ -42,6 +50,68 @@ export const IngredientsModal: React.FC<IngredientsModalProps> = ({
     }
   };
 
+  // Parsear las instrucciones (asumiendo que vienen numeradas como "1. ... 2. ...")
+  const parseInstructions = (instructionsText?: string): string[] => {
+    if (!instructionsText) return [];
+    
+    // Dividir por números seguidos de punto y espacio
+    const steps = instructionsText.split(/\d+\.\s+/).filter(step => step.trim().length > 0);
+    return steps;
+  };
+
+  const instructionSteps = parseInstructions(instructions);
+
+  // Extraer ID del video de YouTube y duración estimada
+  const getYouTubeVideoId = (url?: string): string | null => {
+    if (!url) return null;
+    
+    // Soportar varios formatos de URL de YouTube
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+      /^([a-zA-Z0-9_-]{11})$/ // ID directo
+    ];
+    
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match) return match[1];
+    }
+    
+    return null;
+  };
+
+  const videoId = getYouTubeVideoId(videoUrl);
+
+  const handleOpenVideo = async () => {
+    // Si hay videoUrl específica, usarla
+    if (videoUrl) {
+      try {
+        const canOpen = await Linking.canOpenURL(videoUrl);
+        if (canOpen) {
+          await Linking.openURL(videoUrl);
+        } else {
+          Alert.alert('Error', 'No se puede abrir el video');
+        }
+      } catch (error) {
+        Alert.alert('Error', 'No se pudo abrir el video');
+      }
+    } else {
+      // Si no hay videoUrl, buscar en YouTube usando el título
+      const searchQuery = encodeURIComponent(`${mealTitle} receta como preparar`);
+      const youtubeSearchUrl = `https://www.youtube.com/results?search_query=${searchQuery}`;
+      
+      try {
+        const canOpen = await Linking.canOpenURL(youtubeSearchUrl);
+        if (canOpen) {
+          await Linking.openURL(youtubeSearchUrl);
+        } else {
+          Alert.alert('Error', 'No se puede abrir YouTube');
+        }
+      } catch (error) {
+        Alert.alert('Error', 'No se pudo abrir YouTube');
+      }
+    }
+  };
+
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
@@ -54,39 +124,129 @@ export const IngredientsModal: React.FC<IngredientsModalProps> = ({
             end={{ x: 1, y: 1 }}
           >
             <View style={styles.headerContent}>
-              <Text style={styles.title}>🥘 Ingredientes</Text>
-              <Text style={styles.subtitle}>{mealTitle}</Text>
+              <Text style={styles.title}>🥘 {mealTitle}</Text>
+              <Text style={styles.subtitle}>Detalles de la receta</Text>
             </View>
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
               <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
           </LinearGradient>
 
-          {/* Ingredients List */}
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {/* Información de debug temporal */}
-            <View style={styles.debugInfo}>
-              <Text style={styles.debugText}>
-                Ingredientes: {ingredients?.length || 0}
+          {/* Tabs */}
+          <View style={styles.tabsContainer}>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'ingredients' && styles.tabActive]}
+              onPress={() => setActiveTab('ingredients')}
+            >
+              <Text style={[styles.tabText, activeTab === 'ingredients' && styles.tabTextActive]}>
+                🥬 Ingredientes
               </Text>
-            </View>
+              {activeTab === 'ingredients' && <View style={styles.tabIndicator} />}
+            </TouchableOpacity>
 
-            {ingredients && ingredients.length > 0 ? (
-              <View style={styles.ingredientsList}>
-                {ingredients.map((ingredient, index) => (
-                  <View key={index} style={styles.ingredientItem}>
-                    <View style={styles.ingredientBullet} />
-                    <Text style={styles.ingredientText}>
-                      {formatIngredient(ingredient)}
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'preparation' && styles.tabActive]}
+              onPress={() => setActiveTab('preparation')}
+            >
+              <Text style={[styles.tabText, activeTab === 'preparation' && styles.tabTextActive]}>
+                👨‍🍳 Preparación
+              </Text>
+              {activeTab === 'preparation' && <View style={styles.tabIndicator} />}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'video' && styles.tabActive]}
+              onPress={() => setActiveTab('video')}
+            >
+              <Text style={[styles.tabText, activeTab === 'video' && styles.tabTextActive]}>
+                🎥 Video
+              </Text>
+              {activeTab === 'video' && <View style={styles.tabIndicator} />}
+            </TouchableOpacity>
+          </View>
+
+          {/* Content */}
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            {activeTab === 'ingredients' ? (
+              // Tab de Ingredientes
+              ingredients && ingredients.length > 0 ? (
+                <View style={styles.ingredientsList}>
+                  {ingredients.map((ingredient, index) => (
+                    <View key={index} style={styles.ingredientItem}>
+                      <View style={styles.ingredientBullet} />
+                      <Text style={styles.ingredientText}>
+                        {formatIngredient(ingredient)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.noContentContainer}>
+                  <Text style={styles.noContentText}>
+                    No hay ingredientes especificados para esta comida
+                  </Text>
+                </View>
+              )
+            ) : activeTab === 'preparation' ? (
+              // Tab de Preparación
+              instructionSteps.length > 0 ? (
+                <View style={styles.instructionsList}>
+                  {instructionSteps.map((step, index) => (
+                    <View key={index} style={styles.instructionItem}>
+                      <View style={styles.stepNumber}>
+                        <Text style={styles.stepNumberText}>{index + 1}</Text>
+                      </View>
+                      <Text style={styles.instructionText}>{step.trim()}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.noContentContainer}>
+                  <Text style={styles.noContentText}>
+                    No hay instrucciones de preparación disponibles
+                  </Text>
+                </View>
+              )
+            ) : (
+              // Tab de Video
+              <View style={styles.videoContainer}>
+                {/* Thumbnail de YouTube */}
+                <View style={styles.videoThumbnailContainer}>
+                  <View style={styles.videoThumbnail}>
+                    <Text style={styles.videoIcon}>▶️</Text>
+                    <Text style={styles.videoTitle}>Video de preparación</Text>
+                    <Text style={styles.videoSubtitle}>
+                      {videoUrl ? 'Video específico disponible' : 'Buscar en YouTube'}
                     </Text>
                   </View>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.noIngredientsContainer}>
-                <Text style={styles.noIngredientsText}>
-                  No hay ingredientes especificados para esta comida
-                </Text>
+                </View>
+
+                {/* Botón para abrir video */}
+                <TouchableOpacity 
+                  style={styles.openVideoButton}
+                  onPress={handleOpenVideo}
+                >
+                  <LinearGradient
+                    colors={['#FF0000', '#CC0000']}
+                    style={styles.openVideoButtonGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <Text style={styles.openVideoIcon}>▶️</Text>
+                    <Text style={styles.openVideoButtonText}>
+                      {videoUrl ? 'Ver video en YouTube' : 'Buscar receta en YouTube'}
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <View style={styles.videoInfo}>
+                  <Text style={styles.videoInfoText}>
+                    {videoUrl 
+                      ? '💡 El video se abrirá en YouTube para que puedas ver la preparación paso a paso'
+                      : '💡 Se abrirá YouTube con resultados de búsqueda para esta receta'
+                    }
+                  </Text>
+                </View>
               </View>
             )}
           </ScrollView>
@@ -94,7 +254,14 @@ export const IngredientsModal: React.FC<IngredientsModalProps> = ({
           {/* Footer */}
           <View style={styles.footer}>
             <TouchableOpacity style={styles.actionButton} onPress={onClose}>
-              <Text style={styles.actionButtonText}>Cerrar</Text>
+              <LinearGradient
+                colors={['#4CAF50', '#45A049']}
+                style={styles.actionButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Text style={styles.actionButtonText}>Cerrar</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
@@ -116,7 +283,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     width: '100%',
     maxHeight: '80%',
-    minHeight: 300,
+    minHeight: 400,
   },
   header: {
     flexDirection: 'row',
@@ -127,20 +294,18 @@ const styles = StyleSheet.create({
     paddingBottom: 15,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.2)',
   },
   headerContent: {
     flex: 1,
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 5,
+    marginBottom: 4,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: 'rgba(255, 255, 255, 0.9)',
     fontWeight: '500',
   },
@@ -157,19 +322,59 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
   },
+  
+  // Tabs
+  tabsContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#f8f9fa',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 16,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  tabActive: {
+    backgroundColor: '#fff',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  tabTextActive: {
+    color: '#4CAF50',
+    fontWeight: '700',
+  },
+  tabIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: '#4CAF50',
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
+  },
+  
+  // Content
   content: {
     flex: 1,
     paddingHorizontal: 20,
     paddingVertical: 10,
     backgroundColor: '#fff',
   },
+  
+  // Ingredientes
   ingredientsList: {
     paddingVertical: 20,
   },
   ingredientItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 15,
+    marginBottom: 16,
     paddingHorizontal: 10,
   },
   ingredientBullet: {
@@ -186,16 +391,124 @@ const styles = StyleSheet.create({
     color: '#333',
     lineHeight: 22,
   },
-  noIngredientsContainer: {
-    paddingVertical: 40,
+  
+  // Instrucciones
+  instructionsList: {
+    paddingVertical: 20,
+  },
+  instructionItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+    paddingHorizontal: 10,
+  },
+  stepNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#4CAF50',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+    marginTop: 2,
+  },
+  stepNumberText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  instructionText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+    lineHeight: 24,
+  },
+  
+  // Empty states
+  noContentContainer: {
+    paddingVertical: 60,
     alignItems: 'center',
   },
-  noIngredientsText: {
+  noContentText: {
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
     fontStyle: 'italic',
   },
+  
+  // Video
+  videoContainer: {
+    paddingVertical: 20,
+  },
+  videoThumbnailContainer: {
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  videoThumbnail: {
+    width: '100%',
+    height: 200,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+    borderStyle: 'dashed',
+  },
+  videoIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  videoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 4,
+  },
+  videoSubtitle: {
+    fontSize: 13,
+    color: '#999',
+    fontWeight: '500',
+  },
+  openVideoButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 20,
+    shadowColor: '#FF0000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  openVideoButtonGradient: {
+    flexDirection: 'row',
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  openVideoIcon: {
+    fontSize: 20,
+  },
+  openVideoButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  videoInfo: {
+    backgroundColor: '#E3F2FD',
+    padding: 16,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#2196F3',
+  },
+  videoInfoText: {
+    fontSize: 14,
+    color: '#1565C0',
+    lineHeight: 20,
+  },
+  
+  // Footer
   footer: {
     paddingHorizontal: 20,
     paddingVertical: 15,
@@ -203,31 +516,21 @@ const styles = StyleSheet.create({
     borderTopColor: '#f0f0f0',
   },
   actionButton: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 15,
     borderRadius: 25,
-    alignItems: 'center',
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 5,
   },
+  actionButtonGradient: {
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
   actionButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-  },
-  // Debug temporal
-  debugInfo: {
-    backgroundColor: '#f0f0f0',
-    padding: 10,
-    margin: 10,
-    borderRadius: 5,
-  },
-  debugText: {
-    fontSize: 14,
-    color: '#333',
-    fontWeight: 'bold',
   },
 });

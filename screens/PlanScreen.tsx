@@ -851,14 +851,6 @@ export const PlanScreen: React.FC = () => {
             {/* Meal Plan */}
             {renderMealPlan()}
 
-            {/* Plan Notes */}
-            {weeklyPlan.notes && (
-              <View style={styles.notesSection}>
-                <Text style={styles.notesTitle}>💡 Nota del plan</Text>
-                <Text style={styles.notesText}>{weeklyPlan.notes}</Text>
-              </View>
-            )}
-
             {/* Macros Summary con barra de progreso */}
             <View style={styles.macrosSection}>
               <Text style={styles.macrosTitle}>📊 Objetivos nutricionales</Text>
@@ -975,6 +967,8 @@ export const PlanScreen: React.FC = () => {
         onClose={closeIngredientsModal}
         ingredients={selectedMeal?.ingredients || []}
         mealTitle={selectedMeal?.title || ''}
+        instructions={selectedMeal?.instructions}
+        videoUrl={selectedMeal?.videoUrl}
       />
 
       {/* Modal de lista de compras */}

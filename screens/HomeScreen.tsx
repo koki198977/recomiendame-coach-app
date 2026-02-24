@@ -416,81 +416,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
 
         {weeklyPlan ? (
           <>
-            {/* Checkin diario */}
-            <View style={styles.checkinCard}>
-              <View style={styles.checkinHeader}>
-                <Text style={styles.cardTitle}>Checkin diario</Text>
-                {todayCheckin && (
-                  <View style={styles.checkinBadge}>
-                    <Text style={styles.checkinBadgeText}>✅ Completado</Text>
-                  </View>
-                )}
-              </View>
-              
-              {todayCheckin ? (
-                <View style={styles.checkinSummary}>
-                  <View style={styles.checkinRow}>
-                    {todayCheckin.weightKg && (
-                      <View style={styles.checkinItem}>
-                        <Text style={styles.checkinValue}>{todayCheckin.weightKg} kg</Text>
-                        <Text style={styles.checkinLabel}>Peso</Text>
-                      </View>
-                    )}
-                    {todayCheckin.adherencePct !== undefined && (
-                      <View style={styles.checkinItem}>
-                        <Text style={styles.checkinValue}>{todayCheckin.adherencePct}%</Text>
-                        <Text style={styles.checkinLabel}>Adherencia</Text>
-                      </View>
-                    )}
-                    {todayCheckin.hungerLvl && (
-                      <View style={styles.checkinItem}>
-                        <Text style={styles.checkinValue}>{todayCheckin.hungerLvl}/10</Text>
-                        <Text style={styles.checkinLabel}>Hambre</Text>
-                      </View>
-                    )}
-                  </View>
-                  {todayCheckin.notes && (
-                    <Text style={styles.checkinNotes}>"{todayCheckin.notes}"</Text>
-                  )}
-                  <TouchableOpacity style={styles.updateCheckinButton} onPress={openCheckinModal}>
-                    <Text style={styles.updateCheckinButtonText}>Actualizar checkin</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <View style={styles.noCheckinContainer}>
-                  <Text style={styles.noCheckinText}>
-                    ¿Cómo te sientes hoy? Registra tu progreso diario
-                  </Text>
-                  <TouchableOpacity style={styles.checkinButton} onPress={openCheckinModal}>
-                    <Text style={styles.checkinButtonText}>📝 Hacer checkin</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              {gamificationData && (
-                <View style={styles.gamificationInfo}>
-                  <Text style={styles.gamificationTitle}>🎉 ¡Logros recientes!</Text>
-                  <View style={styles.gamificationRow}>
-                    <Text style={styles.gamificationText}>🔥 {gamificationData.streakDays} días</Text>
-                    <Text style={styles.gamificationText}>⭐ {gamificationData.totalPoints} puntos</Text>
-                  </View>
-                </View>
-              )}
-            </View>
-
-            {/* Insights Personalizados de Chapi */}
-            <ChapiInsightsCard refreshKey={chapiRefreshKey} />
-
-            {/* Análisis Nutricional de Productos */}
-            <NutritionScannerCard 
-              userProfile={userProfile}
-              onProductScanned={(analysis) => {
-                console.log('Producto escaneado:', analysis.productName);
-              }}
-              onMealAdded={refreshTodayMeals}
-            />
-
-            {/* Progreso Nutricional Futurista */}
+            {/* Progreso Nutricional Futurista - Movido al inicio */}
             <View style={styles.nutritionProgressCard}>
               <LinearGradient
                 colors={['rgba(76, 175, 80, 0.1)', 'rgba(76, 175, 80, 0.05)']}
@@ -617,6 +543,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
               </LinearGradient>
             </View>
 
+            {/* Insights Personalizados de Chapi */}
+            <ChapiInsightsCard refreshKey={chapiRefreshKey} />
+
+            {/* Escaneo Nutricional - Texto cambiado y espacios reducidos */}
+            <NutritionScannerCard 
+              userProfile={userProfile}
+              onProductScanned={(analysis) => {
+                console.log('Producto escaneado:', analysis.productName);
+              }}
+              onMealAdded={refreshTodayMeals}
+            />
+
             {/* Hidratación */}
             <HydrationCard
               key={hydrationKey}
@@ -694,6 +632,68 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
                   <View>
                     <Text style={styles.restDayTitle}>Día de descanso</Text>
                     <Text style={styles.restDayText}>¡Recupérate para mañana!</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* Checkin diario - Movido después del workout */}
+            <View style={styles.checkinCard}>
+              <View style={styles.checkinHeader}>
+                <Text style={styles.cardTitle}>Checkin diario</Text>
+                {todayCheckin && (
+                  <View style={styles.checkinBadge}>
+                    <Text style={styles.checkinBadgeText}>✅ Completado</Text>
+                  </View>
+                )}
+              </View>
+              
+              {todayCheckin ? (
+                <View style={styles.checkinSummary}>
+                  <View style={styles.checkinRow}>
+                    {todayCheckin.weightKg && (
+                      <View style={styles.checkinItem}>
+                        <Text style={styles.checkinValue}>{todayCheckin.weightKg} kg</Text>
+                        <Text style={styles.checkinLabel}>Peso</Text>
+                      </View>
+                    )}
+                    {todayCheckin.adherencePct !== undefined && (
+                      <View style={styles.checkinItem}>
+                        <Text style={styles.checkinValue}>{todayCheckin.adherencePct}%</Text>
+                        <Text style={styles.checkinLabel}>Seguimiento del plan</Text>
+                      </View>
+                    )}
+                    {todayCheckin.hungerLvl && (
+                      <View style={styles.checkinItem}>
+                        <Text style={styles.checkinValue}>{todayCheckin.hungerLvl}/10</Text>
+                        <Text style={styles.checkinLabel}>Hambre</Text>
+                      </View>
+                    )}
+                  </View>
+                  {todayCheckin.notes && (
+                    <Text style={styles.checkinNotes}>"{todayCheckin.notes}"</Text>
+                  )}
+                  <TouchableOpacity style={styles.updateCheckinButton} onPress={openCheckinModal}>
+                    <Text style={styles.updateCheckinButtonText}>Actualizar checkin</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.noCheckinContainer}>
+                  <Text style={styles.noCheckinText}>
+                    ¿Cómo te sientes hoy? Registra tu progreso diario
+                  </Text>
+                  <TouchableOpacity style={styles.checkinButton} onPress={openCheckinModal}>
+                    <Text style={styles.checkinButtonText}>📝 Hacer checkin</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {gamificationData && (
+                <View style={styles.gamificationInfo}>
+                  <Text style={styles.gamificationTitle}>🎉 ¡Logros recientes!</Text>
+                  <View style={styles.gamificationRow}>
+                    <Text style={styles.gamificationText}>🔥 {gamificationData.streakDays} días</Text>
+                    <Text style={styles.gamificationText}>⭐ {gamificationData.totalPoints} puntos</Text>
                   </View>
                 </View>
               )}

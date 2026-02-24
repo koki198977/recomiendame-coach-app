@@ -289,20 +289,16 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
     <Modal
       visible={visible}
       animationType="slide"
-      transparent
+      presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
-        {/* Área clickeable para cerrar el modal */}
-        <TouchableOpacity 
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={onClose}
-        />
-        
-        <View style={styles.modalContainer}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
           <TouchableOpacity onPress={onClose} style={styles.backButton}>
             <Text style={styles.backButtonText}>✕</Text>
           </TouchableOpacity>
@@ -330,6 +326,7 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
           style={styles.messagesContainer}
           contentContainerStyle={styles.messagesContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {messages.map((message) => (
             <React.Fragment key={message.id}>
@@ -346,7 +343,7 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
         </ScrollView>
 
         {/* Input - Fixed at bottom */}
-        <View style={styles.inputContainer}>
+        <View style={[styles.inputContainer, { paddingBottom: insets.bottom + 12 }]}>
           <TextInput
             style={styles.input}
             placeholder="Escribe cómo te sientes..."
@@ -368,36 +365,15 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
             <Text style={styles.sendButtonText}>➤</Text>
           </TouchableOpacity>
         </View>
-        </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  container: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
-  },
-  modalBackdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  modalContainer: {
-    position: 'absolute',
-    top: '10%', // Bajado 10% desde arriba
-    left: 0,
-    right: 0,
-    height: '50%', // Reducido a 50% de altura
     backgroundColor: '#f5f5f5',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',
@@ -462,11 +438,10 @@ const styles = StyleSheet.create({
   },
   messagesContainer: {
     flex: 1,
-    paddingBottom: 80, // Espacio para el input fijo
   },
   messagesContent: {
     padding: 16,
-    paddingBottom: 8,
+    paddingBottom: 16,
   },
   messageBubble: {
     maxWidth: '80%',
@@ -571,10 +546,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   inputContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     flexDirection: 'row',
     paddingHorizontal: 12,
     paddingVertical: 12,

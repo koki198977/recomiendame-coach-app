@@ -58,12 +58,12 @@ export default function NutritionScannerCard({
           <View style={styles.content}>
             <View style={styles.header}>
               <View style={styles.iconContainer}>
-                <Ionicons name="barcode-outline" size={28} color="white" />
+                <Ionicons name="barcode-outline" size={24} color="white" />
               </View>
               <View style={styles.headerText}>
-                <Text style={styles.title}>Análisis Nutricional</Text>
+                <Text style={styles.title}>Escaneo Nutricional</Text>
                 <Text style={styles.subtitle}>
-                  Escanea productos y obtén recomendaciones personalizadas
+                  Escanea productos y obtén recomendaciones
                 </Text>
               </View>
             </View>
@@ -151,7 +151,7 @@ export default function NutritionScannerCard({
 const styles = StyleSheet.create({
   container: {
     marginHorizontal: 20,
-    marginVertical: 10,
+    marginVertical: 8,
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: 'white',
@@ -165,20 +165,20 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   gradient: {
-    padding: 20,
+    padding: 16,
   },
   content: {
-    gap: 16,
+    gap: 12,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -187,15 +187,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: 'white',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: 'rgba(255, 255, 255, 0.9)',
-    lineHeight: 18,
+    lineHeight: 16,
   },
   lastProductContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
@@ -234,56 +234,56 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'white',
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
-    marginBottom: 8,
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 6,
+    marginBottom: 6,
   },
   scanButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#667eea',
   },
   orText: {
-    fontSize: 14,
+    fontSize: 12,
     color: 'rgba(255, 255, 255, 0.7)',
     textAlign: 'center',
-    marginVertical: 8,
+    marginVertical: 4,
   },
   manualButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 8,
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   manualButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     color: 'white',
   },
   featuresContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingTop: 16,
-    paddingHorizontal: 8,
+    paddingTop: 12,
+    paddingHorizontal: 4,
   },
   feature: {
     alignItems: 'center',
     flex: 1,
-    paddingHorizontal: 8,
-    gap: 6,
+    paddingHorizontal: 4,
+    gap: 4,
   },
   featureText: {
-    fontSize: 11,
+    fontSize: 10,
     color: 'rgba(255, 255, 255, 0.9)',
     fontWeight: '500',
     textAlign: 'center',
-    lineHeight: 14,
-    minHeight: 28,
+    lineHeight: 12,
+    minHeight: 24,
   },
 });

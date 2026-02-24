@@ -201,26 +201,62 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
                       <TextInput
                         style={styles.textInput}
                         value={weightKg}
-                        onChangeText={setWeightKg}
+                        onChangeText={(text) => {
+                          // Solo permitir números y un punto decimal
+                          const validValue = text.replace(/[^0-9.]/g, '');
+                          
+                          // Evitar múltiples puntos decimales
+                          const parts = validValue.split('.');
+                          if (parts.length > 2) {
+                            return;
+                          }
+                          
+                          // Limitar decimales a 1 dígito
+                          if (parts.length === 2 && parts[1].length > 1) {
+                            return;
+                          }
+                          
+                          setWeightKg(validValue);
+                        }}
                         placeholder="Ej: 75.5"
                         keyboardType="decimal-pad"
                         placeholderTextColor="#999"
+                        maxLength={5}
                       />
                     </View>
 
                     {/* Adherencia */}
                     <View style={styles.field}>
-                      <Text style={styles.fieldLabel}>Adherencia al plan (%) - Opcional</Text>
+                      <Text style={styles.fieldLabel}>Seguimiento del plan (%) - Opcional</Text>
                       <TextInput
                         style={styles.textInput}
                         value={adherencePct}
-                        onChangeText={setAdherencePct}
+                        onChangeText={(text) => {
+                          // Solo permitir números
+                          const numericValue = text.replace(/[^0-9]/g, '');
+                          
+                          // Si está vacío, permitir
+                          if (numericValue === '') {
+                            setAdherencePct('');
+                            return;
+                          }
+                          
+                          // Convertir a número y validar rango 0-100
+                          const num = parseInt(numericValue);
+                          if (num >= 0 && num <= 100) {
+                            setAdherencePct(numericValue);
+                          } else if (num > 100) {
+                            // Si es mayor a 100, establecer en 100
+                            setAdherencePct('100');
+                          }
+                        }}
                         placeholder="Ej: 85"
                         keyboardType="number-pad"
                         placeholderTextColor="#999"
+                        maxLength={3}
                       />
                       <Text style={styles.fieldHint}>
-                        ¿Qué tan bien seguiste tu plan nutricional hoy?
+                        ¿Qué tan bien seguiste tu plan nutricional hoy? (0-100%)
                       </Text>
                     </View>
 
@@ -229,17 +265,20 @@ export const DailyCheckinModal: React.FC<DailyCheckinModalProps> = ({
 
                     {/* Notas */}
                     <View style={styles.field}>
-                      <Text style={styles.fieldLabel}>Notas del día - Opcional</Text>
+                      <Text style={styles.fieldLabel}>Reflexión del día - Opcional</Text>
                       <TextInput
                         style={[styles.textInput, styles.textArea]}
                         value={notes}
                         onChangeText={setNotes}
-                        placeholder="Ej: Día sólido, 10k pasos, me sentí con energía..."
+                        placeholder="Escribe tus agradecimientos del día o las metas que cumpliste hoy. Ej: Agradezco haber tenido energía para entrenar, cumplí mi meta de 10k pasos..."
                         multiline
                         numberOfLines={4}
                         placeholderTextColor="#999"
                         textAlignVertical="top"
                       />
+                      <Text style={styles.fieldHint}>
+                        💡 Comparte tus agradecimientos o metas cumplidas. Esto nos ayuda a conocerte mejor y mejorar tu experiencia.
+                      </Text>
                     </View>
 
                     {existingCheckin && (

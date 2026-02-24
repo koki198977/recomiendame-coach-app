@@ -41,6 +41,8 @@ export interface NutritionGoalDetails {
 
 export interface UserProfile {
   userId: string;
+  name?: string; // Nombre
+  lastName?: string; // Apellido
   sex?: "MALE" | "FEMALE";
   birthDate?: string;
   heightCm?: number;
@@ -194,6 +196,8 @@ export interface WeeklyPlanMeal {
   carbs_g: number;
   fat_g: number;
   tags: string[];
+  instructions?: string; // Instrucciones de preparación
+  videoUrl?: string; // URL de YouTube (opcional, si no se provee se busca por título)
   ingredients: WeeklyPlanIngredient[] | string[]; // Puede ser array de objetos o strings
 }
 

@@ -27,7 +27,7 @@ import { NotificationReminderService } from './services/notificationReminderServ
 setupErrorHandlers();
 
 // Componente principal con tabs manuales
-const MainApp: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
+const MainApp: React.FC<{ onLogout: () => void; refreshKey: number }> = ({ onLogout, refreshKey }) => {
   const [activeTab, setActiveTab] = useState('home');
   const [planInitialTab, setPlanInitialTab] = useState<'nutrition' | 'workouts'>('nutrition');
   const [chapiModalVisible, setChapiModalVisible] = useState(false);
@@ -35,7 +35,7 @@ const MainApp: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const renderScreen = () => {
     switch (activeTab) {
       case 'home':
-        return <HomeScreen onNavigateToWorkout={() => {
+        return <HomeScreen key={refreshKey} onNavigateToWorkout={() => {
           setPlanInitialTab('workouts');
           setActiveTab('plan');
         }} />;
@@ -48,7 +48,7 @@ const MainApp: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       case 'profile':
         return <ProfileScreen onLogout={onLogout} />;
       default:
-        return <HomeScreen onNavigateToWorkout={() => {
+        return <HomeScreen key={refreshKey} onNavigateToWorkout={() => {
           setPlanInitialTab('workouts');
           setActiveTab('plan');
         }} />;
@@ -146,6 +146,7 @@ export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [verificationMessage, setVerificationMessage] = useState<string | undefined>(undefined);
   const [registeredEmail, setRegisteredEmail] = useState<string | undefined>(undefined);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Debug: Log cuando cambia el estado del modal
   React.useEffect(() => {
@@ -252,6 +253,9 @@ export default function App() {
       
       setShowCompleteProfile(false);
       console.log('🔒 Modal cerrado después de completar perfil');
+      
+      // Incrementar refreshKey para forzar refresh del HomeScreen
+      setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.log('❌ Error completando perfil:', error);
     }
@@ -339,7 +343,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
-        <MainApp onLogout={handleLogout} />
+        <MainApp onLogout={handleLogout} refreshKey={refreshKey} />
         <CompleteProfileModal
           visible={showCompleteProfile}
           onComplete={handleCompleteProfile}

@@ -408,7 +408,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
       <ScrollView style={styles.container}>
         {/* Modern Header with Logo */}
         <AppHeader
-          title={`¡Hola, ${user?.name || 'Usuario'}! 👋`}
+          title={`¡Hola, ${
+            userProfile?.name && userProfile?.lastName 
+              ? `${userProfile.name} ${userProfile.lastName}`
+              : userProfile?.name || user?.name || 'Usuario'
+          }! 👋`}
           subtitle={weeklyPlan ? `Hoy vamos por esa energía 💪` : 'Vamos a crear tu plan nutricional'}
           showLogo={true}
           rightComponent={<NotificationBadge count={0} />}

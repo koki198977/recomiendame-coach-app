@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  TextInput,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NutritionService } from "../services/nutritionService";
@@ -49,6 +50,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
   }>({ type: null, value: null });
   const [isGeneratingPlan, setIsGeneratingPlan] = React.useState(false);
   const [generationProgress, setGenerationProgress] = React.useState(0);
+  const [showEditNameModal, setShowEditNameModal] = React.useState(false);
+  const [editingName, setEditingName] = React.useState({ name: '', lastName: '' });
 
   React.useEffect(() => {
     loadUserData();
@@ -166,11 +169,19 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
     <View style={styles.profileCard}>
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>
-          {user?.name?.charAt(0).toUpperCase() || "U"}
+          {userProfile?.name?.charAt(0).toUpperCase() || user?.name?.charAt(0).toUpperCase() || "U"}
         </Text>
       </View>
-      <Text style={styles.userName}>{user?.name || "Usuario"}</Text>
+      <Text style={styles.userName}>
+        {userProfile?.name && userProfile?.lastName 
+          ? `${userProfile.name} ${userProfile.lastName}`
+          : userProfile?.name || user?.name || "Usuario"}
+      </Text>
       <Text style={styles.userEmail}>{user?.email}</Text>
+      
+      <TouchableOpacity style={styles.editNameButton} onPress={handleEditName}>
+        <Text style={styles.editNameButtonText}>✏️ Editar nombre</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -349,6 +360,42 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
     setEditField({ type, value: currentValue });
   };
 
+  const handleEditName = () => {
+    setEditingName({
+      name: userProfile?.name || '',
+      lastName: userProfile?.lastName || ''
+    });
+    setShowEditNameModal(true);
+  };
+
+  const handleSaveName = async () => {
+    try {
+      if (!editingName.name.trim()) {
+        Alert.alert('Error', 'El nombre no puede estar vacío');
+        return;
+      }
+
+      const updatedProfile = await NutritionService.updateUserProfile({
+        name: editingName.name.trim(),
+        lastName: editingName.lastName.trim()
+      });
+
+      setUserProfile(updatedProfile);
+      
+      // Actualizar también en AsyncStorage
+      await AsyncStorage.setItem('userProfile', JSON.stringify(updatedProfile));
+      
+      setShowEditNameModal(false);
+      Alert.alert('¡Listo!', 'Tu nombre ha sido actualizado');
+      
+      // Recargar datos para asegurar sincronización
+      await loadUserData();
+    } catch (error) {
+      console.log('Error updating name:', error);
+      Alert.alert('Error', 'No se pudo actualizar el nombre. Intenta nuevamente.');
+    }
+  };
+
   const getActivityLevelLabel = (level?: string): string => {
     const labels: { [key: string]: string } = {
       SEDENTARY: "Sedentario",
@@ -376,13 +423,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
       LOSE_WEIGHT: "Bajar de peso",
       GAIN_WEIGHT: "Subir de peso",
       GAIN_MUSCLE: "Ganar masa muscular",
-      IMPROVE_HEALTH: "Salud general",
-      // Mantener compatibilidad con valores anteriores
       BUILD_MUSCLE: "Ganar masa muscular",
+      IMPROVE_HEALTH: "Salud general",
       ATHLETIC_PERFORMANCE: "Salud general",
       GENERAL_HEALTH: "Salud general",
     };
-    return labels[goal || ""] || `No especificado (${goal})`;
+    return labels[goal || ""] || "No especificado";
   };
 
   const getTimeFrameLabel = (timeFrame?: string): string => {
@@ -400,7 +446,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
       "LONG_TERM": "Largo plazo",
     };
     
-    const result = labels[timeFrame || ""] || `No especificado (${timeFrame})`;
+    const result = labels[timeFrame || ""] || `No especificado`;
     console.log('🔍 TimeFrame mapeado:', result); // Debug
     return result;
   };
@@ -913,6 +959,73 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
         visible={isGeneratingPlan}
         progress={generationProgress}
       />
+
+      {/* Modal de edición de nombre */}
+      <Modal
+        visible={showEditNameModal}
+        transparent
+        animationType="slide"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>✏️ Editar Nombre</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowEditNameModal(false)}
+              >
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalContent}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Nombre</Text>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputIcon}>👤</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editingName.name}
+                    onChangeText={(text) => setEditingName({ ...editingName, name: text })}
+                    placeholder="Ingresa tu nombre"
+                    placeholderTextColor={COLORS.textLight}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Apellido</Text>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputIcon}>👤</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editingName.lastName}
+                    onChangeText={(text) => setEditingName({ ...editingName, lastName: text })}
+                    placeholder="Ingresa tu apellido"
+                    placeholderTextColor={COLORS.textLight}
+                  />
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={() => setShowEditNameModal(false)}
+              >
+                <Text style={styles.modalButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalEditButton}
+                onPress={handleSaveName}
+              >
+                <Text style={styles.modalEditButtonText}>Guardar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -1158,5 +1271,46 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontWeight: "600",
     fontSize: 16,
+  },
+  editNameButton: {
+    marginTop: 15,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: COLORS.primary,
+    borderRadius: 20,
+    ...SHADOWS.glow,
+  },
+  editNameButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: 15,
+  },
+  inputIcon: {
+    fontSize: 18,
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: COLORS.text,
   },
 });

@@ -42,6 +42,8 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
   onLogout,
 }) => {
   const [formData, setFormData] = useState({
+    name: '',
+    lastName: '',
     sex: '',
     heightCm: '',
     weightKg: '',
@@ -90,6 +92,8 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
       title: 'Datos básicos',
       subtitle: 'Información personal',
       fields: [
+        { key: 'name', label: 'Nombre', placeholder: 'Nombre', keyboardType: 'default' },
+        { key: 'lastName', label: 'Apellido', placeholder: 'Apellido', keyboardType: 'default' },
         { key: 'heightCm', label: 'Estatura (cm)', placeholder: '173', keyboardType: 'numeric' },
         { key: 'weightKg', label: 'Peso (kg)', placeholder: '70', keyboardType: 'numeric' },
       ]
@@ -565,6 +569,8 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
     try {
       // 1. Crear/actualizar perfil básico
       const profileData = {
+        name: formData.name.trim() || undefined,
+        lastName: formData.lastName.trim() || undefined,
         sex: formData.sex as "MALE" | "FEMALE",
         heightCm: parseInt(formData.heightCm),
         weightKg: parseInt(formData.weightKg),
@@ -714,16 +720,6 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                 <Text style={styles.featureItem}>🤖 Recomendaciones con IA</Text>
                 <Text style={styles.featureItem}>🍎 Recetas adaptadas a ti</Text>
               </View>
-              
-              {/* Botón de cerrar sesión temporal */}
-              <TouchableOpacity 
-                style={styles.temporaryLogoutButton}
-                onPress={handleTemporaryLogout}
-              >
-                <Text style={styles.temporaryLogoutText}>
-                  Completar más tarde
-                </Text>
-              </TouchableOpacity>
             </View>
           )}
 

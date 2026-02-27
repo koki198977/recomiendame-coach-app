@@ -31,26 +31,35 @@ const MainApp: React.FC<{ onLogout: () => void; refreshKey: number }> = ({ onLog
   const [activeTab, setActiveTab] = useState('home');
   const [planInitialTab, setPlanInitialTab] = useState<'nutrition' | 'workouts'>('nutrition');
   const [chapiModalVisible, setChapiModalVisible] = useState(false);
+  const [progressRefreshKey, setProgressRefreshKey] = useState(0);
+
+  // Incrementar el refresh key cuando se activa el tab de progreso
+  const handleTabChange = (tab: string) => {
+    if (tab === 'progress') {
+      setProgressRefreshKey(prev => prev + 1);
+    }
+    setActiveTab(tab);
+  };
 
   const renderScreen = () => {
     switch (activeTab) {
       case 'home':
         return <HomeScreen key={refreshKey} onNavigateToWorkout={() => {
           setPlanInitialTab('workouts');
-          setActiveTab('plan');
+          handleTabChange('plan');
         }} />;
       case 'plan':
         return <PlanScreenWithTabs initialTab={planInitialTab} />;
       case 'social':
         return <SocialScreen />;
       case 'progress':
-        return <ProgressScreen />;
+        return <ProgressScreen key={progressRefreshKey} />;
       case 'profile':
         return <ProfileScreen onLogout={onLogout} />;
       default:
         return <HomeScreen key={refreshKey} onNavigateToWorkout={() => {
           setPlanInitialTab('workouts');
-          setActiveTab('plan');
+          handleTabChange('plan');
         }} />;
     }
   };
@@ -67,7 +76,7 @@ const MainApp: React.FC<{ onLogout: () => void; refreshKey: number }> = ({ onLog
         <View style={styles.tabBar}>
           <TouchableOpacity
             style={styles.tab}
-            onPress={() => setActiveTab('home')}
+            onPress={() => handleTabChange('home')}
           >
             <View style={[styles.tabIconContainer, activeTab === 'home' && styles.activeTabIconContainer]}>
               <Text style={[styles.tabIcon, activeTab === 'home' && styles.activeTabIcon]}>🏠</Text>
@@ -79,7 +88,7 @@ const MainApp: React.FC<{ onLogout: () => void; refreshKey: number }> = ({ onLog
 
           <TouchableOpacity
             style={styles.tab}
-            onPress={() => setActiveTab('plan')}
+            onPress={() => handleTabChange('plan')}
           >
             <View style={[styles.tabIconContainer, activeTab === 'plan' && styles.activeTabIconContainer]}>
               <Text style={[styles.tabIcon, activeTab === 'plan' && styles.activeTabIcon]}>🍎</Text>
@@ -91,7 +100,7 @@ const MainApp: React.FC<{ onLogout: () => void; refreshKey: number }> = ({ onLog
 
           <TouchableOpacity
             style={styles.tab}
-            onPress={() => setActiveTab('social')}
+            onPress={() => handleTabChange('social')}
           >
             <View style={[styles.tabIconContainer, activeTab === 'social' && styles.activeTabIconContainer]}>
               <Text style={[styles.tabIcon, activeTab === 'social' && styles.activeTabIcon]}>👥</Text>
@@ -103,7 +112,7 @@ const MainApp: React.FC<{ onLogout: () => void; refreshKey: number }> = ({ onLog
 
           <TouchableOpacity
             style={styles.tab}
-            onPress={() => setActiveTab('progress')}
+            onPress={() => handleTabChange('progress')}
           >
             <View style={[styles.tabIconContainer, activeTab === 'progress' && styles.activeTabIconContainer]}>
               <Text style={[styles.tabIcon, activeTab === 'progress' && styles.activeTabIcon]}>📊</Text>
@@ -115,7 +124,7 @@ const MainApp: React.FC<{ onLogout: () => void; refreshKey: number }> = ({ onLog
 
           <TouchableOpacity
             style={styles.tab}
-            onPress={() => setActiveTab('profile')}
+            onPress={() => handleTabChange('profile')}
           >
             <View style={[styles.tabIconContainer, activeTab === 'profile' && styles.activeTabIconContainer]}>
               <Text style={[styles.tabIcon, activeTab === 'profile' && styles.activeTabIcon]}>👤</Text>

@@ -200,6 +200,232 @@ class ChapiService {
   generateMessageId(): string {
     return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
+
+  /**
+   * Obtener análisis del progreso semanal
+   */
+  async getWeeklyProgressAnalysis(weekData: {
+    weeklyCompletion: number;
+    macroCompliance: {
+      calories: { days: number; total: number };
+      protein: { days: number; total: number };
+      fats: { days: number; total: number };
+    };
+    dailyAdherence: number[];
+    weeklyAverage: {
+      calories: number;
+      protein: number;
+      carbs: number;
+      fats: number;
+    };
+  }): Promise<{ message: string; emoji: string }> {
+    try {
+      // Construir mensaje contextual para Chapi
+      const contextMessage = `
+Analiza mi progreso semanal y dame un mensaje motivacional personalizado:
+
+CUMPLIMIENTO GENERAL:
+- ${weekData.weeklyCompletion}% de cumplimiento semanal (${Math.round((weekData.weeklyCompletion / 100) * 7)}/7 días con comidas registradas)
+
+CUMPLIMIENTO DE MACROS:
+- Calorías: ${weekData.macroCompliance.calories.days}/${weekData.macroCompliance.calories.total} días dentro del rango objetivo
+- Proteína: ${weekData.macroCompliance.protein.days}/${weekData.macroCompliance.protein.total} días cumpliendo objetivo
+- Grasas: ${weekData.macroCompliance.fats.days}/${weekData.macroCompliance.fats.total} días controladas
+
+ADHERENCIA DIARIA (L-D):
+${weekData.dailyAdherence.map((adh, i) => {
+  const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+  return `- ${days[i]}: ${adh}%`;
+}).join('\n')}
+
+PROMEDIO SEMANAL:
+- Calorías: ${weekData.weeklyAverage.calories} kcal/día
+- Proteína: ${weekData.weeklyAverage.protein}g/día
+- Carbohidratos: ${weekData.weeklyAverage.carbs}g/día
+- Grasas: ${weekData.weeklyAverage.fats}g/día
+
+Dame un mensaje corto (máximo 2 líneas) que:
+1. Reconozca mi progreso o identifique áreas de mejora
+2. Sea motivacional y personalizado
+3. Incluya un emoji apropiado al final
+`;
+
+      const response = await this.sendMessage(contextMessage);
+      
+      if (response.success && response.data.response.message) {
+        // Extraer emoji del mensaje si existe
+        const emojiMatch = response.data.response.message.match(/[\u{1F300}-\u{1F9FF}]/u);
+        const emoji = emojiMatch ? emojiMatch[0] : '🚀';
+        
+        return {
+          message: response.data.response.message,
+          emoji: emoji,
+        };
+      }
+      
+      // Fallback si no hay respuesta
+      return this.generateFallbackMessage(weekData);
+    } catch (error) {
+      console.error('Error obteniendo análisis semanal de Chapi:', error);
+      return this.generateFallbackMessage(weekData);
+    }
+  }
+
+  /**
+   * Obtener análisis del progreso mensual
+   */
+  async getMonthlyProgressAnalysis(monthData: {
+    monthlyCompletion: number;
+    macroCompliance: {
+      calories: { days: number; total: number };
+      protein: { days: number; total: number };
+      fats: { days: number; total: number };
+    };
+    dailyAdherence: number[];
+    monthlyAverage: {
+      calories: number;
+      protein: number;
+      carbs: number;
+      fats: number;
+    };
+  }): Promise<{ message: string; emoji: string }> {
+    try {
+      const totalDays = monthData.macroCompliance.calories.total;
+      const daysWithData = Math.round((monthData.monthlyCompletion / 100) * totalDays);
+      
+      // Construir mensaje contextual para Chapi
+      const contextMessage = `
+Analiza mi progreso mensual y dame un mensaje motivacional personalizado:
+
+CUMPLIMIENTO GENERAL:
+- ${monthData.monthlyCompletion}% de cumplimiento mensual (${daysWithData}/${totalDays} días con comidas registradas)
+
+CUMPLIMIENTO DE MACROS:
+- Calorías: ${monthData.macroCompliance.calories.days}/${monthData.macroCompliance.calories.total} días dentro del rango objetivo
+- Proteína: ${monthData.macroCompliance.protein.days}/${monthData.macroCompliance.protein.total} días cumpliendo objetivo
+- Grasas: ${monthData.macroCompliance.fats.days}/${monthData.macroCompliance.fats.total} días controladas
+
+PROMEDIO MENSUAL:
+- Calorías: ${monthData.monthlyAverage.calories} kcal/día
+- Proteína: ${monthData.monthlyAverage.protein}g/día
+- Carbohidratos: ${monthData.monthlyAverage.carbs}g/día
+- Grasas: ${monthData.monthlyAverage.fats}g/día
+
+Dame un mensaje corto (máximo 2 líneas) que:
+1. Reconozca mi progreso mensual o identifique áreas de mejora
+2. Sea motivacional y personalizado
+3. Incluya un emoji apropiado al final
+`;
+
+      const response = await this.sendMessage(contextMessage);
+      
+      if (response.success && response.data.response.message) {
+        // Extraer emoji del mensaje si existe
+        const emojiMatch = response.data.response.message.match(/[\u{1F300}-\u{1F9FF}]/u);
+        const emoji = emojiMatch ? emojiMatch[0] : '🚀';
+        
+        return {
+          message: response.data.response.message,
+          emoji: emoji,
+        };
+      }
+      
+      // Fallback si no hay respuesta
+      return this.generateFallbackMonthlyMessage(monthData);
+    } catch (error) {
+      console.error('Error obteniendo análisis mensual de Chapi:', error);
+      return this.generateFallbackMonthlyMessage(monthData);
+    }
+  }
+
+  /**
+   * Generar mensaje fallback basado en los datos
+   */
+  private generateFallbackMessage(weekData: {
+    weeklyCompletion: number;
+    macroCompliance: {
+      calories: { days: number; total: number };
+      protein: { days: number; total: number };
+      fats: { days: number; total: number };
+    };
+    dailyAdherence: number[];
+  }): { message: string; emoji: string } {
+    const completion = weekData.weeklyCompletion;
+    const avgAdherence = weekData.dailyAdherence.reduce((a, b) => a + b, 0) / 7;
+    
+    // Mensajes basados en el cumplimiento
+    if (completion >= 85) {
+      return {
+        message: '¡Excelente semana! Tu constancia está dando resultados increíbles. Sigue así y notarás grandes cambios en tu salud.',
+        emoji: '🎉',
+      };
+    } else if (completion >= 70) {
+      return {
+        message: 'Muy buen progreso esta semana. Estás en el camino correcto, mantén el ritmo y verás resultados pronto.',
+        emoji: '💪',
+      };
+    } else if (completion >= 50) {
+      return {
+        message: 'Vas por buen camino, pero hay espacio para mejorar. Intenta ser más consistente con tus registros esta semana.',
+        emoji: '📈',
+      };
+    } else if (completion >= 30) {
+      return {
+        message: 'Veo que tuviste algunos días sin registros. No te desanimes, cada día es una nueva oportunidad para mejorar.',
+        emoji: '🌱',
+      };
+    } else {
+      return {
+        message: 'Parece que esta semana fue difícil. Recuerda que el progreso no es lineal. ¡Vamos a retomar el ritmo juntos!',
+        emoji: '💚',
+      };
+    }
+  }
+
+  /**
+   * Generar mensaje fallback mensual basado en los datos
+   */
+  private generateFallbackMonthlyMessage(monthData: {
+    monthlyCompletion: number;
+    macroCompliance: {
+      calories: { days: number; total: number };
+      protein: { days: number; total: number };
+      fats: { days: number; total: number };
+    };
+    dailyAdherence: number[];
+  }): { message: string; emoji: string } {
+    const completion = monthData.monthlyCompletion;
+    const totalDays = monthData.macroCompliance.calories.total;
+    const daysWithData = Math.round((completion / 100) * totalDays);
+    
+    // Mensajes basados en el cumplimiento mensual
+    if (completion >= 85) {
+      return {
+        message: `¡Mes excepcional! Registraste ${daysWithData} de ${totalDays} días. Tu disciplina es admirable y los resultados llegarán pronto.`,
+        emoji: '🏆',
+      };
+    } else if (completion >= 70) {
+      return {
+        message: `Buen mes con ${daysWithData} días registrados. Mantén esta consistencia y alcanzarás tus metas más rápido de lo que piensas.`,
+        emoji: '💪',
+      };
+    } else if (completion >= 50) {
+      return {
+        message: `Avanzaste ${daysWithData} días este mes. Hay potencial para mejorar, intenta ser más constante el próximo mes.`,
+        emoji: '📊',
+      };
+    } else if (completion >= 30) {
+      return {
+        message: `Este mes fue irregular con ${daysWithData} días. No te preocupes, cada mes es una nueva oportunidad para mejorar tu constancia.`,
+        emoji: '🌱',
+      };
+    } else {
+      return {
+        message: `Veo que este mes fue desafiante. Recuerda que lo importante es retomar el hábito. ¡El próximo mes será mejor!`,
+        emoji: '💚',
+      };
+    }
+  }
 }
 
 export default new ChapiService();

@@ -20,6 +20,7 @@ import { Checkin, Achievement, ActivityStat } from '../types/nutrition';
 import { TrophyModal } from '../components/TrophyModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppHeader } from '../components/AppHeader';
+import { WeeklyDashboard } from '../components/WeeklyDashboard';
 import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -806,6 +807,9 @@ export const ProgressScreen: React.FC = () => {
           </View>
         ) : (
           <>
+            {/* Dashboard Semanal - Nuevo componente */}
+            <WeeklyDashboard selectedPeriod={selectedPeriod} />
+            
             {renderWeightProgress()}
             {renderWorkoutProgress()}
             {renderAdherenceProgress()}

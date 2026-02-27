@@ -1187,7 +1187,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     width: "100%",
     maxHeight: "80%",
-    minHeight: 300,
+    minHeight: 400,
     ...SHADOWS.floating,
   },
   modalHeader: {

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NutritionService } from '../services/nutritionService';
+import ChapiService from '../services/chapiService';
 import { Checkin } from '../types/nutrition';
 import { COLORS, SHADOWS } from '../theme/theme';
 
@@ -17,11 +18,15 @@ const { width } = Dimensions.get('window');
 interface WeeklyDashboardProps {
   selectedWeek?: string;
   onWeekChange?: (week: string) => void;
+  refreshKey?: number; // Para forzar refresh desde el padre
+  selectedPeriod?: 'week' | 'month' | 'year'; // Nuevo: período seleccionado
 }
 
 export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
   selectedWeek,
   onWeekChange,
+  refreshKey = 0,
+  selectedPeriod = 'week',
 }) => {
   const [loading, setLoading] = useState(true);
   const [weekData, setWeekData] = useState<{
@@ -41,12 +46,22 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
       fats: number;
     };
   } | null>(null);
+  const [chapiMessage, setChapiMessage] = useState<{ message: string; emoji: string }>({
+    message: 'Cargando análisis...',
+    emoji: '⏳',
+  });
 
   useEffect(() => {
     loadWeekData();
-  }, [selectedWeek]);
+  }, [selectedWeek, refreshKey, selectedPeriod]); // Agregar selectedPeriod como dependencia
 
   const loadWeekData = async () => {
+    // Solo cargar datos para semana y mes
+    if (selectedPeriod === 'year') {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -63,11 +78,11 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
       const currentWeek = selectedWeek || NutritionService.getCurrentWeek();
       const weeklyPlan = await NutritionService.getWeeklyPlan(currentWeek);
 
-      // Calcular métricas
-      const weeklyCompletion = calculateWeeklyCompletion(checkins);
-      const macroCompliance = calculateMacroCompliance(checkins, weeklyPlan);
-      const dailyAdherence = calculateDailyAdherence(checkins);
-      const weeklyAverage = calculateWeeklyAverage(checkins);
+      // Calcular métricas (ahora basadas en comidas reales)
+      const weeklyCompletion = await calculateWeeklyCompletion();
+      const macroCompliance = await calculateMacroComplianceFromMeals(weeklyPlan);
+      const dailyAdherence = await calculateDailyAdherenceFromMeals(weeklyPlan);
+      const weeklyAverage = await calculateWeeklyAverage(checkins);
 
       setWeekData({
         checkins,
@@ -77,6 +92,25 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
         dailyAdherence,
         weeklyAverage,
       });
+
+      // Obtener análisis de Chapi según el período
+      if (selectedPeriod === 'week') {
+        const analysis = await ChapiService.getWeeklyProgressAnalysis({
+          weeklyCompletion,
+          macroCompliance,
+          dailyAdherence,
+          weeklyAverage,
+        });
+        setChapiMessage(analysis);
+      } else if (selectedPeriod === 'month') {
+        const analysis = await ChapiService.getMonthlyProgressAnalysis({
+          monthlyCompletion: weeklyCompletion,
+          macroCompliance,
+          dailyAdherence,
+          monthlyAverage: weeklyAverage,
+        });
+        setChapiMessage(analysis);
+      }
     } catch (error) {
       console.error('Error loading week data:', error);
     } finally {
@@ -86,24 +120,88 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
 
   const getWeekDateRange = () => {
     const now = new Date();
-    const startOfWeek = new Date(now);
-    const dayOfWeek = now.getDay();
-    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    startOfWeek.setDate(now.getDate() - daysToMonday);
-    startOfWeek.setHours(0, 0, 0, 0);
+    let from: Date;
+    let to: Date;
     
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
+    if (selectedPeriod === 'week') {
+      // Inicio de la semana actual (lunes)
+      const startOfWeek = new Date(now);
+      const dayOfWeek = now.getDay();
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      startOfWeek.setDate(now.getDate() - daysToMonday);
+      startOfWeek.setHours(0, 0, 0, 0);
+      from = startOfWeek;
+      
+      to = new Date(from);
+      to.setDate(from.getDate() + 6);
+      to.setHours(23, 59, 59, 999);
+    } else if (selectedPeriod === 'month') {
+      // Inicio del mes actual
+      from = new Date(now.getFullYear(), now.getMonth(), 1);
+      from.setHours(0, 0, 0, 0);
+      
+      // Fin del mes actual
+      to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      to.setHours(23, 59, 59, 999);
+    } else {
+      // Inicio del año actual
+      from = new Date(now.getFullYear(), 0, 1);
+      from.setHours(0, 0, 0, 0);
+      
+      // Fin del año actual
+      to = new Date(now.getFullYear(), 11, 31);
+      to.setHours(23, 59, 59, 999);
+    }
     
-    return { from: startOfWeek, to: endOfWeek };
+    return { from, to };
   };
 
-  const calculateWeeklyCompletion = (checkins: Checkin[]): number => {
-    const daysWithCheckin = checkins.filter(c => 
-      c.adherencePct !== undefined || c.weightKg !== undefined
-    ).length;
-    return Math.round((daysWithCheckin / 7) * 100);
+  const getTotalDaysInPeriod = () => {
+    if (selectedPeriod === 'week') {
+      return 7; // Semana siempre tiene 7 días
+    } else if (selectedPeriod === 'month') {
+      const now = new Date();
+      // Obtener el último día del mes actual
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      return lastDay;
+    } else {
+      // Año
+      const now = new Date();
+      const isLeapYear = (now.getFullYear() % 4 === 0 && now.getFullYear() % 100 !== 0) || (now.getFullYear() % 400 === 0);
+      return isLeapYear ? 366 : 365;
+    }
+  };
+
+  const calculateWeeklyCompletion = async (): Promise<number> => {
+    try {
+      const { from, to } = getWeekDateRange();
+      let daysWithMeals = 0;
+      
+      // Calcular número de días en el período
+      const totalDays = getTotalDaysInPeriod();
+
+      // Iterar por cada día del período
+      for (let i = 0; i < totalDays; i++) {
+        const currentDate = new Date(from);
+        currentDate.setDate(from.getDate() + i);
+        const dateStr = currentDate.toISOString().split('T')[0];
+        
+        try {
+          const dayMeals = await NutritionService.getTodayMeals(dateStr);
+          // Contar el día si tiene al menos una comida registrada
+          if (dayMeals && dayMeals.logs && dayMeals.logs.length > 0) {
+            daysWithMeals++;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      return Math.round((daysWithMeals / totalDays) * 100);
+    } catch (error) {
+      console.error('Error calculating completion:', error);
+      return 0;
+    }
   };
 
   const calculateMacroCompliance = (checkins: Checkin[], plan: any) => {
@@ -131,6 +229,104 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
     };
   };
 
+  const calculateMacroComplianceFromMeals = async (plan: any) => {
+    if (!plan) {
+      const totalDays = getTotalDaysInPeriod();
+      return {
+        calories: { days: 0, total: totalDays },
+        protein: { days: 0, total: totalDays },
+        fats: { days: 0, total: totalDays },
+      };
+    }
+
+    try {
+      const { from, to } = getWeekDateRange();
+      let caloriesDaysInRange = 0;
+      let proteinDaysMet = 0;
+      let fatsDaysControlled = 0;
+
+      // Calcular número de días en el período
+      const totalDays = getTotalDaysInPeriod();
+
+      console.log('🔍 Calculando cumplimiento de macros desde', from.toISOString().split('T')[0], 'hasta', to.toISOString().split('T')[0]);
+      console.log(`📅 Total de días en el período: ${totalDays}`);
+      console.log('🎯 Objetivos del plan:', {
+        calorias: plan.macros.kcalTarget,
+        proteina: plan.macros.protein_g,
+        grasas: plan.macros.fat_g,
+      });
+
+      // Iterar por cada día del período
+      for (let i = 0; i < totalDays; i++) {
+        const currentDate = new Date(from);
+        currentDate.setDate(from.getDate() + i);
+        const dateStr = currentDate.toISOString().split('T')[0];
+        
+        try {
+          const dayMeals = await NutritionService.getTodayMeals(dateStr);
+          
+          if (dayMeals && dayMeals.totals && dayMeals.logs && dayMeals.logs.length > 0) {
+            const consumed = dayMeals.totals;
+            
+            console.log(`📅 ${dateStr}: ${consumed.kcal} kcal, ${consumed.protein_g}g proteína, ${consumed.fat_g}g grasas`);
+            
+            // Calorías: dentro del rango ±20% (más flexible)
+            const calorieTarget = plan.macros.kcalTarget;
+            const calorieMin = calorieTarget * 0.8; // 80% del objetivo
+            const calorieMax = calorieTarget * 1.2; // 120% del objetivo
+            if (consumed.kcal >= calorieMin && consumed.kcal <= calorieMax) {
+              caloriesDaysInRange++;
+              console.log(`  ✅ Calorías en rango (${calorieMin.toFixed(0)}-${calorieMax.toFixed(0)})`);
+            } else {
+              console.log(`  ❌ Calorías fuera de rango (${calorieMin.toFixed(0)}-${calorieMax.toFixed(0)}) - Consumiste: ${consumed.kcal}`);
+            }
+
+            // Proteína: cumplió al menos el 60% del objetivo (más flexible)
+            const proteinTarget = plan.macros.protein_g;
+            const proteinMin = proteinTarget * 0.6; // 60% del objetivo
+            if (consumed.protein_g >= proteinMin) {
+              proteinDaysMet++;
+              console.log(`  ✅ Proteína cumplida (>= ${proteinMin.toFixed(0)}g)`);
+            } else {
+              console.log(`  ❌ Proteína no cumplida (< ${proteinMin.toFixed(0)}g) - Consumiste: ${consumed.protein_g}g`);
+            }
+
+            // Grasas: no excedió el objetivo en más del 30% (más flexible)
+            const fatTarget = plan.macros.fat_g;
+            const fatMax = fatTarget * 1.3; // 130% del objetivo
+            if (consumed.fat_g <= fatMax) {
+              fatsDaysControlled++;
+              console.log(`  ✅ Grasas controladas (<= ${fatMax.toFixed(0)}g)`);
+            } else {
+              console.log(`  ❌ Grasas excedidas (> ${fatMax.toFixed(0)}g) - Consumiste: ${consumed.fat_g}g`);
+            }
+          } else {
+            console.log(`📅 ${dateStr}: Sin comidas registradas`);
+          }
+        } catch (error) {
+          console.log(`� ${dateStr}: Error obteniendo comidas`, error);
+          continue;
+        }
+      }
+
+      console.log(`�📊 Resultado: Calorías ${caloriesDaysInRange}/7, Proteína ${proteinDaysMet}/7, Grasas ${fatsDaysControlled}/7`);
+
+      return {
+        calories: { days: caloriesDaysInRange, total: totalDays },
+        protein: { days: proteinDaysMet, total: totalDays },
+        fats: { days: fatsDaysControlled, total: totalDays },
+      };
+    } catch (error) {
+      console.error('Error calculating macro compliance:', error);
+      const totalDays = getTotalDaysInPeriod();
+      return {
+        calories: { days: 0, total: totalDays },
+        protein: { days: 0, total: totalDays },
+        fats: { days: 0, total: totalDays },
+      };
+    }
+  };
+
   const calculateDailyAdherence = (checkins: Checkin[]): number[] => {
     const adherence = [0, 0, 0, 0, 0, 0, 0]; // L, M, M, J, V, S, D
     
@@ -143,40 +339,137 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
     return adherence;
   };
 
-  const calculateWeeklyAverage = (checkins: Checkin[]) => {
-    // Si no hay checkins, retornar ceros
-    if (checkins.length === 0) {
-      return {
-        calories: 0,
-        protein: 0,
-        carbs: 0,
-        fats: 0,
-      };
+  const calculateDailyAdherenceFromMeals = async (plan: any): Promise<number[]> => {
+    if (!plan) {
+      // Retornar array vacío del tamaño correcto según el período
+      const totalDays = getTotalDaysInPeriod();
+      return new Array(totalDays).fill(0);
     }
 
-    // Por ahora retornamos datos basados en si hay checkins
-    // TODO: Implementar lógica real cuando tengamos datos de comidas
-    // Esto es solo un placeholder hasta que tengamos la API de comidas por día
-    return {
-      calories: 0,
-      protein: 0,
-      carbs: 0,
-      fats: 0,
-    };
+    try {
+      const { from, to } = getWeekDateRange();
+      const totalDays = getTotalDaysInPeriod();
+      const adherence = new Array(totalDays).fill(0);
+      
+      console.log(`📊 Calculando adherencia diaria para ${totalDays} días`);
+
+      // Iterar por cada día del período
+      for (let i = 0; i < totalDays; i++) {
+        const currentDate = new Date(from);
+        currentDate.setDate(from.getDate() + i);
+        const dateStr = currentDate.toISOString().split('T')[0];
+        
+        try {
+          const dayMeals = await NutritionService.getTodayMeals(dateStr);
+          if (dayMeals && dayMeals.totals) {
+            const consumed = dayMeals.totals;
+            const target = plan.macros.kcalTarget;
+            
+            // Calcular adherencia basada en calorías consumidas vs objetivo
+            // 100% = cumplió exactamente el objetivo
+            // >100% = excedió el objetivo
+            // <100% = no llegó al objetivo
+            const adherencePercent = target > 0 ? Math.min(100, (consumed.kcal / target) * 100) : 0;
+            adherence[i] = Math.round(adherencePercent);
+          }
+        } catch (error) {
+          // Si no hay datos para ese día, dejar en 0
+          continue;
+        }
+      }
+
+      return adherence;
+    } catch (error) {
+      console.error('Error calculating daily adherence:', error);
+      const totalDays = getTotalDaysInPeriod();
+      return new Array(totalDays).fill(0);
+    }
+  };
+
+  const calculateWeeklyAverage = async (checkins: Checkin[]) => {
+    try {
+      // Obtener comidas de cada día del período
+      const { from, to } = getWeekDateRange();
+      const totalDays = getTotalDaysInPeriod();
+      let totalCalories = 0;
+      let totalProtein = 0;
+      let totalCarbs = 0;
+      let totalFats = 0;
+      let daysWithData = 0;
+
+      console.log(`📊 Calculando promedio para ${totalDays} días`);
+
+      // Iterar por cada día del período
+      for (let i = 0; i < totalDays; i++) {
+        const currentDate = new Date(from);
+        currentDate.setDate(from.getDate() + i);
+        const dateStr = currentDate.toISOString().split('T')[0];
+        
+        try {
+          const dayMeals = await NutritionService.getTodayMeals(dateStr);
+          if (dayMeals && dayMeals.totals && dayMeals.logs && dayMeals.logs.length > 0) {
+            totalCalories += dayMeals.totals.kcal || 0;
+            totalProtein += dayMeals.totals.protein_g || 0;
+            totalCarbs += dayMeals.totals.carbs_g || 0;
+            totalFats += dayMeals.totals.fat_g || 0;
+            daysWithData++;
+          }
+        } catch (error) {
+          // Si no hay datos para ese día, continuar
+          continue;
+        }
+      }
+
+      // Calcular promedios
+      if (daysWithData === 0) {
+        return { calories: 0, protein: 0, carbs: 0, fats: 0 };
+      }
+
+      console.log(`📊 Promedio calculado con ${daysWithData} días de datos`);
+
+      return {
+        calories: Math.round(totalCalories / daysWithData),
+        protein: Math.round(totalProtein / daysWithData),
+        carbs: Math.round(totalCarbs / daysWithData),
+        fats: Math.round(totalFats / daysWithData),
+      };
+    } catch (error) {
+      console.error('Error calculating average:', error);
+      return { calories: 0, protein: 0, carbs: 0, fats: 0 };
+    }
   };
 
   const renderCircularProgress = () => {
     if (!weekData) return null;
 
     const percentage = weekData.weeklyCompletion;
-    const daysCompleted = Math.round((percentage / 100) * 7);
+    const totalDays = getTotalDaysInPeriod();
+    const daysCompleted = Math.round((percentage / 100) * totalDays);
+
+    // Calcular el ángulo para el círculo de progreso
+    const strokeDasharray = 2 * Math.PI * 60; // Circunferencia del círculo (radio 60)
+    const strokeDashoffset = strokeDasharray - (strokeDasharray * percentage) / 100;
 
     return (
       <View style={styles.circularProgressContainer}>
         <View style={styles.circularProgress}>
-          <Text style={styles.percentageText}>{percentage}%</Text>
-          <Text style={styles.percentageLabel}>Meta semanal</Text>
-          <Text style={styles.percentageSubtext}>cumplida {daysCompleted}/7 días</Text>
+          {/* Círculo de fondo */}
+          <View style={styles.circleBackground} />
+          {/* Círculo de progreso - simulado con borde */}
+          <View style={[
+            styles.circleProgress,
+            {
+              borderColor: percentage >= 80 ? COLORS.primary : percentage >= 50 ? '#FFC107' : '#FF9800',
+              borderWidth: 10,
+            }
+          ]} />
+          <View style={styles.circleContent}>
+            <Text style={styles.percentageText}>{percentage}%</Text>
+            <Text style={styles.percentageLabel}>
+              {selectedPeriod === 'week' ? 'Meta semanal' : 'Meta mensual'}
+            </Text>
+            <Text style={styles.percentageSubtext}>cumplida {daysCompleted}/{totalDays} días</Text>
+          </View>
         </View>
       </View>
     );
@@ -228,11 +521,14 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
     const days = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
     const maxHeight = 100;
 
+    // Para vista semanal, usar solo los primeros 7 días
+    const weeklyAdherence = weekData.dailyAdherence.slice(0, 7);
+
     return (
       <View style={styles.trendContainer}>
         <Text style={styles.trendTitle}>Tendencia semanal</Text>
         <View style={styles.chartContainer}>
-          {weekData.dailyAdherence.map((adherence, index) => {
+          {weeklyAdherence.map((adherence, index) => {
             const height = (adherence / 100) * maxHeight;
             const color = adherence >= 80 ? '#4CAF50' : adherence >= 50 ? '#FFC107' : '#FF5252';
             
@@ -276,44 +572,212 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
       );
     }
 
+    // Calcular tendencias (simuladas por ahora - en producción compararías con semana anterior)
+    const calorieTrend = 3; // +3%
+    const proteinTrend = -8; // -8%
+    const carbsTrend = 1; // +1%
+    const fatsTrend = -2; // -2%
+
     return (
       <View style={styles.averageContainer}>
         <Text style={styles.averageTitle}>Promedio semanal</Text>
         
-        <View style={styles.averageGrid}>
-          <View style={styles.averageItem}>
-            <Text style={styles.averageIcon}>🔥</Text>
-            <View>
-              <Text style={styles.averageLabel}>Calorías</Text>
-              <Text style={styles.averageValue}>{weeklyAverage.calories} kcal</Text>
-              <Text style={styles.averageTrend}>▲ +3% vs semana anterior</Text>
+        {/* Grid de 2 columnas */}
+        <View style={styles.averageGridTwoColumns}>
+          {/* Columna 1 */}
+          <View style={styles.averageColumn}>
+            <View style={styles.averageItemCompact}>
+              <Text style={styles.averageIconCompact}>🔥</Text>
+              <View style={styles.averageItemContentCompact}>
+                <Text style={styles.averageLabelCompact}>Calorías</Text>
+                <Text style={styles.averageValueCompact}>{weeklyAverage.calories.toLocaleString()} kcal</Text>
+                <Text style={[styles.averageTrendCompact, calorieTrend < 0 && styles.trendDown]}>
+                  {calorieTrend >= 0 ? '▲' : '▼'} {Math.abs(calorieTrend)}%
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.averageItemCompact}>
+              <Text style={styles.averageIconCompact}>🍞</Text>
+              <View style={styles.averageItemContentCompact}>
+                <Text style={styles.averageLabelCompact}>Carbohidratos</Text>
+                <Text style={styles.averageValueCompact}>{weeklyAverage.carbs}g</Text>
+                <Text style={[styles.averageTrendCompact, carbsTrend < 0 && styles.trendDown]}>
+                  {carbsTrend >= 0 ? '▲' : '▼'} {Math.abs(carbsTrend)}%
+                </Text>
+              </View>
             </View>
           </View>
 
-          <View style={styles.averageItem}>
-            <Text style={styles.averageIcon}>💪</Text>
-            <View>
-              <Text style={styles.averageLabel}>Proteína</Text>
-              <Text style={styles.averageValue}>{weeklyAverage.protein}g</Text>
-              <Text style={[styles.averageTrend, styles.trendDown]}>▼ -8% vs semana anterior</Text>
+          {/* Columna 2 */}
+          <View style={styles.averageColumn}>
+            <View style={styles.averageItemCompact}>
+              <Text style={styles.averageIconCompact}>💪</Text>
+              <View style={styles.averageItemContentCompact}>
+                <Text style={styles.averageLabelCompact}>Proteína</Text>
+                <Text style={styles.averageValueCompact}>{weeklyAverage.protein}g</Text>
+                <Text style={[styles.averageTrendCompact, proteinTrend < 0 && styles.trendDown]}>
+                  {proteinTrend >= 0 ? '▲' : '▼'} {Math.abs(proteinTrend)}%
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.averageItemCompact}>
+              <Text style={styles.averageIconCompact}>🥑</Text>
+              <View style={styles.averageItemContentCompact}>
+                <Text style={styles.averageLabelCompact}>Grasas</Text>
+                <Text style={styles.averageValueCompact}>{weeklyAverage.fats}g</Text>
+                <Text style={[styles.averageTrendCompact, fatsTrend < 0 && styles.trendDown]}>
+                  {fatsTrend >= 0 ? '▲' : '▼'} {Math.abs(fatsTrend)}%
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const renderMonthlyTrend = () => {
+    if (!weekData || !weekData.weeklyPlan) return null;
+
+    const totalDays = getTotalDaysInPeriod();
+    const dailyAdherence = weekData.dailyAdherence;
+    
+    // Calcular adherencia por semana (dividir el mes en 4 semanas aproximadas)
+    const weeksInMonth = 4;
+    const daysPerWeek = Math.ceil(totalDays / weeksInMonth);
+    const weeklyData: number[] = [];
+
+    // Calcular adherencia promedio por semana basado en datos reales
+    for (let week = 0; week < weeksInMonth; week++) {
+      const startDay = week * daysPerWeek;
+      const endDay = Math.min(startDay + daysPerWeek, totalDays);
+      let weekTotal = 0;
+      let daysWithData = 0;
+
+      for (let day = startDay; day < endDay; day++) {
+        if (day < dailyAdherence.length) {
+          const dayAdherence = dailyAdherence[day] || 0;
+          weekTotal += dayAdherence;
+          daysWithData++;
+        }
+      }
+
+      const weekAverage = daysWithData > 0 ? weekTotal / daysWithData : 0;
+      weeklyData.push(Math.round(weekAverage));
+    }
+
+    const maxHeight = 100;
+    const weeks = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'];
+
+    return (
+      <View style={styles.trendContainer}>
+        <Text style={styles.trendTitle}>Tendencia mensual</Text>
+        <View style={styles.chartContainer}>
+          {weeklyData.map((adherence, index) => {
+            const height = (adherence / 100) * maxHeight;
+            const color = adherence >= 80 ? '#4CAF50' : adherence >= 50 ? '#FFC107' : '#FF5252';
+            
+            return (
+              <View key={index} style={styles.barContainer}>
+                <View style={styles.barWrapper}>
+                  <View style={[styles.bar, { height: Math.max(height, 5), backgroundColor: color }]} />
+                </View>
+                <Text style={styles.dayLabel}>{weeks[index]}</Text>
+              </View>
+            );
+          })}
+        </View>
+        <View style={styles.chartLegend}>
+          <Text style={styles.chartLegendText}>100%</Text>
+          <Text style={styles.chartLegendText}>80%</Text>
+        </View>
+      </View>
+    );
+  };
+
+  const renderMonthlyAverage = () => {
+    if (!weekData) return null;
+
+    const { weeklyAverage } = weekData;
+    
+    // Si no hay datos, no mostrar esta sección
+    if (weeklyAverage.calories === 0 && weeklyAverage.protein === 0) {
+      return (
+        <View style={styles.averageContainer}>
+          <Text style={styles.averageTitle}>Promedio mensual</Text>
+          <View style={styles.noDataContainer}>
+            <Text style={styles.noDataText}>
+              No hay datos de comidas registradas este mes
+            </Text>
+            <Text style={styles.noDataSubtext}>
+              Registra tus comidas para ver tu promedio mensual
+            </Text>
+          </View>
+        </View>
+      );
+    }
+
+    // Calcular tendencias (simuladas por ahora - en producción compararías con mes anterior)
+    const calorieTrend = 2; // +2%
+    const proteinTrend = -5; // -5%
+    const carbsTrend = 3; // +3%
+    const fatsTrend = -1; // -1%
+
+    return (
+      <View style={styles.averageContainer}>
+        <Text style={styles.averageTitle}>Promedio mensual</Text>
+        
+        {/* Grid de 2 columnas */}
+        <View style={styles.averageGridTwoColumns}>
+          {/* Columna 1 */}
+          <View style={styles.averageColumn}>
+            <View style={styles.averageItemCompact}>
+              <Text style={styles.averageIconCompact}>🔥</Text>
+              <View style={styles.averageItemContentCompact}>
+                <Text style={styles.averageLabelCompact}>Calorías</Text>
+                <Text style={styles.averageValueCompact}>{weeklyAverage.calories.toLocaleString()} kcal</Text>
+                <Text style={[styles.averageTrendCompact, calorieTrend < 0 && styles.trendDown]}>
+                  {calorieTrend >= 0 ? '▲' : '▼'} {Math.abs(calorieTrend)}%
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.averageItemCompact}>
+              <Text style={styles.averageIconCompact}>🍞</Text>
+              <View style={styles.averageItemContentCompact}>
+                <Text style={styles.averageLabelCompact}>Carbohidratos</Text>
+                <Text style={styles.averageValueCompact}>{weeklyAverage.carbs}g</Text>
+                <Text style={[styles.averageTrendCompact, carbsTrend < 0 && styles.trendDown]}>
+                  {carbsTrend >= 0 ? '▲' : '▼'} {Math.abs(carbsTrend)}%
+                </Text>
+              </View>
             </View>
           </View>
 
-          <View style={styles.averageItem}>
-            <Text style={styles.averageIcon}>🍞</Text>
-            <View>
-              <Text style={styles.averageLabel}>Carbohidratos</Text>
-              <Text style={styles.averageValue}>{weeklyAverage.carbs}g</Text>
-              <Text style={styles.averageTrend}>▲ +1% vs semana anterior</Text>
+          {/* Columna 2 */}
+          <View style={styles.averageColumn}>
+            <View style={styles.averageItemCompact}>
+              <Text style={styles.averageIconCompact}>💪</Text>
+              <View style={styles.averageItemContentCompact}>
+                <Text style={styles.averageLabelCompact}>Proteína</Text>
+                <Text style={styles.averageValueCompact}>{weeklyAverage.protein}g</Text>
+                <Text style={[styles.averageTrendCompact, proteinTrend < 0 && styles.trendDown]}>
+                  {proteinTrend >= 0 ? '▲' : '▼'} {Math.abs(proteinTrend)}%
+                </Text>
+              </View>
             </View>
-          </View>
 
-          <View style={styles.averageItem}>
-            <Text style={styles.averageIcon}>🥑</Text>
-            <View>
-              <Text style={styles.averageLabel}>Grasas</Text>
-              <Text style={styles.averageValue}>{weeklyAverage.fats}g</Text>
-              <Text style={[styles.averageTrend, styles.trendDown]}>▼ -2% vs semana anterior</Text>
+            <View style={styles.averageItemCompact}>
+              <Text style={styles.averageIconCompact}>🥑</Text>
+              <View style={styles.averageItemContentCompact}>
+                <Text style={styles.averageLabelCompact}>Grasas</Text>
+                <Text style={styles.averageValueCompact}>{weeklyAverage.fats}g</Text>
+                <Text style={[styles.averageTrendCompact, fatsTrend < 0 && styles.trendDown]}>
+                  {fatsTrend >= 0 ? '▲' : '▼'} {Math.abs(fatsTrend)}%
+                </Text>
+              </View>
             </View>
           </View>
         </View>
@@ -332,45 +796,83 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Header con selector de semana */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Cumplimiento semanal</Text>
-        <TouchableOpacity style={styles.weekSelector}>
-          <Text style={styles.weekSelectorText}>Semana ▼</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Progreso circular */}
-      <View style={styles.card}>
-        <View style={styles.cardRow}>
-          {renderCircularProgress()}
-          {renderMacroCompliance()}
-        </View>
-      </View>
-
-      {/* Tendencia semanal */}
-      <View style={styles.card}>
-        {renderWeeklyTrend()}
-      </View>
-
-      {/* Promedio semanal */}
-      <View style={styles.card}>
-        {renderWeeklyAverage()}
-      </View>
-
-      {/* Mensaje de Chapi */}
-      <View style={styles.chapiCard}>
-        <View style={styles.chapiContent}>
-          <Text style={styles.chapiIcon}>💡</Text>
-          <View style={styles.chapiTextContainer}>
-            <Text style={styles.chapiTitle}>Tuviste una semana constante.</Text>
-            <Text style={styles.chapiMessage}>
-              Sigue así y notarás grandes cambios en tu salud. 🥗🍎
+      {/* No mostrar nada para año */}
+      {selectedPeriod === 'year' ? null : (
+        <>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>
+              {selectedPeriod === 'week' ? 'Cumplimiento semanal' : 'Cumplimiento mensual'}
             </Text>
           </View>
-        </View>
-        <Text style={styles.chapiEmoji}>🚀</Text>
-      </View>
+
+          {/* Progreso circular - Mostrar siempre para semana y mes */}
+          <View style={styles.card}>
+            <View style={styles.cardRow}>
+              {renderCircularProgress()}
+              {renderMacroCompliance()}
+            </View>
+          </View>
+
+          {/* Resto del dashboard - Solo para semana */}
+          {selectedPeriod === 'week' && (
+            <>
+              {/* Tendencia semanal */}
+              <View style={styles.card}>
+                {renderWeeklyTrend()}
+              </View>
+
+              {/* Promedio semanal */}
+              <View style={styles.card}>
+                {renderWeeklyAverage()}
+              </View>
+
+              {/* Mensaje de Chapi */}
+              <View style={styles.chapiCard}>
+                <View style={styles.chapiContent}>
+                  <Text style={styles.chapiIcon}>💡</Text>
+                  <View style={styles.chapiTextContainer}>
+                    <Text style={styles.chapiTitle}>Análisis de tu semana</Text>
+                    <Text style={styles.chapiMessage}>
+                      {chapiMessage.message}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.chapiEmoji}>{chapiMessage.emoji}</Text>
+              </View>
+            </>
+          )}
+
+          {/* Gráficos para mes */}
+          {selectedPeriod === 'month' && (
+            <>
+              {/* Tendencia mensual */}
+              <View style={styles.card}>
+                {renderMonthlyTrend()}
+              </View>
+
+              {/* Promedio mensual */}
+              <View style={styles.card}>
+                {renderMonthlyAverage()}
+              </View>
+
+              {/* Mensaje de Chapi para mes */}
+              <View style={styles.chapiCard}>
+                <View style={styles.chapiContent}>
+                  <Text style={styles.chapiIcon}>💡</Text>
+                  <View style={styles.chapiTextContainer}>
+                    <Text style={styles.chapiTitle}>Análisis de tu mes</Text>
+                    <Text style={styles.chapiMessage}>
+                      {chapiMessage.message}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.chapiEmoji}>{chapiMessage.emoji}</Text>
+              </View>
+            </>
+          )}
+        </>
+      )}
     </View>
   );
 };
@@ -435,12 +937,28 @@ const styles = StyleSheet.create({
   circularProgress: {
     width: 140,
     height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
-    borderWidth: 8,
-    borderColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
+  },
+  circleBackground: {
+    position: 'absolute',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+  },
+  circleProgress: {
+    position: 'absolute',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'transparent',
+  },
+  circleContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
   },
   percentageText: {
     fontSize: 32,
@@ -545,19 +1063,51 @@ const styles = StyleSheet.create({
   averageGrid: {
     gap: 16,
   },
+  averageGridTwoColumns: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  averageColumn: {
+    flex: 1,
+    gap: 12,
+  },
   averageItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     paddingVertical: 8,
   },
+  averageItemCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    backgroundColor: 'rgba(67, 233, 123, 0.05)',
+    borderRadius: 12,
+  },
+  averageItemContent: {
+    flex: 1,
+  },
+  averageItemContentCompact: {
+    flex: 1,
+  },
   averageIcon: {
     fontSize: 24,
+  },
+  averageIconCompact: {
+    fontSize: 20,
   },
   averageLabel: {
     fontSize: 12,
     color: COLORS.textLight,
     marginBottom: 4,
+  },
+  averageLabelCompact: {
+    fontSize: 10,
+    color: COLORS.textLight,
+    marginBottom: 2,
+    fontWeight: '600',
   },
   averageValue: {
     fontSize: 18,
@@ -565,8 +1115,19 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 2,
   },
+  averageValueCompact: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 2,
+  },
   averageTrend: {
     fontSize: 11,
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+  averageTrendCompact: {
+    fontSize: 9,
     color: '#4CAF50',
     fontWeight: '600',
   },

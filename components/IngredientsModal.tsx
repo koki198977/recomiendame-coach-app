@@ -24,7 +24,7 @@ interface IngredientsModalProps {
   videoUrl?: string; // URL de YouTube
 }
 
-type TabType = 'ingredients' | 'preparation' | 'video';
+type TabType = 'ingredients' | 'preparation';
 
 export const IngredientsModal: React.FC<IngredientsModalProps> = ({
   visible,
@@ -127,9 +127,21 @@ export const IngredientsModal: React.FC<IngredientsModalProps> = ({
               <Text style={styles.title}>🥘 {mealTitle}</Text>
               <Text style={styles.subtitle}>Detalles de la receta</Text>
             </View>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
+            
+            <View style={styles.headerActions}>
+              {/* Botón de YouTube */}
+              <TouchableOpacity 
+                style={styles.youtubeButton} 
+                onPress={handleOpenVideo}
+              >
+                <Text style={styles.youtubeIcon}>▶️</Text>
+              </TouchableOpacity>
+              
+              {/* Botón de cerrar */}
+              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
           </LinearGradient>
 
           {/* Tabs */}
@@ -152,16 +164,6 @@ export const IngredientsModal: React.FC<IngredientsModalProps> = ({
                 👨‍🍳 Preparación
               </Text>
               {activeTab === 'preparation' && <View style={styles.tabIndicator} />}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'video' && styles.tabActive]}
-              onPress={() => setActiveTab('video')}
-            >
-              <Text style={[styles.tabText, activeTab === 'video' && styles.tabTextActive]}>
-                🎥 Video
-              </Text>
-              {activeTab === 'video' && <View style={styles.tabIndicator} />}
             </TouchableOpacity>
           </View>
 
@@ -207,48 +209,7 @@ export const IngredientsModal: React.FC<IngredientsModalProps> = ({
                   </Text>
                 </View>
               )
-            ) : (
-              // Tab de Video
-              <View style={styles.videoContainer}>
-                {/* Thumbnail de YouTube */}
-                <View style={styles.videoThumbnailContainer}>
-                  <View style={styles.videoThumbnail}>
-                    <Text style={styles.videoIcon}>▶️</Text>
-                    <Text style={styles.videoTitle}>Video de preparación</Text>
-                    <Text style={styles.videoSubtitle}>
-                      {videoUrl ? 'Video específico disponible' : 'Buscar en YouTube'}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Botón para abrir video */}
-                <TouchableOpacity 
-                  style={styles.openVideoButton}
-                  onPress={handleOpenVideo}
-                >
-                  <LinearGradient
-                    colors={['#FF0000', '#CC0000']}
-                    style={styles.openVideoButtonGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                  >
-                    <Text style={styles.openVideoIcon}>▶️</Text>
-                    <Text style={styles.openVideoButtonText}>
-                      {videoUrl ? 'Ver video en YouTube' : 'Buscar receta en YouTube'}
-                    </Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-
-                <View style={styles.videoInfo}>
-                  <Text style={styles.videoInfoText}>
-                    {videoUrl 
-                      ? '💡 El video se abrirá en YouTube para que puedas ver la preparación paso a paso'
-                      : '💡 Se abrirá YouTube con resultados de búsqueda para esta receta'
-                    }
-                  </Text>
-                </View>
-              </View>
-            )}
+            ) : null}
           </ScrollView>
 
           {/* Footer */}
@@ -297,6 +258,40 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     flex: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  youtubeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FF0000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  youtubeIcon: {
+    fontSize: 18,
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 18,
+    color: '#fff',
+    fontWeight: 'bold',
   },
   title: {
     fontSize: 20,
@@ -434,78 +429,6 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     fontStyle: 'italic',
-  },
-  
-  // Video
-  videoContainer: {
-    paddingVertical: 20,
-  },
-  videoThumbnailContainer: {
-    marginBottom: 24,
-    alignItems: 'center',
-  },
-  videoThumbnail: {
-    width: '100%',
-    height: 200,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#e9ecef',
-    borderStyle: 'dashed',
-  },
-  videoIcon: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
-  videoTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: 4,
-  },
-  videoSubtitle: {
-    fontSize: 13,
-    color: '#999',
-    fontWeight: '500',
-  },
-  openVideoButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 20,
-    shadowColor: '#FF0000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  openVideoButtonGradient: {
-    flexDirection: 'row',
-    paddingVertical: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  openVideoIcon: {
-    fontSize: 20,
-  },
-  openVideoButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  videoInfo: {
-    backgroundColor: '#E3F2FD',
-    padding: 16,
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#2196F3',
-  },
-  videoInfoText: {
-    fontSize: 14,
-    color: '#1565C0',
-    lineHeight: 20,
   },
   
   // Footer

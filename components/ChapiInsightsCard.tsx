@@ -11,6 +11,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import ChapiService from '../services/chapiService';
+import WorkoutService from '../services/workoutService';
 import { ChapiInsightsResponse, ChapiRecommendation } from '../types/nutrition';
 import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
 
@@ -44,10 +45,47 @@ export const ChapiInsightsCard: React.FC<ChapiInsightsCardProps> = ({
   const [insights, setInsights] = useState<ChapiInsightsResponse | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [isFromCache, setIsFromCache] = useState(false);
+  const [actualWorkoutCompleted, setActualWorkoutCompleted] = useState(false);
 
   useEffect(() => {
     loadInsights();
+    validateWorkoutStatus();
   }, [refreshKey]);
+
+  // Verificar si realmente hay un plan de ejercicio y si se completó hoy
+  const validateWorkoutStatus = async () => {
+    try {
+      const week = WorkoutService.getCurrentISOWeek();
+      const workoutPlan = await WorkoutService.getWorkoutPlan(week);
+      
+      if (!workoutPlan || !workoutPlan.days || workoutPlan.days.length === 0) {
+        // No hay plan de ejercicio activo
+        console.log('✅ No hay plan de ejercicio activo');
+        setActualWorkoutCompleted(false);
+        return;
+      }
+      
+      // Obtener el día actual
+      const today = new Date().getDay();
+      const todayDayIndex = today === 0 ? 7 : today;
+      const todayWorkout = workoutPlan.days.find(day => day.dayIndex === todayDayIndex);
+      
+      if (!todayWorkout || todayWorkout.exercises.length === 0) {
+        // No hay ejercicios programados para hoy
+        console.log('✅ No hay ejercicios programados para hoy');
+        setActualWorkoutCompleted(false);
+        return;
+      }
+      
+      // Verificar si el workout de hoy está completado
+      const isCompleted = todayWorkout.completed || false;
+      console.log(`✅ Workout de hoy completado: ${isCompleted}`);
+      setActualWorkoutCompleted(isCompleted);
+    } catch (error) {
+      console.log('❌ Error validando estado de ejercicio:', error);
+      setActualWorkoutCompleted(false);
+    }
+  };
 
   // Generar hash simple del contexto del usuario para detectar cambios
   const generateContextHash = (data: ChapiInsightsResponse): string => {
@@ -357,7 +395,7 @@ export const ChapiInsightsCard: React.FC<ChapiInsightsCardProps> = ({
             </View>
             <View style={styles.progressItem}>
               <Text style={styles.progressEmoji}>
-                {data.userContext.todayProgress.workoutCompleted ? '✅' : '⭕'}
+                {actualWorkoutCompleted ? '✅' : '⭕'}
               </Text>
               <Text style={styles.progressLabel}>Ejercicio</Text>
             </View>

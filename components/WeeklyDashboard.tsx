@@ -10,6 +10,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { NutritionService } from '../services/nutritionService';
 import ChapiService from '../services/chapiService';
+import CacheService from '../services/cacheService';
 import { Checkin } from '../types/nutrition';
 import { COLORS, SHADOWS } from '../theme/theme';
 
@@ -65,6 +66,19 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
     try {
       setLoading(true);
       
+      // Intentar obtener datos desde caché
+      const cachedData = await CacheService.getProgressCache(selectedPeriod);
+      
+      if (cachedData) {
+        console.log(`📦 Usando datos cacheados para ${selectedPeriod}`);
+        setWeekData(cachedData.weekData);
+        setChapiMessage(cachedData.chapiMessage);
+        setLoading(false);
+        return;
+      }
+
+      console.log(`🔄 Cargando datos frescos para ${selectedPeriod}`);
+      
       // Obtener rango de fechas de la semana
       const { from, to } = getWeekDateRange();
       
@@ -84,33 +98,44 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
       const dailyAdherence = await calculateDailyAdherenceFromMeals(weeklyPlan);
       const weeklyAverage = await calculateWeeklyAverage(checkins);
 
-      setWeekData({
+      const newWeekData = {
         checkins,
         weeklyPlan,
         weeklyCompletion,
         macroCompliance,
         dailyAdherence,
         weeklyAverage,
-      });
+      };
+
+      setWeekData(newWeekData);
 
       // Obtener análisis de Chapi según el período
+      let analysis;
       if (selectedPeriod === 'week') {
-        const analysis = await ChapiService.getWeeklyProgressAnalysis({
+        analysis = await ChapiService.getWeeklyProgressAnalysis({
           weeklyCompletion,
           macroCompliance,
           dailyAdherence,
           weeklyAverage,
         });
-        setChapiMessage(analysis);
       } else if (selectedPeriod === 'month') {
-        const analysis = await ChapiService.getMonthlyProgressAnalysis({
+        analysis = await ChapiService.getMonthlyProgressAnalysis({
           monthlyCompletion: weeklyCompletion,
           macroCompliance,
           dailyAdherence,
           monthlyAverage: weeklyAverage,
         });
+      }
+
+      if (analysis) {
         setChapiMessage(analysis);
       }
+
+      // Guardar en caché
+      await CacheService.saveProgressCache(selectedPeriod, {
+        weekData: newWeekData,
+        chapiMessage: analysis,
+      });
     } catch (error) {
       console.error('Error loading week data:', error);
     } finally {

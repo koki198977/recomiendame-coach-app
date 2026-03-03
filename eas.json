@@ -6,17 +6,26 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
     },
     "preview": {
       "android": {
         "buildType": "apk"
+      },
+      "ios": {
+        "simulator": false
       },
       "distribution": "internal"
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
+      },
+      "ios": {
+        "simulator": false
       }
     }
   },
@@ -25,6 +34,11 @@
       "android": {
         "serviceAccountKeyPath": "./google-service-account.json",
         "track": "internal"
+      },
+      "ios": {
+        "appleId": "tu-email@ejemplo.com",
+        "ascAppId": "TU_APP_STORE_CONNECT_ID",
+        "appleTeamId": "TU_TEAM_ID"
       }
     },
     "alpha": {
@@ -37,6 +51,11 @@
       "android": {
         "serviceAccountKeyPath": "./google-service-account.json",
         "track": "production"
+      },
+      "ios": {
+        "appleId": "tu-email@ejemplo.com",
+        "ascAppId": "TU_APP_STORE_CONNECT_ID",
+        "appleTeamId": "TU_TEAM_ID"
       }
     }
   }

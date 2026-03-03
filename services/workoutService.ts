@@ -98,10 +98,15 @@ class WorkoutService {
     try {
       const week = isoWeek || this.getCurrentISOWeek();
       
+      // Calcular el día actual de la semana (1 = Lunes, 7 = Domingo)
+      const today = new Date().getDay();
+      const startDayIndex = today === 0 ? 7 : today; // Convertir domingo (0) a 7
+      
       console.log('🏋️ [GENERATE] Input parameters:', {
         daysAvailable,
         goal,
         week,
+        startDayIndex,
         equipmentImageUris: equipmentImageUris?.length || 0,
         hasImages: !!equipmentImageUris && equipmentImageUris.length > 0,
         environment,
@@ -112,6 +117,7 @@ class WorkoutService {
         isoWeek: week,
         daysAvailable,
         goal,
+        startDayIndex, // Agregar día de inicio
       };
 
       // Agregar campos opcionales solo si están definidos

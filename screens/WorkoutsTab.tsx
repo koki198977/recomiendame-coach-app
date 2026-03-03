@@ -30,20 +30,20 @@ export const WorkoutsTab: React.FC = () => {
   
   // Estados para rutina activa
   const [isWorkoutActive, setIsWorkoutActive] = useState(false);
-  const [completedExercises, setCompletedExercises] = useState<Set<number>>(new Set());
+  const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
   const [workoutStartTime, setWorkoutStartTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [exerciseEdits, setExerciseEdits] = useState<{[key: number]: Partial<Exercise>}>({});
+  const [exerciseEdits, setExerciseEdits] = useState<{[key: string]: Partial<Exercise>}>({});
   const [showWorkoutSummary, setShowWorkoutSummary] = useState(false);
   const [workoutSummary, setWorkoutSummary] = useState<any>(null);
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [currentRestSeconds, setCurrentRestSeconds] = useState(60);
   
   // Estados para controles individuales de ejercicios
-  const [activeExercises, setActiveExercises] = useState<Set<number>>(new Set());
-  const [exerciseTimers, setExerciseTimers] = useState<{[key: number]: number}>({});
-  const [pausedExercises, setPausedExercises] = useState<Set<number>>(new Set());
-  const [exerciseStartTimes, setExerciseStartTimes] = useState<{[key: number]: number}>({});
+  const [activeExercises, setActiveExercises] = useState<Set<string>>(new Set());
+  const [exerciseTimers, setExerciseTimers] = useState<{[key: string]: number}>({});
+  const [pausedExercises, setPausedExercises] = useState<Set<string>>(new Set());
+  const [exerciseStartTimes, setExerciseStartTimes] = useState<{[key: string]: number}>({});
 
   useEffect(() => {
     loadWorkoutPlan();
@@ -88,13 +88,41 @@ export const WorkoutsTab: React.FC = () => {
     };
   }, [activeExercises, exerciseStartTimes]);
 
+  /**
+   * Filtrar días pasados del plan de workout
+   * Solo muestra días desde hoy en adelante
+   */
+  const filterPastDays = (plan: WorkoutPlan | null): WorkoutPlan | null => {
+    if (!plan || !plan.days) return plan;
+    
+    const today = new Date().getDay();
+    const todayDayIndex = today === 0 ? 7 : today; // Convertir a formato 1-7 (Lunes=1, Domingo=7)
+    
+    // Filtrar solo días >= hoy
+    const filteredDays = plan.days.filter(day => day.dayIndex >= todayDayIndex);
+    
+    if (filteredDays.length < plan.days.length) {
+      console.log(`🗓️ Filtrando días pasados: ${plan.days.length} → ${filteredDays.length} días`);
+      return {
+        ...plan,
+        days: filteredDays
+      };
+    }
+    
+    return plan;
+  };
+
   const loadWorkoutPlan = async () => {
     try {
       setLoading(true);
       const week = WorkoutService.getCurrentISOWeek();
       setCurrentWeek(week);
 
-      const plan = await WorkoutService.getWorkoutPlan(week);
+      let plan = await WorkoutService.getWorkoutPlan(week);
+      
+      // Filtrar días pasados del plan (solo mostrar desde hoy en adelante)
+      plan = filterPastDays(plan);
+      
       setWorkoutPlan(plan);
 
       // Seleccionar día actual por defecto
@@ -198,12 +226,15 @@ export const WorkoutsTab: React.FC = () => {
 
     try {
       // Intentar obtener el plan actualizado
-      const plan = await WorkoutService.getWorkoutPlan(currentWeek);
+      let plan = await WorkoutService.getWorkoutPlan(currentWeek);
 
       console.warn('📋 Plan received:', plan ? `ID: ${plan.id}, Days: ${plan.days?.length}` : 'null');
 
       // Verificar si el plan existe y tiene datos válidos
       if (plan && plan.days && plan.days.length > 0) {
+        // Filtrar días pasados del plan (solo mostrar desde hoy en adelante)
+        plan = filterPastDays(plan);
+        
         // El plan está listo (verificamos que tenga días, no solo el ID)
         console.warn('✅ Workout plan is ready!');
         setGenerationProgress(100);
@@ -274,6 +305,10 @@ export const WorkoutsTab: React.FC = () => {
     setWorkoutStartTime(new Date());
     setCompletedExercises(new Set());
     setExerciseEdits({});
+    setActiveExercises(new Set());
+    setExerciseTimers({});
+    setPausedExercises(new Set());
+    setExerciseStartTimes({});
     Alert.alert(
       '¡Rutina iniciada! 💪', 
       'Usa los controles individuales de cada ejercicio para iniciar, pausar y completar. El cronómetro está corriendo. ¡A entrenar!',
@@ -282,12 +317,13 @@ export const WorkoutsTab: React.FC = () => {
   };
 
   const toggleExerciseComplete = (index: number, restSeconds?: number) => {
+    const exerciseKey = `${selectedDay}-${index}`;
     setCompletedExercises(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(index)) {
-        newSet.delete(index);
+      if (newSet.has(exerciseKey)) {
+        newSet.delete(exerciseKey);
       } else {
-        newSet.add(index);
+        newSet.add(exerciseKey);
         // Iniciar temporizador de descanso si hay tiempo definido
         if (restSeconds && restSeconds > 0) {
           setCurrentRestSeconds(restSeconds);
@@ -299,10 +335,11 @@ export const WorkoutsTab: React.FC = () => {
   };
 
   const updateExerciseValue = (index: number, field: keyof Exercise, value: any) => {
+    const exerciseKey = `${selectedDay}-${index}`;
     setExerciseEdits(prev => ({
       ...prev,
-      [index]: {
-        ...prev[index],
+      [exerciseKey]: {
+        ...prev[exerciseKey],
         [field]: value
       }
     }));
@@ -312,8 +349,9 @@ export const WorkoutsTab: React.FC = () => {
     // Estimación simple: ~5 calorías por serie completada
     let totalCalories = 0;
     exercises.forEach((exercise, idx) => {
-      if (completedExercises.has(idx)) {
-        const sets = exerciseEdits[idx]?.sets || exercise.sets;
+      const exerciseKey = `${selectedDay}-${idx}`;
+      if (completedExercises.has(exerciseKey)) {
+        const sets = exerciseEdits[exerciseKey]?.sets || exercise.sets;
         totalCalories += sets * 5;
       }
     });
@@ -333,11 +371,14 @@ export const WorkoutsTab: React.FC = () => {
     const durationMinutes = Math.floor(elapsedTime / 60);
 
     // Preparar ejercicios con modificaciones
-    const exercisesWithEdits = dayWorkout.exercises.map((exercise, idx) => ({
-      ...exercise,
-      ...(exerciseEdits[idx] || {}),
-      completed: completedExercises.has(idx)
-    }));
+    const exercisesWithEdits = dayWorkout.exercises.map((exercise, idx) => {
+      const exerciseKey = `${selectedDay}-${idx}`;
+      return {
+        ...exercise,
+        ...(exerciseEdits[exerciseKey] || {}),
+        completed: completedExercises.has(exerciseKey)
+      };
+    });
 
     const summary = {
       totalExercises,
@@ -416,17 +457,18 @@ export const WorkoutsTab: React.FC = () => {
   // Funciones para controles individuales de ejercicios
   const startExercise = (exerciseIndex: number) => {
     const now = Date.now();
+    const exerciseKey = `${selectedDay}-${exerciseIndex}`;
     
-    setActiveExercises(prev => new Set([...prev, exerciseIndex]));
+    setActiveExercises(prev => new Set([...prev, exerciseKey]));
     setPausedExercises(prev => {
       const newSet = new Set(prev);
-      newSet.delete(exerciseIndex);
+      newSet.delete(exerciseKey);
       return newSet;
     });
     
     // Solo establecer nuevo tiempo de inicio si no hay tiempo previo acumulado
     // Esto permite reanudar correctamente desde donde se pausó
-    setExerciseStartTimes(prev => ({ ...prev, [exerciseIndex]: now }));
+    setExerciseStartTimes(prev => ({ ...prev, [exerciseKey]: now }));
     
     // Si no hay rutina activa, iniciarla automáticamente
     if (!isWorkoutActive) {
@@ -436,31 +478,34 @@ export const WorkoutsTab: React.FC = () => {
 
   const pauseExercise = (exerciseIndex: number) => {
     const now = Date.now();
-    const startTime = exerciseStartTimes[exerciseIndex];
+    const exerciseKey = `${selectedDay}-${exerciseIndex}`;
+    const startTime = exerciseStartTimes[exerciseKey];
     
     if (startTime) {
       // Calcular tiempo transcurrido y agregarlo al total
       const elapsedSeconds = Math.floor((now - startTime) / 1000);
       setExerciseTimers(prev => ({
         ...prev,
-        [exerciseIndex]: (prev[exerciseIndex] || 0) + elapsedSeconds
+        [exerciseKey]: (prev[exerciseKey] || 0) + elapsedSeconds
       }));
     }
     
     setActiveExercises(prev => {
       const newSet = new Set(prev);
-      newSet.delete(exerciseIndex);
+      newSet.delete(exerciseKey);
       return newSet;
     });
-    setPausedExercises(prev => new Set([...prev, exerciseIndex]));
+    setPausedExercises(prev => new Set([...prev, exerciseKey]));
   };
 
   const completeExercise = (exerciseIndex: number, restSeconds: number = 60) => {
+    const exerciseKey = `${selectedDay}-${exerciseIndex}`;
+    
     // Pausar el ejercicio primero para guardar el tiempo
     pauseExercise(exerciseIndex);
     
     // Marcar como completado
-    setCompletedExercises(prev => new Set([...prev, exerciseIndex]));
+    setCompletedExercises(prev => new Set([...prev, exerciseKey]));
     
     // Mostrar timer de descanso
     setCurrentRestSeconds(restSeconds);
@@ -468,32 +513,35 @@ export const WorkoutsTab: React.FC = () => {
   };
 
   const resetExercise = (exerciseIndex: number) => {
+    const exerciseKey = `${selectedDay}-${exerciseIndex}`;
+    
     setActiveExercises(prev => {
       const newSet = new Set(prev);
-      newSet.delete(exerciseIndex);
+      newSet.delete(exerciseKey);
       return newSet;
     });
     setPausedExercises(prev => {
       const newSet = new Set(prev);
-      newSet.delete(exerciseIndex);
+      newSet.delete(exerciseKey);
       return newSet;
     });
-    setExerciseTimers(prev => ({ ...prev, [exerciseIndex]: 0 }));
+    setExerciseTimers(prev => ({ ...prev, [exerciseKey]: 0 }));
     setExerciseStartTimes(prev => {
       const newTimes = { ...prev };
-      delete newTimes[exerciseIndex];
+      delete newTimes[exerciseKey];
       return newTimes;
     });
     setCompletedExercises(prev => {
       const newSet = new Set(prev);
-      newSet.delete(exerciseIndex);
+      newSet.delete(exerciseKey);
       return newSet;
     });
   };
 
   const renderExercise = (exercise: Exercise, index: number) => {
-    const isCompleted = completedExercises.has(index);
-    const edits = exerciseEdits[index] || {};
+    const exerciseKey = `${selectedDay}-${index}`;
+    const isCompleted = completedExercises.has(exerciseKey);
+    const edits = exerciseEdits[exerciseKey] || {};
     const currentSets = edits.sets ?? exercise.sets;
     const currentReps = edits.reps ?? exercise.reps;
     const currentWeight = edits.weight ?? exercise.weight;
@@ -518,10 +566,10 @@ export const WorkoutsTab: React.FC = () => {
           
           {/* Controles individuales de ejercicio */}
           <View style={styles.exerciseControls}>
-            {activeExercises.has(index) ? (
+            {activeExercises.has(exerciseKey) ? (
               <View style={styles.activeExerciseControls}>
                 <Text style={styles.exerciseTimer}>
-                  {formatTime(exerciseTimers[index] || 0)}
+                  {formatTime(exerciseTimers[exerciseKey] || 0)}
                 </Text>
                 <TouchableOpacity 
                   style={styles.pauseButton}
@@ -536,10 +584,10 @@ export const WorkoutsTab: React.FC = () => {
                   <Text style={styles.completeButtonText}>✓</Text>
                 </TouchableOpacity>
               </View>
-            ) : pausedExercises.has(index) ? (
+            ) : pausedExercises.has(exerciseKey) ? (
               <View style={styles.pausedExerciseControls}>
                 <Text style={styles.exerciseTimer}>
-                  {formatTime(exerciseTimers[index] || 0)}
+                  {formatTime(exerciseTimers[exerciseKey] || 0)}
                 </Text>
                 <TouchableOpacity 
                   style={styles.resumeButton}

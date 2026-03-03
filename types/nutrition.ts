@@ -504,6 +504,7 @@ export interface GenerateWorkoutRequest {
   goal: WorkoutGoal;
   environment?: WorkoutEnvironment;
   sportName?: string;
+  startDayIndex?: number; // 1 = Lunes, 2 = Martes, ..., 7 = Domingo
 }
 
 export interface GenerateWorkoutResponse {

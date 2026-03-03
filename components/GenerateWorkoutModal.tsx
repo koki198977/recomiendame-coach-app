@@ -35,6 +35,15 @@ export const GenerateWorkoutModal: React.FC<GenerateWorkoutModalProps> = ({
   const [equipmentImages, setEquipmentImages] = useState<string[]>([]);
   const insets = useSafeAreaInsets();
 
+  // Calcular días restantes en la semana (desde hoy hasta domingo)
+  const getRemainingDaysInWeek = () => {
+    const today = new Date().getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+    const daysUntilSunday = today === 0 ? 1 : 8 - today; // Si es domingo, solo cuenta hoy
+    return daysUntilSunday;
+  };
+
+  const maxDaysAvailable = getRemainingDaysInWeek();
+
   const goals: { value: WorkoutGoal; label: string; emoji: string; description: string }[] = [
     {
       value: 'HYPERTROPHY',
@@ -134,26 +143,35 @@ export const GenerateWorkoutModal: React.FC<GenerateWorkoutModalProps> = ({
             {/* Días disponibles */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>¿Cuántos días puedes entrenar?</Text>
+              <Text style={styles.sectionDescription}>
+                Quedan {maxDaysAvailable} días disponibles en esta semana (desde hoy)
+              </Text>
               <View style={styles.daysContainer}>
-                {[1, 2, 3, 4, 5, 6, 7].map((days) => (
-                  <TouchableOpacity
-                    key={days}
-                    style={[
-                      styles.dayButton,
-                      selectedDays === days && styles.dayButtonActive,
-                    ]}
-                    onPress={() => setSelectedDays(days)}
-                  >
-                    <Text
+                {[1, 2, 3, 4, 5, 6, 7].map((days) => {
+                  const isDisabled = days > maxDaysAvailable;
+                  return (
+                    <TouchableOpacity
+                      key={days}
                       style={[
-                        styles.dayButtonText,
-                        selectedDays === days && styles.dayButtonTextActive,
+                        styles.dayButton,
+                        selectedDays === days && styles.dayButtonActive,
+                        isDisabled && styles.dayButtonDisabled,
                       ]}
+                      onPress={() => !isDisabled && setSelectedDays(days)}
+                      disabled={isDisabled}
                     >
-                      {days}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <Text
+                        style={[
+                          styles.dayButtonText,
+                          selectedDays === days && styles.dayButtonTextActive,
+                          isDisabled && styles.dayButtonTextDisabled,
+                        ]}
+                      >
+                        {days}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
 
@@ -333,6 +351,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CAF50',
     borderColor: '#2E7D32',
   },
+  dayButtonDisabled: {
+    backgroundColor: '#e0e0e0',
+    opacity: 0.5,
+  },
   dayButtonText: {
     fontSize: 16,
     fontWeight: '600',
@@ -340,6 +362,9 @@ const styles = StyleSheet.create({
   },
   dayButtonTextActive: {
     color: '#fff',
+  },
+  dayButtonTextDisabled: {
+    color: '#999',
   },
   goalCard: {
     flexDirection: 'row',

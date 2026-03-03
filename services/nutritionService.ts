@@ -1,5 +1,6 @@
 import api from './api';
 import { API_CONFIG } from '../config/api';
+import CacheService from './cacheService';
 import { 
   UserProfile, 
   NutritionPlan, 
@@ -493,6 +494,11 @@ export class NutritionService {
     console.log('🍽️ Logging meal with normalized data:', normalizedMealData);
     
     const response = await api.post<LogMealResponse>('/meals/log', normalizedMealData);
+    
+    // Invalidar caché de progreso después de agregar comida
+    await CacheService.clearProgressCache();
+    console.log('🔄 Progress cache invalidated after logging meal');
+    
     return response.data;
   }
 
@@ -518,6 +524,11 @@ export class NutritionService {
   static async markMealAsConsumed(mealId: string, date?: string): Promise<LogMealResponse> {
     const params = date ? { date } : {};
     const response = await api.patch<LogMealResponse>(`/meals/${mealId}/consumed`, {}, { params });
+    
+    // Invalidar caché de progreso después de marcar comida como consumida
+    await CacheService.clearProgressCache();
+    console.log('🔄 Progress cache invalidated after marking meal as consumed');
+    
     return response.data;
   }
 }

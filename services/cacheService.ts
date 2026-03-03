@@ -8,6 +8,8 @@ class CacheService {
   static readonly CHAPI_INSIGHTS_KEY = 'chapi_insights_cache';
   static readonly USER_PROFILE_KEY = 'user_profile_cache';
   static readonly NUTRITION_PLAN_KEY = 'nutrition_plan_cache';
+  static readonly WEEKLY_PROGRESS_KEY = 'weekly_progress_cache';
+  static readonly MONTHLY_PROGRESS_KEY = 'monthly_progress_cache';
 
   /**
    * Limpiar cache específico
@@ -26,6 +28,17 @@ class CacheService {
    */
   static async clearChapiCache(): Promise<void> {
     await this.clearCache(this.CHAPI_INSIGHTS_KEY);
+  }
+
+  /**
+   * Limpiar cache de progreso (semanal y mensual)
+   */
+  static async clearProgressCache(): Promise<void> {
+    await Promise.all([
+      this.clearCache(this.WEEKLY_PROGRESS_KEY),
+      this.clearCache(this.MONTHLY_PROGRESS_KEY),
+    ]);
+    console.log('🗑️ Progress cache cleared');
   }
 
   /**
@@ -125,6 +138,56 @@ class CacheService {
       }
     } catch (error) {
       console.error('❌ Error cleaning expired cache:', error);
+    }
+  }
+
+  /**
+   * Guardar datos de progreso en caché
+   */
+  static async saveProgressCache(period: 'week' | 'month', data: any): Promise<void> {
+    try {
+      const key = period === 'week' ? this.WEEKLY_PROGRESS_KEY : this.MONTHLY_PROGRESS_KEY;
+      const cacheData = {
+        data,
+        timestamp: Date.now(),
+      };
+      await AsyncStorage.setItem(key, JSON.stringify(cacheData));
+      console.log(`💾 Progress cache saved for ${period}`);
+    } catch (error) {
+      console.error(`❌ Error saving progress cache for ${period}:`, error);
+    }
+  }
+
+  /**
+   * Obtener datos de progreso desde caché
+   */
+  static async getProgressCache(period: 'week' | 'month'): Promise<any | null> {
+    try {
+      const key = period === 'week' ? this.WEEKLY_PROGRESS_KEY : this.MONTHLY_PROGRESS_KEY;
+      const cachedData = await AsyncStorage.getItem(key);
+      
+      if (!cachedData) {
+        console.log(`📭 No cache found for ${period}`);
+        return null;
+      }
+
+      const parsed = JSON.parse(cachedData);
+      const now = Date.now();
+      
+      // Cache válido por 1 hora (3600000 ms)
+      const maxAge = 60 * 60 * 1000;
+      
+      if (now - parsed.timestamp > maxAge) {
+        console.log(`⏰ Cache expired for ${period}`);
+        await this.clearCache(key);
+        return null;
+      }
+
+      console.log(`✅ Using cached data for ${period}`);
+      return parsed.data;
+    } catch (error) {
+      console.error(`❌ Error getting progress cache for ${period}:`, error);
+      return null;
     }
   }
 }

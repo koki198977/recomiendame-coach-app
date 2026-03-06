@@ -57,8 +57,11 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
   }, [selectedWeek, refreshKey, selectedPeriod]); // Agregar selectedPeriod como dependencia
 
   const loadWeekData = async () => {
+    console.log('🔍 loadWeekData called with:', { selectedPeriod, selectedWeek, refreshKey });
+    
     // Solo cargar datos para semana y mes
     if (selectedPeriod === 'year') {
+      console.log('⏭️ Skipping year period');
       setLoading(false);
       return;
     }
@@ -205,6 +208,8 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
       // Calcular número de días en el período
       const totalDays = getTotalDaysInPeriod();
 
+      console.log('📊 Calculating weekly completion:', { from: from.toISOString().split('T')[0], to: to.toISOString().split('T')[0], totalDays });
+
       // Iterar por cada día del período
       for (let i = 0; i < totalDays; i++) {
         const currentDate = new Date(from);
@@ -213,16 +218,20 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
         
         try {
           const dayMeals = await NutritionService.getTodayMeals(dateStr);
+          console.log(`📅 ${dateStr}: ${dayMeals.logs?.length || 0} meals`);
           // Contar el día si tiene al menos una comida registrada
           if (dayMeals && dayMeals.logs && dayMeals.logs.length > 0) {
             daysWithMeals++;
           }
         } catch (error) {
+          console.log(`❌ Error loading meals for ${dateStr}:`, error);
           continue;
         }
       }
 
-      return Math.round((daysWithMeals / totalDays) * 100);
+      const completion = Math.round((daysWithMeals / totalDays) * 100);
+      console.log(`✅ Weekly completion: ${daysWithMeals}/${totalDays} days = ${completion}%`);
+      return completion;
     } catch (error) {
       console.error('Error calculating completion:', error);
       return 0;

@@ -579,6 +579,7 @@ export interface LogMealRequest {
   fat_g: number;
   notes?: string;
   imageUrl?: string;
+  date?: string; // Formato YYYY-MM-DD
 }
 
 export interface LogMealResponse {

@@ -57,10 +57,27 @@ class HydrationService {
    */
   async logCustomIntake(logData: HydrationLogRequest): Promise<HydrationLogResponse> {
     try {
+      console.log('📤 Logging hydration intake:', logData);
+      
+      // Validar datos antes de enviar
+      if (!logData.ml || logData.ml <= 0) {
+        throw new Error('La cantidad debe ser mayor a 0ml');
+      }
+      
+      if (logData.ml > 10000) {
+        throw new Error('La cantidad no puede ser mayor a 10 litros');
+      }
+      
       const response = await api.post<HydrationLogResponse>('/hydration/custom-log', logData);
+      console.log('✅ Hydration log response:', response.data);
       return response.data;
     } catch (error: any) {
-      console.error('Error logging hydration intake:', error);
+      console.error('❌ Error logging hydration intake:', error);
+      console.error('Error details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
       throw error;
     }
   }

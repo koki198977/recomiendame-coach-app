@@ -40,6 +40,8 @@ export const LogWaterModal: React.FC<LogWaterModalProps> = ({
     { ml: 500, label: 'Botella', icon: '🧴' },
     { ml: 750, label: 'Botella grande', icon: '🍶' },
     { ml: 1000, label: 'Litro', icon: '🥛' },
+    { ml: 1500, label: '1.5 Litros', icon: '💧' },
+    { ml: 2000, label: '2 Litros', icon: '🌊' },
   ];
 
   const handleQuickSelect = (ml: number) => {
@@ -63,23 +65,59 @@ export const LogWaterModal: React.FC<LogWaterModalProps> = ({
       return;
     }
 
+    // Validación de cantidad máxima razonable
+    if (selectedAmount > 5000) {
+      Alert.alert(
+        'Cantidad muy alta',
+        '¿Estás seguro de que tomaste más de 5 litros? Por favor verifica la cantidad.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Continuar', onPress: () => proceedWithLog() }
+        ]
+      );
+      return;
+    }
+
+    await proceedWithLog();
+  };
+
+  const proceedWithLog = async () => {
+    if (!selectedAmount) return;
+
     try {
       setLogging(true);
       
       const logData: HydrationLogRequest = {
-        ml: selectedAmount,
+        ml: Math.round(selectedAmount), // Asegurar que sea un entero
         description: description.trim() || undefined,
         time: new Date().toISOString(),
       };
 
+      console.log('📤 Sending hydration log:', logData);
+
       const response = await HydrationService.logCustomIntake(logData);
+      
+      console.log('✅ Hydration log response:', response);
       
       // Cerrar modal y actualizar sin mostrar alert
       onLogSuccess();
       onClose();
       resetForm();
-    } catch (error) {
-      Alert.alert('Error', 'No se pudo registrar el consumo de agua');
+    } catch (error: any) {
+      console.error('❌ Error logging hydration:', error);
+      
+      // Mostrar mensaje de error más específico
+      let errorMessage = 'No se pudo registrar el consumo de agua';
+      
+      if (error.response?.status === 500) {
+        errorMessage = 'Error del servidor. Por favor intenta con una cantidad menor o contacta soporte.';
+      } else if (error.response?.status === 400) {
+        errorMessage = error.response?.data?.message || 'Datos inválidos. Verifica la cantidad ingresada.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert('Error', errorMessage);
     } finally {
       setLogging(false);
     }

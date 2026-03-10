@@ -30,32 +30,15 @@
     }
   },
   "submit": {
-    "internal": {
-      "android": {
-        "serviceAccountKeyPath": "./google-service-account.json",
-        "track": "internal"
-      },
-      "ios": {
-        "appleId": "tu-email@ejemplo.com",
-        "ascAppId": "TU_APP_STORE_CONNECT_ID",
-        "appleTeamId": "TU_TEAM_ID"
-      }
-    },
-    "alpha": {
-      "android": {
-        "serviceAccountKeyPath": "./google-service-account.json",
-        "track": "alpha"
-      }
-    },
     "production": {
       "android": {
         "serviceAccountKeyPath": "./google-service-account.json",
         "track": "production"
       },
       "ios": {
-        "appleId": "tu-email@ejemplo.com",
-        "ascAppId": "TU_APP_STORE_CONNECT_ID",
-        "appleTeamId": "TU_TEAM_ID"
+        "appleId": "kokialvarez78@gmail.com",
+        "ascAppId": "6760352646",
+        "appleTeamId": "6760352646"
       }
     }
   }

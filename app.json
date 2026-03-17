@@ -37,6 +37,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "cl.recomiendameapp.coach",
+      "buildNumber": "2",
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
           "youtube",

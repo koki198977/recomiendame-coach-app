@@ -95,6 +95,8 @@ export const MedicalConditionsSelector: React.FC<MedicalConditionsSelectorProps>
       const newCondition = await NutritionService.createCondition(newConditionText.trim());
       onUpdateConditions([...conditions, newCondition]);
       onToggleCondition(newCondition.id);
+      // También guardar como custom para asegurar que se envíe al backend
+      onAddCustomCondition(newCondition.label);
       Alert.alert('¡Éxito!', `Se agregó "${newCondition.label}" a la lista.`);
     } catch (error: any) {
       if (error.response?.status === 409) {

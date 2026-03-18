@@ -52,7 +52,9 @@ export interface UserProfile {
   budgetLevel?: number;
   cookTimePerMeal?: number;
   allergies?: Allergy[];
+  customAllergies?: string[];
   conditions?: Condition[];
+  customConditions?: string[];
   cuisinesLike?: Cuisine[];
   cuisinesDislike?: Cuisine[];
   // Campos de objetivo nutricional como propiedades directas

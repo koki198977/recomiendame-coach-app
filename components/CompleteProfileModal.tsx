@@ -78,9 +78,9 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
   // Estado para detectar si el teclado está visible
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   
-  // Arrays para mantener todas las alergias y condiciones seleccionadas (para el resumen)
-  const [allSelectedAllergies, setAllSelectedAllergies] = useState<Allergy[]>([]);
-  const [allSelectedConditions, setAllSelectedConditions] = useState<Condition[]>([]);
+  // Derivados para el resumen — siempre en sync con el estado actual
+  const allSelectedAllergies = allergies.filter(a => formData.allergies.includes(a.id));
+  const allSelectedConditions = conditions.filter(c => formData.conditions.includes(c.id));
 
   const steps = [
     {
@@ -291,12 +291,6 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
       setAllergies(allergiesData.items);
       setConditions(conditionsData.items);
       
-      // Inicializar arrays de elementos seleccionados
-      const selectedAllergiesItems = allergiesData.items.filter(a => formData.allergies.includes(a.id));
-      const selectedConditionsItems = conditionsData.items.filter(c => formData.conditions.includes(c.id));
-      setAllSelectedAllergies(selectedAllergiesItems);
-      setAllSelectedConditions(selectedConditionsItems);
-      
       // Solo mostrar error si todas las taxonomías fallaron
       if (cuisinesData.items.length === 0 && allergiesData.items.length === 0 && conditionsData.items.length === 0) {
         console.log('No se pudieron cargar las taxonomías, usando datos básicos');
@@ -342,12 +336,6 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
     setCuisines(fallbackCuisines);
     setAllergies(fallbackAllergies);
     setConditions(fallbackConditions);
-    
-    // Inicializar arrays de elementos seleccionados con datos fallback
-    const selectedAllergiesItems = fallbackAllergies.filter(a => formData.allergies.includes(a.id));
-    const selectedConditionsItems = fallbackConditions.filter(c => formData.conditions.includes(c.id));
-    setAllSelectedAllergies(selectedAllergiesItems);
-    setAllSelectedConditions(selectedConditionsItems);
   };
 
   const updateFormData = (key: string, value: string) => {
@@ -362,37 +350,6 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
         : [...currentArray, itemId];
       return { ...prev, [key]: newArray };
     });
-
-    // Actualizar arrays de elementos seleccionados para el resumen
-    if (key === 'allergies') {
-      const allergy = allergies.find(a => a.id === itemId);
-      if (allergy) {
-        setAllSelectedAllergies(prev => {
-          const exists = prev.find(a => a.id === itemId);
-          if (exists) {
-            // Remover si ya existe
-            return prev.filter(a => a.id !== itemId);
-          } else {
-            // Agregar si no existe
-            return [...prev, allergy];
-          }
-        });
-      }
-    } else if (key === 'conditions') {
-      const condition = conditions.find(c => c.id === itemId);
-      if (condition) {
-        setAllSelectedConditions(prev => {
-          const exists = prev.find(c => c.id === itemId);
-          if (exists) {
-            // Remover si ya existe
-            return prev.filter(c => c.id !== itemId);
-          } else {
-            // Agregar si no existe
-            return [...prev, condition];
-          }
-        });
-      }
-    }
   };
 
   // Remover alergia personalizada
@@ -1033,18 +990,6 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                 onRemoveCustomAllergy={removeCustomAllergy}
                 onUpdateAllergies={(newAllergies) => {
                   setAllergies(newAllergies);
-                  // Actualizar también el array de seleccionadas si hay nuevas
-                  const newSelectedItems = newAllergies.filter(a => formData.allergies.includes(a.id));
-                  setAllSelectedAllergies(prev => {
-                    // Combinar elementos existentes con nuevos, evitando duplicados
-                    const combined = [...prev];
-                    newSelectedItems.forEach(item => {
-                      if (!combined.find(existing => existing.id === item.id)) {
-                        combined.push(item);
-                      }
-                    });
-                    return combined;
-                  });
                 }}
                 compact={keyboardVisible}
               />
@@ -1068,18 +1013,6 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                 onRemoveCustomCondition={removeCustomCondition}
                 onUpdateConditions={(newConditions) => {
                   setConditions(newConditions);
-                  // Actualizar también el array de seleccionadas si hay nuevas
-                  const newSelectedItems = newConditions.filter(c => formData.conditions.includes(c.id));
-                  setAllSelectedConditions(prev => {
-                    // Combinar elementos existentes con nuevos, evitando duplicados
-                    const combined = [...prev];
-                    newSelectedItems.forEach(item => {
-                      if (!combined.find(existing => existing.id === item.id)) {
-                        combined.push(item);
-                      }
-                    });
-                    return combined;
-                  });
                 }}
                 compact={keyboardVisible}
               />

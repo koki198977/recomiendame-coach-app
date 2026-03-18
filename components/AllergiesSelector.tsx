@@ -95,6 +95,8 @@ export const AllergiesSelector: React.FC<AllergiesSelectorProps> = ({
       const newAllergy = await NutritionService.createAllergy(newAllergyText.trim());
       onUpdateAllergies([...allergies, newAllergy]);
       onToggleAllergy(newAllergy.id);
+      // También guardar como custom para asegurar que se envíe al backend
+      onAddCustomAllergy(newAllergy.name);
       Alert.alert('¡Éxito!', `Se agregó "${newAllergy.name}" a la lista.`);
     } catch (error: any) {
       if (error.response?.status === 409) {

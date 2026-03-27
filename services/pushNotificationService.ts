@@ -107,17 +107,21 @@ export class PushNotificationService {
       const token = await StorageService.getItem('pushToken');
       
       if (token) {
+        // Remove token locally first to prevent retry loops
+        await StorageService.removeItem('pushToken');
+        this.pushToken = null;
+
         await api.delete('/users/push-token', {
           data: { pushToken: token }
         });
         
-        await StorageService.removeItem('pushToken');
-        this.pushToken = null;
-        
         console.log('✅ Push token eliminado del backend');
       }
-    } catch (error) {
-      console.error('❌ Error eliminando push token:', error);
+    } catch (error: any) {
+      // Ignore 401 — token already invalid, no need to retry
+      if (error?.response?.status !== 401) {
+        console.error('❌ Error eliminando push token:', error);
+      }
     }
   }
 

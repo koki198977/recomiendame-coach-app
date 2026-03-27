@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import { TourGuideZone } from 'rn-tourguide';
 import { PlanScreen as NutritionTab } from './PlanScreen';
 import { WorkoutsTab } from './WorkoutsTab';
 import { AppHeader } from '../components/AppHeader';
@@ -13,9 +14,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 interface PlanScreenWithTabsProps {
   initialTab?: 'nutrition' | 'workouts';
+  isTourActive?: boolean;
+  currentStep?: import('../config/onboardingSteps').OnboardingStep | null;
+  nextStep?: () => void;
+  skipTour?: () => void;
 }
 
-export const PlanScreenWithTabs: React.FC<PlanScreenWithTabsProps> = ({ initialTab = 'nutrition' }) => {
+export const PlanScreenWithTabs: React.FC<PlanScreenWithTabsProps> = ({ initialTab = 'nutrition', isTourActive, currentStep, nextStep, skipTour }) => {
   const [activeTab, setActiveTab] = useState<'nutrition' | 'workouts'>(initialTab);
 
   useEffect(() => {
@@ -34,27 +39,31 @@ export const PlanScreenWithTabs: React.FC<PlanScreenWithTabsProps> = ({ initialT
 
       {/* Tabs Header */}
       <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          style={styles.tabWrapper}
-          onPress={() => setActiveTab('nutrition')}
-        >
-          <View style={[styles.tab, activeTab === 'nutrition' && styles.tabActive]}>
-            <Text style={[styles.tabText, activeTab === 'nutrition' && styles.tabTextActive]}>
-              🍎 Nutrición
-            </Text>
-          </View>
-        </TouchableOpacity>
+        <TourGuideZone zone={5} text='Aquí está tu plan de comidas personalizado para toda la semana. Lo generé con IA basándome en tus objetivos. ¡Está hecho a tu medida! ✨' borderRadius={8}>
+          <TouchableOpacity
+            style={styles.tabWrapper}
+            onPress={() => setActiveTab('nutrition')}
+          >
+            <View style={[styles.tab, activeTab === 'nutrition' && styles.tabActive]}>
+              <Text style={[styles.tabText, activeTab === 'nutrition' && styles.tabTextActive]}>
+                🍎 Nutrición
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </TourGuideZone>
 
-        <TouchableOpacity
-          style={styles.tabWrapper}
-          onPress={() => setActiveTab('workouts')}
-        >
-          <View style={[styles.tab, activeTab === 'workouts' && styles.tabActive]}>
-            <Text style={[styles.tabText, activeTab === 'workouts' && styles.tabTextActive]}>
-              💪 Rutinas
-            </Text>
-          </View>
-        </TouchableOpacity>
+        <TourGuideZone zone={6} text='También tengo una rutina de entrenamiento personalizada para ti. ¡Nutrición y ejercicio juntos para mejores resultados! 🏋️' borderRadius={8}>
+          <TouchableOpacity
+            style={styles.tabWrapper}
+            onPress={() => setActiveTab('workouts')}
+          >
+            <View style={[styles.tab, activeTab === 'workouts' && styles.tabActive]}>
+              <Text style={[styles.tabText, activeTab === 'workouts' && styles.tabTextActive]}>
+                💪 Rutinas
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </TourGuideZone>
       </View>
 
       {/* Tab Content */}

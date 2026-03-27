@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { TourGuideZone } from 'rn-tourguide';
 
 interface ChapiBubbleProps {
   onPress: () => void;
@@ -145,27 +146,29 @@ export const ChapiBubble: React.FC<ChapiBubbleProps> = ({ onPress, unreadCount =
       />
 
       {/* Burbuja principal */}
-      <TouchableOpacity
-        style={styles.bubble}
-        onPress={onPress}
-        activeOpacity={0.8}
-      >
-        {/* Imagen de Chapi 3D */}
-        <Image 
-          source={require('../assets/chapi-3d.png')}
-          style={styles.chapiImage}
-          resizeMode="contain"
-        />
-        
-        {/* Badge de mensajes no leídos */}
-        {unreadCount > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
+      <TourGuideZone zone={6} text="Ese botón flotante soy yo 😄 Tócame cuando quieras preguntarme algo sobre nutrición, ejercicio o tu plan. ¡Estoy aquí para ayudarte! 🤗" shape="circle" borderRadius={50}>
+        <TouchableOpacity
+          style={styles.bubble}
+          onPress={onPress}
+          activeOpacity={0.8}
+        >
+          {/* Imagen de Chapi 3D */}
+          <Image 
+            source={require('../assets/chapi-3d.png')}
+            style={styles.chapiImage}
+            resizeMode="contain"
+          />
+          
+          {/* Badge de mensajes no leídos */}
+          {unreadCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </TourGuideZone>
 
       {/* Texto descriptivo */}
       <Text style={styles.label}>Chapi</Text>

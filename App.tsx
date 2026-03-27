@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { TourGuideProvider, TourGuideZone } from 'rn-tourguide';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LoginScreen } from './screens/LoginScreen';
 import { RegisterScreen } from './screens/RegisterScreen';
@@ -16,22 +17,35 @@ import { Logo } from './components/Logo';
 import { CompleteProfileModal } from './components/CompleteProfileModal';
 import { ChapiBubble } from './components/ChapiBubble';
 import { ChapiChatModal } from './components/ChapiChatModal';
+import { CustomTooltip } from './components/CustomTooltip';
 import { NutritionService } from './services/nutritionService';
 import { UserProfile } from './types/nutrition';
 import { setupErrorHandlers } from './utils/errorLogger';
 import { setUnauthorizedCallback } from './services/api';
 import { PushNotificationService } from './services/pushNotificationService';
 import { NotificationReminderService } from './services/notificationReminderService';
+import { useTour } from './hooks/useTour';
 
 // Configurar handlers de errores al inicio
 setupErrorHandlers();
 
 // Componente principal con tabs manuales
-const MainApp: React.FC<{ onLogout: () => void; refreshKey: number }> = ({ onLogout, refreshKey }) => {
+const MainApp: React.FC<{ onLogout: () => void; refreshKey: number; tourProfile: { onboardingCompleted: boolean } | null }> = ({ onLogout, refreshKey, tourProfile }) => {
   const [activeTab, setActiveTab] = useState('home');
   const [planInitialTab, setPlanInitialTab] = useState<'nutrition' | 'workouts'>('nutrition');
   const [chapiModalVisible, setChapiModalVisible] = useState(false);
   const [progressRefreshKey, setProgressRefreshKey] = useState(0);
+  const [hasForcedTour, setHasForcedTour] = useState(false);
+
+  const { isTourActive, currentStep, nextStep, skipTour, initTour } = useTour(activeTab);
+
+  useEffect(() => {
+    if (!hasForcedTour) {
+      console.log('🎯 Evaluando lanzar tour de onboarding al montar MainApp');
+      initTour({ onboardingCompleted: tourProfile?.onboardingCompleted ?? false });
+      setHasForcedTour(true);
+    }
+  }, [hasForcedTour, initTour, tourProfile]);
 
   // Incrementar el refresh key cuando se activa el tab de progreso
   const handleTabChange = (tab: string) => {
@@ -47,9 +61,9 @@ const MainApp: React.FC<{ onLogout: () => void; refreshKey: number }> = ({ onLog
         return <HomeScreen key={refreshKey} onNavigateToWorkout={() => {
           setPlanInitialTab('workouts');
           handleTabChange('plan');
-        }} />;
+        }} isTourActive={isTourActive} currentStep={currentStep} nextStep={nextStep} skipTour={skipTour} />;
       case 'plan':
-        return <PlanScreenWithTabs initialTab={planInitialTab} />;
+        return <PlanScreenWithTabs initialTab={planInitialTab} isTourActive={isTourActive} currentStep={currentStep} nextStep={nextStep} skipTour={skipTour} />;
       case 'social':
         return <SocialScreen />;
       case 'progress':
@@ -60,7 +74,7 @@ const MainApp: React.FC<{ onLogout: () => void; refreshKey: number }> = ({ onLog
         return <HomeScreen key={refreshKey} onNavigateToWorkout={() => {
           setPlanInitialTab('workouts');
           handleTabChange('plan');
-        }} />;
+        }} isTourActive={isTourActive} currentStep={currentStep} nextStep={nextStep} skipTour={skipTour} />;
     }
   };
 
@@ -86,53 +100,61 @@ const MainApp: React.FC<{ onLogout: () => void; refreshKey: number }> = ({ onLog
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.tab}
-            onPress={() => handleTabChange('plan')}
-          >
-            <View style={[styles.tabIconContainer, activeTab === 'plan' && styles.activeTabIconContainer]}>
-              <Text style={[styles.tabIcon, activeTab === 'plan' && styles.activeTabIcon]}>🍎</Text>
-            </View>
-            <Text style={[styles.tabText, activeTab === 'plan' && styles.activeTabText]}>
-              Mi Programa
-            </Text>
-          </TouchableOpacity>
+          <TourGuideZone zone={7} text="Aquí encontrarás tu plan nutricional y tu rutina de ejercicios personalizados, generados con IA para ti. 🍎💪" style={{ flex: 1 }} borderRadius={12}>
+            <TouchableOpacity
+              style={styles.tab}
+              onPress={() => handleTabChange('plan')}
+            >
+              <View style={[styles.tabIconContainer, activeTab === 'plan' && styles.activeTabIconContainer]}>
+                <Text style={[styles.tabIcon, activeTab === 'plan' && styles.activeTabIcon]}>🍎</Text>
+              </View>
+              <Text style={[styles.tabText, activeTab === 'plan' && styles.activeTabText]}>
+                Mi Programa
+              </Text>
+            </TouchableOpacity>
+          </TourGuideZone>
 
-          <TouchableOpacity
-            style={styles.tab}
-            onPress={() => handleTabChange('social')}
-          >
-            <View style={[styles.tabIconContainer, activeTab === 'social' && styles.activeTabIconContainer]}>
-              <Text style={[styles.tabIcon, activeTab === 'social' && styles.activeTabIcon]}>👥</Text>
-            </View>
-            <Text style={[styles.tabText, activeTab === 'social' && styles.activeTabText]}>
-              Social
-            </Text>
-          </TouchableOpacity>
+          <TourGuideZone zone={8} text="Comparte tu progreso, descubre historias inspiradoras y apóyate en personas con objetivos similares a los tuyos. 👥" style={{ flex: 1 }} borderRadius={12}>
+            <TouchableOpacity
+              style={styles.tab}
+              onPress={() => handleTabChange('social')}
+            >
+              <View style={[styles.tabIconContainer, activeTab === 'social' && styles.activeTabIconContainer]}>
+                <Text style={[styles.tabIcon, activeTab === 'social' && styles.activeTabIcon]}>👥</Text>
+              </View>
+              <Text style={[styles.tabText, activeTab === 'social' && styles.activeTabText]}>
+                Social
+              </Text>
+            </TouchableOpacity>
+          </TourGuideZone>
 
-          <TouchableOpacity
-            style={styles.tab}
-            onPress={() => handleTabChange('progress')}
-          >
-            <View style={[styles.tabIconContainer, activeTab === 'progress' && styles.activeTabIconContainer]}>
-              <Text style={[styles.tabIcon, activeTab === 'progress' && styles.activeTabIcon]}>📊</Text>
-            </View>
-            <Text style={[styles.tabText, activeTab === 'progress' && styles.activeTabText]}>
-              Progreso
-            </Text>
-          </TouchableOpacity>
+          <TourGuideZone zone={9} text="Revisa tu historial, tendencias de peso y evolución a lo largo del tiempo. ¡Celebra cada logro! 📊" style={{ flex: 1 }} borderRadius={12}>
+            <TouchableOpacity
+              style={styles.tab}
+              onPress={() => handleTabChange('progress')}
+            >
+              <View style={[styles.tabIconContainer, activeTab === 'progress' && styles.activeTabIconContainer]}>
+                <Text style={[styles.tabIcon, activeTab === 'progress' && styles.activeTabIcon]}>📊</Text>
+              </View>
+              <Text style={[styles.tabText, activeTab === 'progress' && styles.activeTabText]}>
+                Progreso
+              </Text>
+            </TouchableOpacity>
+          </TourGuideZone>
 
-          <TouchableOpacity
-            style={styles.tab}
-            onPress={() => handleTabChange('profile')}
-          >
-            <View style={[styles.tabIconContainer, activeTab === 'profile' && styles.activeTabIconContainer]}>
-              <Text style={[styles.tabIcon, activeTab === 'profile' && styles.activeTabIcon]}>👤</Text>
-            </View>
-            <Text style={[styles.tabText, activeTab === 'profile' && styles.activeTabText]}>
-              Perfil
-            </Text>
-          </TouchableOpacity>
+          <TourGuideZone zone={10} text="Ajusta tus datos, metas, restricciones alimenticias y preferencias en cualquier momento. 👤" style={{ flex: 1 }} borderRadius={12}>
+            <TouchableOpacity
+              style={styles.tab}
+              onPress={() => handleTabChange('profile')}
+            >
+              <View style={[styles.tabIconContainer, activeTab === 'profile' && styles.activeTabIconContainer]}>
+                <Text style={[styles.tabIcon, activeTab === 'profile' && styles.activeTabIcon]}>👤</Text>
+              </View>
+              <Text style={[styles.tabText, activeTab === 'profile' && styles.activeTabText]}>
+                Perfil
+              </Text>
+            </TouchableOpacity>
+          </TourGuideZone>
         </View>
       </SafeAreaView>
 
@@ -180,6 +202,8 @@ export default function App() {
                 setUserProfile(profile);
                 setShowCompleteProfile(false);
                 setCurrentScreen('home');
+                // Still fetch from API to get onboardingCompleted status
+                handleLoginSuccess();
                 return;
               }
             } catch (error) {
@@ -253,18 +277,17 @@ export default function App() {
   const handleCompleteProfile = async (profileData: any) => {
     try {
       console.log('✅ Perfil completado exitosamente:', profileData);
-      // Los datos ya fueron guardados en la API por el modal
-      setUserProfile(profileData);
+      const profileWithOnboarding = { ...profileData, onboardingCompleted: false };
+      setUserProfile(profileWithOnboarding);
       
-      // Guardar también localmente para evitar mostrar el modal de nuevo
-      await AsyncStorage.setItem('userProfile', JSON.stringify(profileData));
+      await AsyncStorage.setItem('userProfile', JSON.stringify(profileWithOnboarding));
       console.log('💾 Perfil guardado localmente');
       
       setShowCompleteProfile(false);
       console.log('🔒 Modal cerrado después de completar perfil');
       
-      // Incrementar refreshKey para forzar refresh del HomeScreen
-      setRefreshKey(prev => prev + 1);
+      // NO incrementar refreshKey aquí — evita desmontar HomeScreen
+      // cuando el tour está a punto de activarse
     } catch (error) {
       console.log('❌ Error completando perfil:', error);
     }
@@ -352,7 +375,13 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
-        <MainApp onLogout={handleLogout} refreshKey={refreshKey} />
+        <TourGuideProvider
+          borderRadius={8}
+          backdropColor="rgba(0,0,0,0.7)"
+          tooltipComponent={CustomTooltip}
+        >
+          <MainApp onLogout={handleLogout} refreshKey={refreshKey} tourProfile={userProfile} />
+        </TourGuideProvider>
         <CompleteProfileModal
           visible={showCompleteProfile}
           onComplete={handleCompleteProfile}

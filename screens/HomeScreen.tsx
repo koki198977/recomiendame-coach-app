@@ -8,7 +8,9 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  DeviceEventEmitter,
 } from 'react-native';
+import { TourGuideZone } from 'rn-tourguide';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NutritionService } from '../services/nutritionService';
 import { WeeklyPlan, WeeklyPlanMeal, ShoppingListItem, CheckinResponse, Checkin } from '../types/nutrition';
@@ -32,9 +34,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 interface HomeScreenProps {
   onNavigateToWorkout: () => void;
+  isTourActive?: boolean;
+  currentStep?: import('../config/onboardingSteps').OnboardingStep | null;
+  nextStep?: () => void;
+  skipTour?: () => void;
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) => {
+export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isTourActive, currentStep, nextStep, skipTour }) => {
   const [user, setUser] = React.useState<any>(null);
   const [userProfile, setUserProfile] = React.useState<any>(null);
   const [weeklyPlan, setWeeklyPlan] = React.useState<WeeklyPlan | null>(null);
@@ -58,6 +64,57 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
   const [showLogWater, setShowLogWater] = React.useState(false);
   const [hydrationKey, setHydrationKey] = React.useState(0); // Para forzar refresh
   const [chapiRefreshKey, setChapiRefreshKey] = React.useState(0); // Para forzar refresh de Chapi
+
+  const scrollViewRef = React.useRef<ScrollView>(null);
+  const [zoneLayouts, setZoneLayouts] = React.useState<Record<number, number>>({});
+
+  const handleZoneLayout = (zone: number) => (event: any) => {
+    const layoutY = event.nativeEvent.layout.y;
+    setZoneLayouts(prev => {
+      // Solo actualiza si cambió significativamente para evitar re-renders innecesarios
+      if (prev[zone] === undefined || Math.abs(prev[zone] - layoutY) > 5) {
+        return { ...prev, [zone]: layoutY };
+      }
+      return prev;
+    });
+  };
+
+  React.useEffect(() => {
+    if (isTourActive && currentStep) {
+      const stepNum = currentStep.stepNumber;
+      // Las zonas corresponden con los stepNumber en HomeScreen:
+      // 1: Header, 2: Progreso, 3: Escáner, 4: Checkin
+      if (stepNum >= 1 && stepNum <= 4) {
+        if (zoneLayouts[stepNum] !== undefined) {
+          // Desplazamos con un pequeño margen superior (ej. -20)
+          const targetY = Math.max(0, zoneLayouts[stepNum] - 20);
+          scrollViewRef.current?.scrollTo({ y: targetY, animated: true });
+        } else if (stepNum === 1 || stepNum === 2) {
+          scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+        }
+      }
+    }
+  }, [currentStep, isTourActive, zoneLayouts]);
+
+  React.useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('tourPreScroll', (stepNum: number) => {
+      if (stepNum >= 1 && stepNum <= 4) {
+        if (zoneLayouts[stepNum] !== undefined) {
+          const targetY = Math.max(0, zoneLayouts[stepNum] - 20);
+          scrollViewRef.current?.scrollTo({ y: targetY, animated: true });
+        } else if (stepNum === 1 || stepNum === 2) {
+          scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+        }
+      } else if (stepNum === 11) {
+        // En el último paso (que apunta al Header), volvemos arriba por si el usuario estaba abajo
+        scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      }
+    });
+
+    return () => {
+      sub.remove();
+    };
+  }, [zoneLayouts]);
 
   const loadData = async () => {
     try {
@@ -405,41 +462,46 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
 
   return (
     <>
-      <ScrollView style={styles.container}>
+      <ScrollView style={styles.container} ref={scrollViewRef}>
         {/* Modern Header with Logo */}
-        <AppHeader
-          title={`¡Hola, ${
-            userProfile?.name && userProfile?.lastName 
-              ? `${userProfile.name} ${userProfile.lastName}`
-              : userProfile?.name || user?.name || 'Usuario'
-          }! 👋`}
-          subtitle={weeklyPlan ? `Hoy vamos por esa energía 💪` : 'Vamos a crear tu plan nutricional'}
-          showLogo={true}
-          rightComponent={<NotificationBadge count={0} />}
-        />
+        <TourGuideZone zone={11} text="¡Genial! Ya conoces todo lo que necesitas. Recuerda que puedes contar conmigo siempre. ¡Vamos a alcanzar tus objetivos juntos! 🚀" borderRadius={8}>
+          <TourGuideZone zone={1} text="¡Bienvenido/a a Recomiéndame Coach! Soy Chapi, tu asistente personal. Déjame mostrarte todo lo que podemos hacer juntos 💪" borderRadius={8}>
+            <AppHeader
+              title={`¡Hola, ${
+                userProfile?.name && userProfile?.lastName 
+                  ? `${userProfile.name} ${userProfile.lastName}`
+                  : userProfile?.name || user?.name || 'Usuario'
+              }! 👋`}
+              subtitle={weeklyPlan ? `Hoy vamos por esa energía 💪` : 'Vamos a crear tu plan nutricional'}
+              showLogo={true}
+              rightComponent={<NotificationBadge count={0} />}
+            />
+          </TourGuideZone>
+        </TourGuideZone>
 
+        {/* Progreso Nutricional - siempre visible */}
         {weeklyPlan ? (
-          <>
-            {/* Progreso Nutricional Futurista - Movido al inicio */}
-            <View style={styles.nutritionProgressCard}>
+              <View style={styles.nutritionProgressCard}>
               <LinearGradient
                 colors={['rgba(76, 175, 80, 0.1)', 'rgba(76, 175, 80, 0.05)']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.nutritionProgressGradient}
               >
-                <View style={styles.nutritionHeader}>
-                  <View>
-                    <Text style={styles.nutritionTitle}>Progreso Nutricional</Text>
-                    <Text style={styles.nutritionSubtitle}>Objetivos de hoy</Text>
+                <TourGuideZone zone={2} text="Aquí ves tus calorías y macros del día en tiempo real. ¡Cada comida que registres aparece aquí al instante! 📊" borderRadius={8}>
+                  <View style={styles.nutritionHeader}>
+                    <View>
+                      <Text style={styles.nutritionTitle}>Progreso Nutricional</Text>
+                      <Text style={styles.nutritionSubtitle}>Objetivos de hoy</Text>
+                    </View>
+                    <View style={styles.caloriesCircle}>
+                      <Text style={styles.caloriesNumber}>
+                        {caloriesTarget > 0 ? Math.round((totalConsumedToday / caloriesTarget) * 100) : 0}%
+                      </Text>
+                      <Text style={styles.caloriesLabel}>Completado</Text>
+                    </View>
                   </View>
-                  <View style={styles.caloriesCircle}>
-                    <Text style={styles.caloriesNumber}>
-                      {caloriesTarget > 0 ? Math.round((totalConsumedToday / caloriesTarget) * 100) : 0}%
-                    </Text>
-                    <Text style={styles.caloriesLabel}>Completado</Text>
-                  </View>
-                </View>
+                </TourGuideZone>
 
                 {/* Barra de progreso principal de calorías */}
                 <View style={styles.mainProgressContainer}>
@@ -546,152 +608,176 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
                 )}
               </LinearGradient>
             </View>
-
-            {/* Insights Personalizados de Chapi */}
-            <ChapiInsightsCard refreshKey={chapiRefreshKey} />
-
-            {/* Escaneo Nutricional - Texto cambiado y espacios reducidos */}
-            <NutritionScannerCard 
-              userProfile={userProfile}
-              onProductScanned={(analysis) => {
-                console.log('Producto escaneado:', analysis.productName);
-              }}
-              onMealAdded={refreshTodayMeals}
-            />
-
-            {/* Hidratación */}
-            <HydrationCard
-              key={hydrationKey}
-              onSetupPress={() => setShowHydrationSetup(true)}
-              onLogPress={() => setShowLogWater(true)}
-            />
-
-            {/* Workout Card */}
-            <View style={styles.workoutSection}>
-              <Text style={styles.sectionTitle}>Entrenamiento de hoy</Text>
-              
-              {!hasWorkoutPlan ? (
-                <View style={styles.createPlanCard}>
-                  <Image 
-                    source={require('../assets/chapi-3d-ejercicio-2.png')}
-                    style={styles.createPlanImage}
-                    resizeMode="contain"
-                  />
-                  <View style={styles.createPlanContent}>
-                    <Text style={styles.createPlanTitle}>Sin rutina activa</Text>
-                    <Text style={styles.createPlanText}>Genera tu plan personalizado con IA</Text>
+          ) : (
+            <View style={styles.nutritionProgressCard}>
+              <LinearGradient
+                colors={['rgba(76, 175, 80, 0.1)', 'rgba(76, 175, 80, 0.05)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.nutritionProgressGradient}
+              >
+                <TourGuideZone zone={2} text="Aquí ves tus calorías y macros del día en tiempo real. ¡Cada comida que registres aparece aquí al instante! 📊" borderRadius={8}>
+                  <View style={styles.nutritionHeader}>
+                    <View>
+                      <Text style={styles.nutritionTitle}>Progreso Nutricional</Text>
+                      <Text style={styles.nutritionSubtitle}>Objetivos de hoy</Text>
+                    </View>
+                    <View style={styles.caloriesCircle}>
+                      <Text style={styles.caloriesNumber}>0%</Text>
+                      <Text style={styles.caloriesLabel}>Completado</Text>
+                    </View>
                   </View>
-                  <TouchableOpacity 
-                    style={styles.createPlanButton}
-                    onPress={onNavigateToWorkout}
-                  >
-                    <Text style={styles.createPlanButtonText}>Crear</Text>
-                  </TouchableOpacity>
+                </TourGuideZone>
+
+                <View style={styles.mainProgressContainer}>
+                  <View style={styles.mainProgressHeader}>
+                    <Text style={styles.mainProgressLabel}>Calorías</Text>
+                    <Text style={styles.mainProgressNumbers}>0 / 0 kcal</Text>
+                  </View>
+                  <View style={styles.mainProgressBar} />
+                  <Text style={styles.remainingText}>Crea tu plan para ver tus calorías reales</Text>
                 </View>
-              ) : todayWorkout ? (
-                <View style={styles.workoutCard}>
-                  <View style={styles.workoutHeader}>
-                    <Text style={styles.workoutTitle}>
-                      💪 {todayWorkout.exercises.length} ejercicios
-                    </Text>
-                    {todayWorkout.duration && (
-                      <Text style={styles.workoutDuration}>⏱️ {todayWorkout.duration} min</Text>
-                    )}
-                  </View>
-                  
-                  <View style={styles.workoutPreview}>
-                    {todayWorkout.exercises.slice(0, 2).map((ex, idx) => (
-                      <Text key={idx} style={styles.workoutPreviewText}>
-                        • {ex.name} ({ex.sets}x{ex.reps})
-                      </Text>
-                    ))}
-                    {todayWorkout.exercises.length > 2 && (
-                      <Text style={styles.workoutMoreText}>
-                        + {todayWorkout.exercises.length - 2} ejercicios más
-                      </Text>
-                    )}
-                  </View>
 
-                  <TouchableOpacity 
-                    style={styles.viewWorkoutButton}
-                    onPress={onNavigateToWorkout}
-                  >
-                    <LinearGradient
-                      colors={GRADIENTS.primary}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.viewWorkoutButtonGradient}
-                    >
-                      <Text style={styles.viewWorkoutButtonText}>Ver rutina completa</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <View style={styles.restDayCard}>
-                  <Image 
-                    source={require('../assets/chapi-3d-descansando.png')}
-                    style={styles.restDayImage}
-                    resizeMode="contain"
-                  />
-                  <View>
-                    <Text style={styles.restDayTitle}>Día de descanso</Text>
-                    <Text style={styles.restDayText}>¡Recupérate para mañana!</Text>
+                <View style={styles.macrosProgressContainer}>
+                  <Text style={styles.macrosProgressTitle}>Macronutrientes</Text>
+                  <View style={styles.macroProgressItem}>
+                    <View style={styles.macroProgressHeader}>
+                      <View style={styles.macroIconContainer}>
+                        <Text style={styles.macroIcon}>🥩</Text>
+                        <Text style={styles.macroName}>Proteína</Text>
+                      </View>
+                      <Text style={styles.macroNumbers}>0g / 0g</Text>
+                    </View>
+                    <View style={styles.macroProgressBar} />
+                  </View>
+                  <View style={styles.macroProgressItem}>
+                    <View style={styles.macroProgressHeader}>
+                      <View style={styles.macroIconContainer}>
+                        <Text style={styles.macroIcon}>🍞</Text>
+                        <Text style={styles.macroName}>Carbohidratos</Text>
+                      </View>
+                      <Text style={styles.macroNumbers}>0g / 0g</Text>
+                    </View>
+                    <View style={styles.macroProgressBar} />
+                  </View>
+                  <View style={styles.macroProgressItem}>
+                    <View style={styles.macroProgressHeader}>
+                      <View style={styles.macroIconContainer}>
+                        <Text style={styles.macroIcon}>🥑</Text>
+                        <Text style={styles.macroName}>Grasas</Text>
+                      </View>
+                      <Text style={styles.macroNumbers}>0g / 0g</Text>
+                    </View>
+                    <View style={styles.macroProgressBar} />
                   </View>
                 </View>
-              )}
+
+                <View style={styles.hintContainer}>
+                  <Text style={styles.hintIcon}>ℹ️</Text>
+                  <Text style={styles.hintText}>
+                    Este panel se activará con tus datos reales cuando generes tu plan nutricional.
+                  </Text>
+                </View>
+              </LinearGradient>
             </View>
+          )}
 
-            {/* Checkin diario - Movido después del workout */}
+        {/* Insights Personalizados de Chapi */}
+        <ChapiInsightsCard refreshKey={chapiRefreshKey} />
+
+        {/* Escaneo Nutricional - siempre visible */}
+        <View onLayout={handleZoneLayout(3)}>
+          <TourGuideZone zone={3} text="Con la cámara puedes escanear el código de barras de cualquier alimento y lo agrego automáticamente a tu registro. ¡Súper fácil! 🍎" borderRadius={8}>
+            <View>
+              <NutritionScannerCard
+                userProfile={userProfile}
+                onProductScanned={(analysis) => { console.log('Producto escaneado:', analysis.productName); }}
+                onMealAdded={refreshTodayMeals}
+              />
+            </View>
+          </TourGuideZone>
+        </View>
+
+        {/* Hidratación */}
+        <HydrationCard
+          key={hydrationKey}
+          onSetupPress={() => setShowHydrationSetup(true)}
+          onLogPress={() => setShowLogWater(true)}
+        />
+
+        {/* Workout */}
+        <View style={styles.workoutSection}>
+          <Text style={styles.sectionTitle}>Entrenamiento de hoy</Text>
+          {!hasWorkoutPlan ? (
+            <View style={styles.createPlanCard}>
+              <Image source={require('../assets/chapi-3d-ejercicio-2.png')} style={styles.createPlanImage} resizeMode="contain" />
+              <View style={styles.createPlanContent}>
+                <Text style={styles.createPlanTitle}>Sin rutina activa</Text>
+                <Text style={styles.createPlanText}>Genera tu plan personalizado con IA</Text>
+              </View>
+              <TouchableOpacity style={styles.createPlanButton} onPress={onNavigateToWorkout}>
+                <Text style={styles.createPlanButtonText}>Crear</Text>
+              </TouchableOpacity>
+            </View>
+          ) : todayWorkout ? (
+            <View style={styles.workoutCard}>
+              <View style={styles.workoutHeader}>
+                <Text style={styles.workoutTitle}>💪 {todayWorkout.exercises.length} ejercicios</Text>
+                {todayWorkout.duration && <Text style={styles.workoutDuration}>⏱️ {todayWorkout.duration} min</Text>}
+              </View>
+              <View style={styles.workoutPreview}>
+                {todayWorkout.exercises.slice(0, 2).map((ex, idx) => (
+                  <Text key={idx} style={styles.workoutPreviewText}>• {ex.name} ({ex.sets}x{ex.reps})</Text>
+                ))}
+                {todayWorkout.exercises.length > 2 && (
+                  <Text style={styles.workoutMoreText}>+ {todayWorkout.exercises.length - 2} ejercicios más</Text>
+                )}
+              </View>
+              <TouchableOpacity style={styles.viewWorkoutButton} onPress={onNavigateToWorkout}>
+                <LinearGradient colors={GRADIENTS.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.viewWorkoutButtonGradient}>
+                  <Text style={styles.viewWorkoutButtonText}>Ver rutina completa</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.restDayCard}>
+              <Image source={require('../assets/chapi-3d-descansando.png')} style={styles.restDayImage} resizeMode="contain" />
+              <View>
+                <Text style={styles.restDayTitle}>Día de descanso</Text>
+                <Text style={styles.restDayText}>¡Recupérate para mañana!</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* Checkin diario - siempre visible */}
+        <View onLayout={handleZoneLayout(4)}>
+          <TourGuideZone zone={4} text="Cada día puedes registrar tu peso, cómo te sientes y qué tan bien seguiste el plan. ¡Así puedo darte mejores recomendaciones! 🎯" borderRadius={8}>
             <View style={styles.checkinCard}>
               <View style={styles.checkinHeader}>
                 <Text style={styles.cardTitle}>Checkin diario</Text>
-                {todayCheckin && (
-                  <View style={styles.checkinBadge}>
-                    <Text style={styles.checkinBadgeText}>✅ Completado</Text>
-                  </View>
-                )}
+                {todayCheckin && <View style={styles.checkinBadge}><Text style={styles.checkinBadgeText}>✅ Completado</Text></View>}
               </View>
-              
               {todayCheckin ? (
                 <View style={styles.checkinSummary}>
                   <View style={styles.checkinRow}>
-                    {todayCheckin.weightKg && (
-                      <View style={styles.checkinItem}>
-                        <Text style={styles.checkinValue}>{todayCheckin.weightKg} kg</Text>
-                        <Text style={styles.checkinLabel}>Peso</Text>
-                      </View>
-                    )}
-                    {todayCheckin.adherencePct !== undefined && (
-                      <View style={styles.checkinItem}>
-                        <Text style={styles.checkinValue}>{todayCheckin.adherencePct}%</Text>
-                        <Text style={styles.checkinLabel}>Seguimiento del plan</Text>
-                      </View>
-                    )}
-                    {todayCheckin.hungerLvl && (
-                      <View style={styles.checkinItem}>
-                        <Text style={styles.checkinValue}>{todayCheckin.hungerLvl}/10</Text>
-                        <Text style={styles.checkinLabel}>Hambre</Text>
-                      </View>
-                    )}
+                    {todayCheckin.weightKg && <View style={styles.checkinItem}><Text style={styles.checkinValue}>{todayCheckin.weightKg} kg</Text><Text style={styles.checkinLabel}>Peso</Text></View>}
+                    {todayCheckin.adherencePct !== undefined && <View style={styles.checkinItem}><Text style={styles.checkinValue}>{todayCheckin.adherencePct}%</Text><Text style={styles.checkinLabel}>Seguimiento del plan</Text></View>}
+                    {todayCheckin.hungerLvl && <View style={styles.checkinItem}><Text style={styles.checkinValue}>{todayCheckin.hungerLvl}/10</Text><Text style={styles.checkinLabel}>Hambre</Text></View>}
                   </View>
-                  {todayCheckin.notes && (
-                    <Text style={styles.checkinNotes}>"{todayCheckin.notes}"</Text>
-                  )}
+                  {todayCheckin.notes && <Text style={styles.checkinNotes}>"{todayCheckin.notes}"</Text>}
                   <TouchableOpacity style={styles.updateCheckinButton} onPress={openCheckinModal}>
                     <Text style={styles.updateCheckinButtonText}>Actualizar checkin</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
                 <View style={styles.noCheckinContainer}>
-                  <Text style={styles.noCheckinText}>
-                    ¿Cómo te sientes hoy? Registra tu progreso diario
-                  </Text>
+                  <Text style={styles.noCheckinText}>¿Cómo te sientes hoy? Registra tu progreso diario</Text>
                   <TouchableOpacity style={styles.checkinButton} onPress={openCheckinModal}>
                     <Text style={styles.checkinButtonText}>📝 Hacer checkin</Text>
                   </TouchableOpacity>
                 </View>
               )}
-
               {gamificationData && (
                 <View style={styles.gamificationInfo}>
                   <Text style={styles.gamificationTitle}>🎉 ¡Logros recientes!</Text>
@@ -702,104 +788,62 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
                 </View>
               )}
             </View>
+          </TourGuideZone>
+        </View>
 
-            {/* Comidas consumidas del día */}
-            <View style={styles.mealsSection}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Comidas consumidas hoy</Text>
-                {todayMealsConsumed?.logs?.length > 0 && (
-                  <Text style={styles.sectionCount}>{todayMealsConsumed.logs.length}</Text>
-                )}
-              </View>
-
-              {todayMealsConsumed?.logs && todayMealsConsumed.logs.length > 0 ? (
-                todayMealsConsumed.logs.map((log: any, index: number) => (
-                  <View key={index} style={styles.mealCard}>
-                    <View style={styles.mealHeader}>
-                      <View style={styles.mealHeaderLeft}>
-                        <Text style={styles.mealTime}>{getMealTypeLabel(log.slot)}</Text>
-                        {log.fromPlan && (
-                          <View style={styles.fromPlanBadge}>
-                            <Text style={styles.fromPlanText}>Plan</Text>
-                          </View>
-                        )}
-                      </View>
-                      <View style={styles.mealHeaderRight}>
-                        <Text style={styles.mealCalories}>{log.kcal} kcal</Text>
-                        <TouchableOpacity 
-                          onPress={() => handleDeleteMeal(log.id)}
-                          style={styles.deleteMealButton}
-                        >
-                          <Text style={styles.deleteMealIcon}>🗑️</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                    <Text style={styles.mealDescription}>{log.title}</Text>
-                    <View style={styles.mealMacros}>
-                      <Text style={styles.mealMacroText}>P: {log.protein_g}g</Text>
-                      <Text style={styles.mealMacroText}>C: {log.carbs_g}g</Text>
-                      <Text style={styles.mealMacroText}>G: {log.fat_g}g</Text>
-                    </View>
-                    {log.imageUrl && (
-                      <View style={styles.mealImageContainer}>
-                        <Text style={styles.mealImageIcon}>📸</Text>
-                        <Text style={styles.mealImageText}>Con foto</Text>
-                      </View>
-                    )}
-                    {log.notes && (
-                      <Text style={styles.mealNotes}>💡 {log.notes}</Text>
-                    )}
-                  </View>
-                ))
-              ) : (
-                <TouchableOpacity 
-                  style={styles.noMealsCard}
-                  onPress={() => setShowLogMealModal(true)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.chapiMealContainer}>
-                    <Image 
-                      source={require('../assets/chapi-3d-foto-alimento.png')}
-                      style={styles.chapiMealImage}
-                      resizeMode="cover"
-                    />
-                  </View>
-                  <Text style={styles.noMealsText}>
-                    No has registrado comidas hoy
-                  </Text>
-                  <Text style={styles.noMealsHint}>
-                    Toca aquí para registrar tus comidas
-                  </Text>
-                </TouchableOpacity>
-              )}
+        {/* Comidas consumidas - solo si hay plan */}
+        {weeklyPlan && (
+          <View style={styles.mealsSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Comidas consumidas hoy</Text>
+              {todayMealsConsumed?.logs?.length > 0 && <Text style={styles.sectionCount}>{todayMealsConsumed.logs.length}</Text>}
             </View>
-
-            {/* Botón de lista de compras */}
-            <TouchableOpacity style={styles.shoppingButtonFull} onPress={handleGenerateShoppingList}>
-              <LinearGradient
-                colors={GRADIENTS.primary}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.shoppingButtonGradient}
-              >
-                <Text style={styles.shoppingButtonText}>📋 Lista de compras</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </>
-        ) : (
-          /* No hay plan - Mostrar opción para crear */
-          <View style={styles.noPlanContainer}>
-            <View style={styles.noPlanCard}>
-              <Text style={styles.noPlanTitle}>¡Crea tu primer plan!</Text>
-              <Text style={styles.noPlanDescription}>
-                No tienes un plan nutricional para esta semana. Genera uno personalizado con IA.
-              </Text>
-              <TouchableOpacity style={styles.createPlanButton} onPress={handleGeneratePlan}>
-                <Text style={styles.createPlanButtonText}>🤖 Crear plan con IA</Text>
+            {todayMealsConsumed?.logs && todayMealsConsumed.logs.length > 0 ? (
+              todayMealsConsumed.logs.map((log: any, index: number) => (
+                <View key={index} style={styles.mealCard}>
+                  <View style={styles.mealHeader}>
+                    <View style={styles.mealHeaderLeft}>
+                      <Text style={styles.mealTime}>{getMealTypeLabel(log.slot)}</Text>
+                      {log.fromPlan && <View style={styles.fromPlanBadge}><Text style={styles.fromPlanText}>Plan</Text></View>}
+                    </View>
+                    <View style={styles.mealHeaderRight}>
+                      <Text style={styles.mealCalories}>{log.kcal} kcal</Text>
+                      <TouchableOpacity onPress={() => handleDeleteMeal(log.id)} style={styles.deleteMealButton}>
+                        <Text style={styles.deleteMealIcon}>🗑️</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  <Text style={styles.mealDescription}>{log.title}</Text>
+                  <View style={styles.mealMacros}>
+                    <Text style={styles.mealMacroText}>P: {log.protein_g}g</Text>
+                    <Text style={styles.mealMacroText}>C: {log.carbs_g}g</Text>
+                    <Text style={styles.mealMacroText}>G: {log.fat_g}g</Text>
+                  </View>
+                  {log.imageUrl && <View style={styles.mealImageContainer}><Text style={styles.mealImageIcon}>📸</Text><Text style={styles.mealImageText}>Con foto</Text></View>}
+                  {log.notes && <Text style={styles.mealNotes}>💡 {log.notes}</Text>}
+                </View>
+              ))
+            ) : (
+              <TouchableOpacity style={styles.noMealsCard} onPress={() => setShowLogMealModal(true)} activeOpacity={0.7}>
+                <View style={styles.chapiMealContainer}>
+                  <Image source={require('../assets/chapi-3d-foto-alimento.png')} style={styles.chapiMealImage} resizeMode="cover" />
+                </View>
+                <Text style={styles.noMealsText}>No has registrado comidas hoy</Text>
+                <Text style={styles.noMealsHint}>Toca aquí para registrar tus comidas</Text>
               </TouchableOpacity>
-            </View>
+            )}
           </View>
         )}
+
+        {/* Lista de compras - solo si hay plan */}
+        {weeklyPlan && (
+          <TouchableOpacity style={styles.shoppingButtonFull} onPress={handleGenerateShoppingList}>
+            <LinearGradient colors={GRADIENTS.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.shoppingButtonGradient}>
+              <Text style={styles.shoppingButtonText}>📋 Lista de compras</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
+
       </ScrollView>
 
       {/* Modal de generación de plan */}
@@ -851,18 +895,27 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout }) =
       />
 
       {/* Botón flotante para agregar comida */}
-      {weeklyPlan && (
-        <TouchableOpacity
-          style={styles.floatingButton}
-          onPress={() => setShowLogMealModal(true)}
-        >
-          <Image 
-            source={require('../assets/chapi-3d-foto-alimento.png')}
-            style={styles.floatingButtonImage}
-            resizeMode="cover"
-          />
-        </TouchableOpacity>
-      )}
+      <View style={styles.floatingButtonContainer}>
+        <TourGuideZone zone={5} text="Este botón flotante te permite registrar tus comidas rápidamente en cualquier momento. ¡Se activará en cuanto crees tu primer plan nutricional!" shape="circle" borderRadius={30}>
+          <TouchableOpacity
+            style={[styles.floatingButton, !weeklyPlan && { opacity: 0.5 }]}
+            onPress={() => {
+              if (!weeklyPlan) {
+                Alert.alert('¡Aún no!', 'Crea tu plan nutricional primero para poder registrar comidas.');
+              } else {
+                setShowLogMealModal(true);
+              }
+            }}
+            activeOpacity={0.8}
+          >
+            <Image 
+              source={require('../assets/chapi-3d-foto-alimento.png')}
+              style={styles.floatingButtonImage}
+              resizeMode="cover"
+            />
+          </TouchableOpacity>
+        </TourGuideZone>
+      </View>
     </>
   );
 };
@@ -1050,10 +1103,13 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontStyle: 'italic',
   },
-  floatingButton: {
+  floatingButtonContainer: {
     position: 'absolute',
     right: 20,
     bottom: 90,
+    zIndex: 100,
+  },
+  floatingButton: {
     width: 60,
     height: 60,
     borderRadius: 30,

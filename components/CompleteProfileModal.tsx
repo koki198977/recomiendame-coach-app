@@ -65,6 +65,8 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
   });
 
   const [currentStep, setCurrentStep] = useState(0);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [cuisineSearch, setCuisineSearch] = useState('');
 
   // Referencia al ScrollView para controlar el scroll
   const scrollViewRef = useRef<ScrollView>(null);
@@ -242,6 +244,29 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
     },
   ];
 
+  const LOCAL_CUISINES = [
+    { id: 1,  name: 'Mediterránea',   emoji: '🫒' },
+    { id: 2,  name: 'Italiana',       emoji: '🍝' },
+    { id: 3,  name: 'Mexicana',       emoji: '🌮' },
+    { id: 4,  name: 'India',          emoji: '🍛' },
+    { id: 5,  name: 'China',          emoji: '🥡' },
+    { id: 6,  name: 'Japonesa',       emoji: '🍣' },
+    { id: 7,  name: 'Tailandesa',     emoji: '🍜' },
+    { id: 8,  name: 'Chilena',        emoji: '🫕' },
+    { id: 9,  name: 'Peruana',        emoji: '🐟' },
+    { id: 10, name: 'Vegetariana',    emoji: '🥗' },
+    { id: 11, name: 'Vegana',         emoji: '🌱' },
+    { id: 23, name: 'Griega',         emoji: '🫙' },
+    { id: 24, name: 'Francesa',       emoji: '🥐' },
+    { id: 25, name: 'Española',       emoji: '🥘' },
+    { id: 26, name: 'Árabe',          emoji: '🫔' },
+    { id: 27, name: 'Americana',      emoji: '🍔' },
+    { id: 28, name: 'Coreana',        emoji: '🍱' },
+    { id: 29, name: 'Vietnamita',     emoji: '🍲' },
+    { id: 30, name: 'Brasileña',      emoji: '🥩' },
+    { id: 31, name: 'Parrilla / BBQ', emoji: '🔥' },
+  ];
+
   // Cargar listas cuando se abre el modal
   React.useEffect(() => {
     if (visible) {
@@ -340,6 +365,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
 
   const updateFormData = (key: string, value: string) => {
     setFormData(prev => ({ ...prev, [key]: value }));
+    if (fieldErrors[key]) setFieldErrors(prev => { const e = { ...prev }; delete e[key]; return e; });
   };
 
   const toggleArrayItem = (key: string, itemId: number) => {
@@ -368,7 +394,47 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
     }));
   };
 
+  const validateStep = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    if (currentStep === 1) {
+      if (!formData.name.trim()) errors.name = 'Ingresa tu nombre';
+      if (!formData.lastName.trim()) errors.lastName = 'Ingresa tu apellido';
+      if (!formData.sex) errors.sex = 'Selecciona tu género';
+      const height = parseFloat(formData.heightCm);
+      if (!formData.heightCm) errors.heightCm = 'Ingresa tu estatura';
+      else if (isNaN(height) || height < 100 || height > 250) errors.heightCm = 'Estatura debe estar entre 100 y 250 cm';
+      const weight = parseFloat(formData.weightKg);
+      if (!formData.weightKg) errors.weightKg = 'Ingresa tu peso';
+      else if (isNaN(weight) || weight < 45 || weight > 200) errors.weightKg = 'Peso debe estar entre 45 y 200 kg';
+    }
+
+    if (currentStep === 2) {
+      if (!formData.activityLevel) errors.activityLevel = 'Selecciona tu nivel de actividad';
+      if (!formData.cookTimePerMeal) errors.cookTimePerMeal = 'Selecciona tu tiempo disponible para cocinar';
+    }
+
+    if (currentStep === 3) {
+      if (!formData.nutritionGoal) errors.nutritionGoal = 'Selecciona tu objetivo principal';
+      if ((formData.nutritionGoal === 'LOSE_WEIGHT' || formData.nutritionGoal === 'GAIN_WEIGHT') && !formData.targetWeightKg) {
+        errors.targetWeightKg = 'Ingresa tu peso objetivo';
+      } else if (formData.targetWeightKg) {
+        const target = parseFloat(formData.targetWeightKg);
+        if (isNaN(target) || target < 45 || target > 200) errors.targetWeightKg = 'Peso objetivo debe estar entre 45 y 200 kg';
+      }
+    }
+
+    if (currentStep === 4) {
+      if (!formData.timeFrame) errors.timeFrame = 'Selecciona un plazo de tiempo';
+      if (!formData.intensity) errors.intensity = 'Selecciona la intensidad de tu plan';
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleNext = () => {
+    if (!validateStep()) return;
     // Primero hacer scroll al inicio
     if (scrollViewRef.current) {
       scrollViewRef.current.scrollTo({ y: 0, animated: true });
@@ -385,6 +451,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
   };
 
   const handleBack = () => {
+    setFieldErrors({});
     // Primero hacer scroll al inicio
     if (scrollViewRef.current) {
       scrollViewRef.current.scrollTo({ y: 0, animated: true });
@@ -692,9 +759,10 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                       key={option.key}
                       style={[
                         styles.optionButton,
-                        formData.sex === option.key && styles.optionButtonActive
+                        formData.sex === option.key && styles.optionButtonActive,
+                        fieldErrors.sex ? styles.inputError : null,
                       ]}
-                      onPress={() => updateFormData('sex', option.key)}
+                      onPress={() => { updateFormData('sex', option.key); }}
                     >
                       <Text style={[
                         styles.optionText,
@@ -705,6 +773,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     </TouchableOpacity>
                   ))}
                 </View>
+                {fieldErrors.sex ? <Text style={styles.errorText}>{fieldErrors.sex}</Text> : null}
               </View>
 
               {/* Height and Weight */}
@@ -712,7 +781,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                 <View key={field.key} style={styles.fieldContainer}>
                   <Text style={styles.fieldLabel}>{field.label}</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, fieldErrors[field.key] ? styles.inputError : null]}
                     placeholder={field.placeholder}
                     placeholderTextColor="rgba(0, 0, 0, 0.4)"
                     value={formData[field.key as keyof typeof formData] as string}
@@ -721,6 +790,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     returnKeyType="done"
                     blurOnSubmit={true}
                   />
+                  {fieldErrors[field.key] ? <Text style={styles.errorText}>{fieldErrors[field.key]}</Text> : null}
                 </View>
               ))}
             </View>
@@ -756,6 +826,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     </TouchableOpacity>
                   ))}
                 </View>
+                {fieldErrors.activityLevel ? <Text style={styles.errorText}>{fieldErrors.activityLevel}</Text> : null}
               </View>
 
               <View style={styles.fieldContainer}>
@@ -788,6 +859,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     </TouchableOpacity>
                   ))}
                 </View>
+                {fieldErrors.cookTimePerMeal ? <Text style={styles.errorText}>{fieldErrors.cookTimePerMeal}</Text> : null}
               </View>
             </View>
           )}
@@ -825,6 +897,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     </TouchableOpacity>
                   ))}
                 </View>
+                {fieldErrors.nutritionGoal ? <Text style={styles.errorText}>{fieldErrors.nutritionGoal}</Text> : null}
               </View>
 
               {/* Peso objetivo si aplica */}
@@ -834,7 +907,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     {formData.nutritionGoal === 'LOSE_WEIGHT' ? '¿Cuál es tu peso objetivo?' : '¿Cuánto quieres pesar?'}
                   </Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, fieldErrors.targetWeightKg ? styles.inputError : null]}
                     placeholder="Ej: 65"
                     placeholderTextColor="rgba(0, 0, 0, 0.4)"
                     value={formData.targetWeightKg}
@@ -843,6 +916,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     returnKeyType="done"
                     blurOnSubmit={true}
                   />
+                  {fieldErrors.targetWeightKg ? <Text style={styles.errorText}>{fieldErrors.targetWeightKg}</Text> : null}
                 </View>
               )}
 
@@ -895,6 +969,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     </TouchableOpacity>
                   ))}
                 </View>
+                {fieldErrors.timeFrame ? <Text style={styles.errorText}>{fieldErrors.timeFrame}</Text> : null}
               </View>
 
               <View style={styles.fieldContainer}>
@@ -926,6 +1001,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                     </TouchableOpacity>
                   ))}
                 </View>
+                {fieldErrors.intensity ? <Text style={styles.errorText}>{fieldErrors.intensity}</Text> : null}
               </View>
 
               {/* Diagnóstico actual */}
@@ -1024,30 +1100,52 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
             <View style={styles.formSection}>
               <View style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>Tipos de cocina que te gustan</Text>
-                <Text style={styles.fieldSubtitle}>Selecciona tus favoritas (opcional)</Text>
-                {loading ? (
-                  <ActivityIndicator color="#fff" style={{ marginVertical: 20 }} />
-                ) : (
-                  <View style={styles.checkboxContainer}>
-                    {cuisines.map((cuisine) => (
+                <Text style={styles.fieldSubtitle}>
+                  {formData.cuisinesLike.length > 0
+                    ? `${formData.cuisinesLike.length} seleccionada${formData.cuisinesLike.length > 1 ? 's' : ''}`
+                    : 'Selecciona tus favoritas (opcional)'}
+                </Text>
+
+                {/* Buscador */}
+                <View style={styles.cuisineSearchContainer}>
+                  <Text style={styles.cuisineSearchIcon}>🔍</Text>
+                  <TextInput
+                    style={styles.cuisineSearchInput}
+                    placeholder="Buscar cocina..."
+                    placeholderTextColor="rgba(0,0,0,0.35)"
+                    value={cuisineSearch}
+                    onChangeText={setCuisineSearch}
+                    returnKeyType="search"
+                    clearButtonMode="while-editing"
+                  />
+                </View>
+
+                {/* Grid de chips */}
+                <View style={styles.cuisineGrid}>
+                  {LOCAL_CUISINES.filter(c =>
+                    c.name.toLowerCase().includes(cuisineSearch.toLowerCase())
+                  ).map((cuisine) => {
+                    const selected = formData.cuisinesLike.includes(cuisine.id);
+                    return (
                       <TouchableOpacity
                         key={cuisine.id}
-                        style={[
-                          styles.checkboxOption,
-                          formData.cuisinesLike.includes(cuisine.id) && styles.checkboxOptionActive
-                        ]}
+                        style={[styles.cuisineChipBtn, selected && styles.cuisineChipBtnActive]}
                         onPress={() => toggleArrayItem('cuisinesLike', cuisine.id)}
                       >
-                        <Text style={[
-                          styles.checkboxText,
-                          formData.cuisinesLike.includes(cuisine.id) && styles.checkboxTextActive
-                        ]}>
-                          {formData.cuisinesLike.includes(cuisine.id) ? '✓ ' : ''}{cuisine.name}
+                        <Text style={styles.cuisineChipEmoji}>{cuisine.emoji}</Text>
+                        <Text style={[styles.cuisineChipLabel, selected && styles.cuisineChipLabelActive]}>
+                          {cuisine.name}
                         </Text>
+                        {selected && <Text style={styles.cuisineChipCheck}>✓</Text>}
                       </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
+                    );
+                  })}
+                  {LOCAL_CUISINES.filter(c =>
+                    c.name.toLowerCase().includes(cuisineSearch.toLowerCase())
+                  ).length === 0 && (
+                    <Text style={styles.cuisineNoResults}>Sin resultados para "{cuisineSearch}"</Text>
+                  )}
+                </View>
               </View>
             </View>
           )}
@@ -1812,6 +1910,83 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
+  },
+
+  // Validation error styles
+  inputError: {
+    borderColor: '#FF5252',
+    borderWidth: 2,
+  },
+  errorText: {
+    color: '#FFCDD2',
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 6,
+    marginLeft: 4,
+  },
+
+  // Cuisine selector
+  cuisineSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 16,
+  },
+  cuisineSearchIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  cuisineSearchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#333',
+  },
+  cuisineGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  cuisineChipBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.35)',
+    gap: 6,
+  },
+  cuisineChipBtnActive: {
+    backgroundColor: 'rgba(255,255,255,0.35)',
+    borderColor: '#fff',
+    borderWidth: 2,
+  },
+  cuisineChipEmoji: {
+    fontSize: 16,
+  },
+  cuisineChipLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.9)',
+  },
+  cuisineChipLabelActive: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  cuisineChipCheck: {
+    fontSize: 13,
+    color: '#fff',
+    fontWeight: '800',
+  },
+  cuisineNoResults: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    fontStyle: 'italic',
+    marginTop: 8,
   },
 
 });

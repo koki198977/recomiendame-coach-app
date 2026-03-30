@@ -410,6 +410,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
     try {
       const mealsConsumed = await NutritionService.getTodayMeals();
       setTodayMealsConsumed(mealsConsumed);
+
+      // Limpiar cache de Chapi para que se actualice con las nuevas comidas
+      await CacheService.clearChapiCache();
+      setChapiRefreshKey(prev => prev + 1);
+      console.log('✅ Cache de Chapi invalidado después de registrar comida');
     } catch (error) {
       console.log('Error reloading meals:', error);
     }

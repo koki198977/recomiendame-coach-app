@@ -69,13 +69,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: 50, // Reducido de 60 a 50
-    paddingBottom: 16, // Reducido de 25 a 16
-    paddingHorizontal: 20, // Reducido de 24 a 20
-    borderBottomLeftRadius: 28, // Reducido de 32 a 28
+    paddingTop: 50,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     overflow: 'hidden',
-    ...SHADOWS.glow, // Green glow at the bottom
+    zIndex: 0,
+    ...SHADOWS.glow,
     shadowColor: COLORS.primaryStart,
     shadowOpacity: 0.2,
   },

@@ -29,12 +29,6 @@ export const GenerateWorkoutModal: React.FC<GenerateWorkoutModalProps> = ({
   onGenerate,
   onClose,
 }) => {
-  const [selectedDays, setSelectedDays] = useState<number>(3);
-  const [selectedGoal, setSelectedGoal] = useState<WorkoutGoal>('HYPERTROPHY');
-  const [selectedEnvironment, setSelectedEnvironment] = useState<WorkoutEnvironment>('GYM');
-  const [equipmentImages, setEquipmentImages] = useState<string[]>([]);
-  const insets = useSafeAreaInsets();
-
   // Calcular días restantes en la semana (desde hoy hasta domingo)
   const getRemainingDaysInWeek = () => {
     const today = new Date().getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
@@ -43,6 +37,12 @@ export const GenerateWorkoutModal: React.FC<GenerateWorkoutModalProps> = ({
   };
 
   const maxDaysAvailable = getRemainingDaysInWeek();
+
+  const [selectedDays, setSelectedDays] = useState<number>(() => Math.min(3, getRemainingDaysInWeek()));
+  const [selectedGoal, setSelectedGoal] = useState<WorkoutGoal>('HYPERTROPHY');
+  const [selectedEnvironment, setSelectedEnvironment] = useState<WorkoutEnvironment>('GYM');
+  const [equipmentImages, setEquipmentImages] = useState<string[]>([]);
+  const insets = useSafeAreaInsets();
 
   const goals: { value: WorkoutGoal; label: string; emoji: string; description: string }[] = [
     {

@@ -1007,10 +1007,10 @@ const styles = StyleSheet.create({
   },
   // Estilos del nuevo header
   planInfo: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 16, // Reducido de 20 a 16
-    paddingTop: 16, // Reducido de 60 a 16
-    paddingBottom: 12, // Reducido de 20 a 12
+    backgroundColor: COLORS.background,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
   planHeaderRow: {
     flexDirection: 'row',
@@ -1026,36 +1026,36 @@ const styles = StyleSheet.create({
     marginHorizontal: 12, // Reducido de 15 a 12
   },
   weekTitle: {
-    fontSize: 18, // Reducido de 20 a 18
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
+    color: COLORS.text,
   },
   readOnlyTag: {
-    fontSize: 11, // Reducido de 12 a 11
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginTop: 3, // Reducido de 4 a 3
+    fontSize: 11,
+    color: COLORS.textLight,
+    marginTop: 3,
   },
   headerActions: {
     flexDirection: 'row',
     gap: 10,
   },
   actionButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: COLORS.border,
     width: 44,
     height: 44,
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
+    borderWidth: 1,
+    borderColor: COLORS.border,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 4,
+    elevation: 2,
   },
   actionButtonIcon: {
     fontSize: 20,

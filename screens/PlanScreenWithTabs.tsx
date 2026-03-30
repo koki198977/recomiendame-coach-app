@@ -39,31 +39,21 @@ export const PlanScreenWithTabs: React.FC<PlanScreenWithTabsProps> = ({ initialT
 
       {/* Tabs Header */}
       <View style={styles.tabsContainer}>
-        <TourGuideZone zone={5} text='Aquí está tu plan de comidas personalizado para toda la semana. Lo generé con IA basándome en tus objetivos. ¡Está hecho a tu medida! ✨' borderRadius={8}>
-          <TouchableOpacity
-            style={styles.tabWrapper}
-            onPress={() => setActiveTab('nutrition')}
-          >
-            <View style={[styles.tab, activeTab === 'nutrition' && styles.tabActive]}>
-              <Text style={[styles.tabText, activeTab === 'nutrition' && styles.tabTextActive]}>
-                🍎 Nutrición
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </TourGuideZone>
+        <TouchableOpacity style={styles.tabWrapper} onPress={() => setActiveTab('nutrition')}>
+          <View style={[styles.tab, activeTab === 'nutrition' && styles.tabActive]}>
+            <Text style={[styles.tabText, activeTab === 'nutrition' && styles.tabTextActive]}>
+              🍎 Nutrición
+            </Text>
+          </View>
+        </TouchableOpacity>
 
-        <TourGuideZone zone={6} text='También tengo una rutina de entrenamiento personalizada para ti. ¡Nutrición y ejercicio juntos para mejores resultados! 🏋️' borderRadius={8}>
-          <TouchableOpacity
-            style={styles.tabWrapper}
-            onPress={() => setActiveTab('workouts')}
-          >
-            <View style={[styles.tab, activeTab === 'workouts' && styles.tabActive]}>
-              <Text style={[styles.tabText, activeTab === 'workouts' && styles.tabTextActive]}>
-                💪 Rutinas
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </TourGuideZone>
+        <TouchableOpacity style={styles.tabWrapper} onPress={() => setActiveTab('workouts')}>
+          <View style={[styles.tab, activeTab === 'workouts' && styles.tabActive]}>
+            <Text style={[styles.tabText, activeTab === 'workouts' && styles.tabTextActive]}>
+              💪 Rutinas
+            </Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* Tab Content */}
@@ -84,6 +74,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     gap: 16,
+    zIndex: 1,
   },
   tabWrapper: {
     flex: 1,
@@ -92,20 +83,20 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
     borderRadius: 16,
-    backgroundColor: COLORS.card,
+    backgroundColor: '#E8F5E9',
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: '#C8E6C9',
     ...SHADOWS.card,
   },
   tabActive: {
-    backgroundColor: COLORS.primary, // Fallback
+    backgroundColor: COLORS.primary,
     borderColor: 'rgba(255,255,255,0.2)',
     ...SHADOWS.glow,
   },
   tabText: {
     fontSize: 15,
     fontWeight: '600',
-    color: COLORS.textLight,
+    color: COLORS.text,
   },
   tabTextActive: {
     color: '#fff',

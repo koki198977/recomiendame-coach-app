@@ -116,6 +116,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
     };
   }, [zoneLayouts]);
 
+  // Escuchar cuando se guarda una actividad libre para refrescar Chapi
+  React.useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('freeExerciseSaved', async () => {
+      console.log('🏃 Actividad libre guardada — refrescando Chapi insights');
+      await CacheService.clearChapiCache();
+      setChapiRefreshKey(prev => prev + 1);
+    });
+    return () => sub.remove();
+  }, []);
+
   const loadData = async () => {
     try {
       setLoading(true);

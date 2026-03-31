@@ -11,7 +11,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { NutritionService } from '../services/nutritionService';
 import ChapiService from '../services/chapiService';
 import CacheService from '../services/cacheService';
-import { Checkin } from '../types/nutrition';
+import FreeExerciseService from '../services/freeExerciseService';
+import { Checkin, FreeExerciseLog } from '../types/nutrition';
 import { COLORS, SHADOWS } from '../theme/theme';
 
 const { width } = Dimensions.get('window');
@@ -113,6 +114,44 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
       setWeekData(newWeekData);
 
       // Obtener análisis de Chapi según el período
+      // Cargar actividades libres del período para enriquecer el contexto de Chapi
+      let freeExercisesContext: {
+        totalSessions: number;
+        totalCaloriesBurned: number;
+        totalMinutes: number;
+        activities: string[];
+      } | undefined;
+
+      try {
+        const startDate = from.toISOString().split('T')[0];
+        const endDate = to.toISOString().split('T')[0];
+        const freeLogs = await FreeExerciseService.getFreeExerciseLogs(startDate, endDate);
+
+        if (freeLogs.length > 0) {
+          const ACTIVITY_LABEL: Record<string, string> = {
+            RUNNING: 'Running', WALKING: 'Caminata', CYCLING: 'Ciclismo',
+            SWIMMING: 'Natación', ELLIPTICAL: 'Elíptica', ROWING: 'Remo',
+            JUMP_ROPE: 'Saltar la cuerda', OTHER: 'Otro',
+          };
+          freeExercisesContext = {
+            totalSessions: freeLogs.length,
+            totalCaloriesBurned: freeLogs.reduce((sum, l) => sum + (l.caloriesBurned ?? 0), 0),
+            totalMinutes: freeLogs.reduce((sum, l) => sum + (l.durationMinutes ?? 0), 0),
+            activities: freeLogs.map(l => {
+              const label = l.activityType === 'OTHER' && l.customActivityName
+                ? l.customActivityName
+                : (ACTIVITY_LABEL[l.activityType] ?? l.activityType);
+              const parts = [label];
+              if (l.distanceKm) parts.push(`${l.distanceKm}km`);
+              if (l.durationMinutes) parts.push(`${l.durationMinutes}min`);
+              return parts.join(' ');
+            }),
+          };
+        }
+      } catch {
+        // silencioso — no bloquear el análisis si falla
+      }
+
       let analysis;
       if (selectedPeriod === 'week') {
         analysis = await ChapiService.getWeeklyProgressAnalysis({
@@ -120,6 +159,7 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
           macroCompliance,
           dailyAdherence,
           weeklyAverage,
+          freeExercises: freeExercisesContext,
         });
       } else if (selectedPeriod === 'month') {
         analysis = await ChapiService.getMonthlyProgressAnalysis({
@@ -127,6 +167,7 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
           macroCompliance,
           dailyAdherence,
           monthlyAverage: weeklyAverage,
+          freeExercises: freeExercisesContext,
         });
       }
 

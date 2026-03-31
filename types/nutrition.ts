@@ -724,3 +724,36 @@ export interface HydrationGoalResponse {
     updatedAt: string;
   };
 }
+
+// Tipos para registro de actividades físicas libres
+export type ActivityType =
+  | 'RUNNING'
+  | 'WALKING'
+  | 'CYCLING'
+  | 'SWIMMING'
+  | 'ELLIPTICAL'
+  | 'ROWING'
+  | 'JUMP_ROPE'
+  | 'OTHER';
+
+export interface FreeExerciseLog {
+  id: string;
+  userId: string;
+  activityType: ActivityType;
+  customActivityName?: string;
+  durationMinutes?: number;
+  distanceKm?: number;
+  caloriesBurned?: number;
+  caloriesEstimated: boolean;
+  date: string; // ISO 8601 YYYY-MM-DD
+  createdAt: string; // ISO 8601 datetime
+}
+
+export interface SaveFreeExerciseRequest {
+  activityType: ActivityType;
+  customActivityName?: string;
+  durationMinutes?: number;
+  distanceKm?: number;
+  caloriesBurned?: number;
+  caloriesEstimated?: boolean;
+}

@@ -218,8 +218,25 @@ class ChapiService {
       carbs: number;
       fats: number;
     };
+    freeExercises?: {
+      totalSessions: number;
+      totalCaloriesBurned: number;
+      totalMinutes: number;
+      activities: string[]; // ej: ['Running 5km 30min', 'Ciclismo 45min']
+    };
   }): Promise<{ message: string; emoji: string }> {
     try {
+      // Construir sección de actividad física libre si hay datos
+      const freeExerciseSection = weekData.freeExercises && weekData.freeExercises.totalSessions > 0
+        ? `
+ACTIVIDAD FÍSICA LIBRE ESTA SEMANA:
+- ${weekData.freeExercises.totalSessions} sesión(es) registrada(s)
+- Total calorías quemadas: ${weekData.freeExercises.totalCaloriesBurned} kcal
+- Total tiempo activo: ${weekData.freeExercises.totalMinutes} minutos
+- Actividades: ${weekData.freeExercises.activities.join(', ')}
+`
+        : '';
+
       // Construir mensaje contextual para Chapi
       const contextMessage = `
 Analiza mi progreso semanal y dame un mensaje motivacional personalizado:
@@ -243,9 +260,9 @@ PROMEDIO SEMANAL:
 - Proteína: ${weekData.weeklyAverage.protein}g/día
 - Carbohidratos: ${weekData.weeklyAverage.carbs}g/día
 - Grasas: ${weekData.weeklyAverage.fats}g/día
-
+${freeExerciseSection}
 Dame un mensaje corto (máximo 2 líneas) que:
-1. Reconozca mi progreso o identifique áreas de mejora
+1. Reconozca mi progreso o identifique áreas de mejora${weekData.freeExercises && weekData.freeExercises.totalSessions > 0 ? ', incluyendo mi actividad física' : ''}
 2. Sea motivacional y personalizado
 3. Incluya un emoji apropiado al final
 `;
@@ -288,11 +305,26 @@ Dame un mensaje corto (máximo 2 líneas) que:
       carbs: number;
       fats: number;
     };
+    freeExercises?: {
+      totalSessions: number;
+      totalCaloriesBurned: number;
+      totalMinutes: number;
+      activities: string[];
+    };
   }): Promise<{ message: string; emoji: string }> {
     try {
       const totalDays = monthData.macroCompliance.calories.total;
       const daysWithData = Math.round((monthData.monthlyCompletion / 100) * totalDays);
-      
+
+      const freeExerciseSection = monthData.freeExercises && monthData.freeExercises.totalSessions > 0
+        ? `
+ACTIVIDAD FÍSICA LIBRE ESTE MES:
+- ${monthData.freeExercises.totalSessions} sesión(es) registrada(s)
+- Total calorías quemadas: ${monthData.freeExercises.totalCaloriesBurned} kcal
+- Total tiempo activo: ${monthData.freeExercises.totalMinutes} minutos
+`
+        : '';
+
       // Construir mensaje contextual para Chapi
       const contextMessage = `
 Analiza mi progreso mensual y dame un mensaje motivacional personalizado:
@@ -310,9 +342,9 @@ PROMEDIO MENSUAL:
 - Proteína: ${monthData.monthlyAverage.protein}g/día
 - Carbohidratos: ${monthData.monthlyAverage.carbs}g/día
 - Grasas: ${monthData.monthlyAverage.fats}g/día
-
+${freeExerciseSection}
 Dame un mensaje corto (máximo 2 líneas) que:
-1. Reconozca mi progreso mensual o identifique áreas de mejora
+1. Reconozca mi progreso mensual o identifique áreas de mejora${monthData.freeExercises && monthData.freeExercises.totalSessions > 0 ? ', incluyendo mi actividad física' : ''}
 2. Sea motivacional y personalizado
 3. Incluya un emoji apropiado al final
 `;

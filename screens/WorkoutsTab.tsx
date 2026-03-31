@@ -10,13 +10,16 @@ import {
   Linking,
   Image,
   Modal,
+  DeviceEventEmitter,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import WorkoutService from '../services/workoutService';
-import { WorkoutPlan, WorkoutGoal, WorkoutDay, Exercise, WorkoutEnvironment } from '../types/nutrition';
+import { WorkoutPlan, WorkoutGoal, WorkoutDay, Exercise, WorkoutEnvironment, FreeExerciseLog } from '../types/nutrition';
+import FreeExerciseService from '../services/freeExerciseService';
 import { GenerateWorkoutModal } from '../components/GenerateWorkoutModal';
 import { PlanGeneratingModal } from '../components/PlanGeneratingModal';
 import { RestTimerModal } from '../components/RestTimerModal';
+import { FreeExerciseLogger } from '../components/FreeExerciseLogger';
 import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
 
 export const WorkoutsTab: React.FC = () => {
@@ -45,8 +48,14 @@ export const WorkoutsTab: React.FC = () => {
   const [pausedExercises, setPausedExercises] = useState<Set<string>>(new Set());
   const [exerciseStartTimes, setExerciseStartTimes] = useState<{[key: string]: number}>({});
 
+  // Estados para actividades libres
+  const [showFreeExerciseLogger, setShowFreeExerciseLogger] = useState(false);
+  const [freeExerciseLogs, setFreeExerciseLogs] = useState<FreeExerciseLog[]>([]);
+  const [loadingFreeExerciseLogs, setLoadingFreeExerciseLogs] = useState(false);
+
   useEffect(() => {
     loadWorkoutPlan();
+    loadFreeExerciseLogs();
   }, []);
 
   // Timer effect
@@ -134,6 +143,20 @@ export const WorkoutsTab: React.FC = () => {
       // Error silencioso
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadFreeExerciseLogs = async () => {
+    try {
+      setLoadingFreeExerciseLogs(true);
+      const endDate = new Date().toISOString().split('T')[0];
+      const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const logs = await FreeExerciseService.getFreeExerciseLogs(startDate, endDate);
+      setFreeExerciseLogs(logs);
+    } catch {
+      // silencioso
+    } finally {
+      setLoadingFreeExerciseLogs(false);
     }
   };
 
@@ -860,6 +883,115 @@ export const WorkoutsTab: React.FC = () => {
     );
   };
 
+  const ACTIVITY_EMOJI: Record<string, string> = {
+    RUNNING: '🏃', WALKING: '🚶', CYCLING: '🚴', SWIMMING: '🏊',
+    ELLIPTICAL: '🔄', ROWING: '🚣', JUMP_ROPE: '🪢', OTHER: '✏️',
+  };
+
+  const ACTIVITY_LABEL: Record<string, string> = {
+    RUNNING: 'Running', WALKING: 'Caminata', CYCLING: 'Ciclismo', SWIMMING: 'Natación',
+    ELLIPTICAL: 'Elíptica', ROWING: 'Remo', JUMP_ROPE: 'Saltar la cuerda', OTHER: 'Otro',
+  };
+
+  const renderFreeExerciseHistory = () => {
+    return (
+      <View style={styles.freeExerciseSection}>
+        <View style={styles.freeExerciseSectionHeader}>
+          <Text style={styles.freeExerciseSectionTitle}>Actividades libres</Text>
+          <TouchableOpacity
+            style={styles.freeExerciseAddButton}
+            onPress={() => setShowFreeExerciseLogger(true)}
+          >
+            <Text style={styles.freeExerciseAddButtonText}>+</Text>
+          </TouchableOpacity>
+        </View>
+
+        {loadingFreeExerciseLogs ? (
+          <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 16 }} />
+        ) : freeExerciseLogs.length === 0 ? (
+          <View style={styles.freeExerciseEmpty}>
+            <Text style={styles.freeExerciseEmptyText}>No hay actividades registradas</Text>
+            <TouchableOpacity
+              style={styles.freeExerciseEmptyButton}
+              onPress={() => setShowFreeExerciseLogger(true)}
+            >
+              <Text style={styles.freeExerciseEmptyButtonText}>Registrar primera actividad</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          freeExerciseLogs.map((log) => {
+            const emoji = ACTIVITY_EMOJI[log.activityType] ?? '🏋️';
+            const label = log.activityType === 'OTHER' && log.customActivityName
+              ? log.customActivityName
+              : (ACTIVITY_LABEL[log.activityType] ?? log.activityType);
+            const dateObj = new Date(log.createdAt);
+            const dateStr = dateObj.toLocaleString('es-ES', {
+              day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+            });
+            return (
+              <View key={log.id} style={styles.freeExerciseCard}>
+                <View style={styles.freeExerciseCardHeader}>
+                  <Text style={styles.freeExerciseEmoji}>{emoji}</Text>
+                  <View style={styles.freeExerciseCardInfo}>
+                    <Text style={styles.freeExerciseCardTitle}>{label}</Text>
+                    <Text style={styles.freeExerciseCardDate}>{dateStr}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.freeExerciseDeleteButton}
+                    onPress={() => {
+                      Alert.alert(
+                        'Eliminar actividad',
+                        '¿Estás seguro de que quieres eliminar este registro?',
+                        [
+                          { text: 'Cancelar', style: 'cancel' },
+                          {
+                            text: 'Eliminar',
+                            style: 'destructive',
+                            onPress: async () => {
+                              try {
+                                await FreeExerciseService.deleteFreeExercise(log.id);
+                                loadFreeExerciseLogs();
+                                DeviceEventEmitter.emit('freeExerciseSaved');
+                              } catch {
+                                Alert.alert('Error', 'No se pudo eliminar la actividad. Intenta de nuevo.');
+                              }
+                            },
+                          },
+                        ]
+                      );
+                    }}
+                  >
+                    <Text style={styles.freeExerciseDeleteText}>🗑️</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.freeExerciseCardMetrics}>
+                  {log.durationMinutes != null && (
+                    <View style={styles.freeExerciseMetric}>
+                      <Text style={styles.freeExerciseMetricValue}>{log.durationMinutes}</Text>
+                      <Text style={styles.freeExerciseMetricLabel}>min</Text>
+                    </View>
+                  )}
+                  {log.distanceKm != null && (
+                    <View style={styles.freeExerciseMetric}>
+                      <Text style={styles.freeExerciseMetricValue}>{log.distanceKm}</Text>
+                      <Text style={styles.freeExerciseMetricLabel}>km</Text>
+                    </View>
+                  )}
+                  {log.caloriesBurned != null && (
+                    <View style={styles.freeExerciseMetric}>
+                      <Text style={styles.freeExerciseMetricValue}>{log.caloriesBurned}</Text>
+                      <Text style={styles.freeExerciseMetricLabel}>kcal{log.caloriesEstimated ? '*' : ''}</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            );
+          })
+        )}
+      </View>
+    );
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
@@ -872,43 +1004,48 @@ export const WorkoutsTab: React.FC = () => {
   return (
     <>
       <View style={styles.container}>
-        {workoutPlan ? (
-          <>
-            {/* Day Selector */}
-            {renderDaySelector()}
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {workoutPlan ? (
+            <>
+              {/* Day Selector */}
+              {renderDaySelector()}
 
-            {/* Workout Content */}
-            {renderWorkoutDay()}
-          </>
-        ) : (
-          <View style={styles.noPlanContainer}>
-            <View style={styles.chapiEmptyContainer}>
-              <Image 
-                source={require('../assets/chapi-3d-ejercicio-3.png')}
-                style={styles.chapiEmptyImage}
-                resizeMode="cover"
-              />
-            </View>
-            <Text style={styles.noPlanTitle}>¡Crea tu rutina!</Text>
-            <Text style={styles.noPlanText}>
-              No tienes una rutina de entrenamiento para esta semana.
-              Genera una personalizada con IA.
-            </Text>
-            <TouchableOpacity
-              style={styles.generateButton}
-              onPress={() => setShowGenerateModal(true)}
-            >
-              <LinearGradient
-                colors={GRADIENTS.primary}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={{ paddingVertical: 16, paddingHorizontal: 30, borderRadius: 24 }}
+              {/* Workout Content */}
+              {renderWorkoutDay()}
+            </>
+          ) : (
+            <View style={styles.noPlanContainer}>
+              <View style={styles.chapiEmptyContainer}>
+                <Image 
+                  source={require('../assets/chapi-3d-ejercicio-3.png')}
+                  style={styles.chapiEmptyImage}
+                  resizeMode="cover"
+                />
+              </View>
+              <Text style={styles.noPlanTitle}>¡Crea tu rutina!</Text>
+              <Text style={styles.noPlanText}>
+                No tienes una rutina de entrenamiento para esta semana.
+                Genera una personalizada con IA.
+              </Text>
+              <TouchableOpacity
+                style={styles.generateButton}
+                onPress={() => setShowGenerateModal(true)}
               >
-                <Text style={styles.generateButtonText}>🤖 Generar rutina con IA</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        )}
+                <LinearGradient
+                  colors={GRADIENTS.primary}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={{ paddingVertical: 16, paddingHorizontal: 30, borderRadius: 24 }}
+                >
+                  <Text style={styles.generateButtonText}>🤖 Generar rutina con IA</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Free Exercise History */}
+          {renderFreeExerciseHistory()}
+        </ScrollView>
       </View>
 
       {/* Modals */}
@@ -993,6 +1130,18 @@ export const WorkoutsTab: React.FC = () => {
         visible={showRestTimer}
         restSeconds={currentRestSeconds}
         onClose={() => setShowRestTimer(false)}
+      />
+
+      {/* Free Exercise Logger Modal */}
+      <FreeExerciseLogger
+        visible={showFreeExerciseLogger}
+        onClose={() => setShowFreeExerciseLogger(false)}
+        onSaved={() => {
+          setShowFreeExerciseLogger(false);
+          loadFreeExerciseLogs();
+          // Notificar a HomeScreen para que refresque Chapi insights
+          DeviceEventEmitter.emit('freeExerciseSaved');
+        }}
       />
     </>
   );
@@ -1661,5 +1810,119 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: '700',
+  },
+  // Free exercise history styles
+  freeExerciseSection: {
+    margin: 12,
+    marginTop: 8,
+    backgroundColor: COLORS.card,
+    borderRadius: 20,
+    padding: 16,
+    ...SHADOWS.card,
+  },
+  freeExerciseSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  freeExerciseSectionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  freeExerciseAddButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...SHADOWS.glow,
+  },
+  freeExerciseAddButtonText: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '700',
+    lineHeight: 28,
+  },
+  freeExerciseEmpty: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  freeExerciseEmptyText: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    marginBottom: 12,
+  },
+  freeExerciseEmptyButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    ...SHADOWS.glow,
+  },
+  freeExerciseEmptyButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  freeExerciseCard: {
+    backgroundColor: COLORS.background,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  freeExerciseCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  freeExerciseEmoji: {
+    fontSize: 28,
+    marginRight: 10,
+  },
+  freeExerciseCardInfo: {
+    flex: 1,
+  },
+  freeExerciseDeleteButton: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+  },
+  freeExerciseDeleteText: {
+    fontSize: 16,
+  },
+  freeExerciseCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 2,
+  },
+  freeExerciseCardDate: {
+    fontSize: 12,
+    color: COLORS.textLight,
+  },
+  freeExerciseCardMetrics: {
+    flexDirection: 'row',
+    gap: 16,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+  },
+  freeExerciseMetric: {
+    alignItems: 'center',
+  },
+  freeExerciseMetricValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  freeExerciseMetricLabel: {
+    fontSize: 11,
+    color: COLORS.textLight,
+    fontWeight: '600',
   },
 });

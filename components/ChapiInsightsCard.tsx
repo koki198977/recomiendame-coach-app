@@ -12,6 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import ChapiService from '../services/chapiService';
 import WorkoutService from '../services/workoutService';
+import FreeExerciseService from '../services/freeExerciseService';
 import { ChapiInsightsResponse, ChapiRecommendation } from '../types/nutrition';
 import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
 
@@ -55,29 +56,34 @@ export const ChapiInsightsCard: React.FC<ChapiInsightsCardProps> = ({
   // Verificar si realmente hay un plan de ejercicio y si se completó hoy
   const validateWorkoutStatus = async () => {
     try {
+      // Primero verificar si hay actividades libres registradas hoy
+      const today = new Date().toISOString().split('T')[0];
+      const freeLogs = await FreeExerciseService.getFreeExerciseLogs(today, today);
+      if (freeLogs.length > 0) {
+        console.log(`✅ Hay ${freeLogs.length} actividad(es) libre(s) hoy`);
+        setActualWorkoutCompleted(true);
+        return;
+      }
+
       const week = WorkoutService.getCurrentISOWeek();
       const workoutPlan = await WorkoutService.getWorkoutPlan(week);
       
       if (!workoutPlan || !workoutPlan.days || workoutPlan.days.length === 0) {
-        // No hay plan de ejercicio activo
         console.log('✅ No hay plan de ejercicio activo');
         setActualWorkoutCompleted(false);
         return;
       }
       
-      // Obtener el día actual
-      const today = new Date().getDay();
-      const todayDayIndex = today === 0 ? 7 : today;
-      const todayWorkout = workoutPlan.days.find(day => day.dayIndex === todayDayIndex);
+      const todayDayIndex = new Date().getDay();
+      const todayIndex = todayDayIndex === 0 ? 7 : todayDayIndex;
+      const todayWorkout = workoutPlan.days.find(day => day.dayIndex === todayIndex);
       
       if (!todayWorkout || todayWorkout.exercises.length === 0) {
-        // No hay ejercicios programados para hoy
         console.log('✅ No hay ejercicios programados para hoy');
         setActualWorkoutCompleted(false);
         return;
       }
       
-      // Verificar si el workout de hoy está completado
       const isCompleted = todayWorkout.completed || false;
       console.log(`✅ Workout de hoy completado: ${isCompleted}`);
       setActualWorkoutCompleted(isCompleted);

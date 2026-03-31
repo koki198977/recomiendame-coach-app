@@ -13,6 +13,7 @@ import {
   WeeklyPlan,
   WeeklyPlanMeal,
   GeneratePlanResponse,
+  MealDetails,
   ShoppingListResponse,
   Cuisine,
   Allergy,
@@ -259,10 +260,18 @@ export class NutritionService {
       return response.data;
     } catch (error: any) {
       if (error.response?.status === 404) {
-        return null; // No hay plan para esta semana
+        return null;
       }
       throw error;
     }
+  }
+
+  // Obtener detalles lazy de una comida (primera vez llama a OpenAI, siguientes desde BD)
+  static async getMealDetails(mealId: string): Promise<MealDetails> {
+    const response = await api.get<MealDetails>(`/meals/${mealId}/details`, {
+      timeout: 10000, // hasta 5-10s la primera vez
+    });
+    return response.data;
   }
 
   // IA - Generación de planes

@@ -107,7 +107,7 @@ export const PlanGeneratingModal: React.FC<PlanGeneratingModalProps> = ({
 
           {/* Time Estimate */}
           <Text style={styles.timeEstimate}>
-            Esto tomará solo 1-2 minutos ⏱️
+            Esto tomará de 30 segundos a 1 minuto ⏱️
           </Text>
           <Text style={styles.timeNote}>
             Mantén la app abierta mientras trabajo en esto

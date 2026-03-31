@@ -191,6 +191,7 @@ export interface WeeklyPlanIngredient {
 }
 
 export interface WeeklyPlanMeal {
+  id?: string; // mealId para obtener detalles lazy desde el backend
   slot: "BREAKFAST" | "LUNCH" | "DINNER" | "SNACK";
   title: string;
   kcal: number;
@@ -198,15 +199,23 @@ export interface WeeklyPlanMeal {
   carbs_g: number;
   fat_g: number;
   tags: string[];
-  instructions?: string; // Instrucciones de preparación
-  videoUrl?: string; // URL de YouTube (opcional, si no se provee se busca por título)
-  ingredients: WeeklyPlanIngredient[] | string[]; // Puede ser array de objetos o strings
+  instructions?: string;
+  videoUrl?: string;
+  ingredients: WeeklyPlanIngredient[] | string[];
 }
 
 // Respuesta del endpoint de generación de plan
 export interface GeneratePlanResponse {
   planId: string;
   created: boolean;
+}
+
+// Detalles lazy de una comida (generados por IA la primera vez)
+export interface MealDetails {
+  mealId: string;
+  title: string;
+  ingredients: WeeklyPlanIngredient[];
+  instructions: string;
 }
 
 // Lista de compras

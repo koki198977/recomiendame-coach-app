@@ -35,6 +35,7 @@ export const PlanScreen: React.FC = () => {
   const [weekDays, setWeekDays] = useState<DayInfo[]>([]);
   const [showIngredientsModal, setShowIngredientsModal] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState<WeeklyPlanMeal | null>(null);
+  const [loadingMealDetails, setLoadingMealDetails] = useState(false);
   const [regeneratingDay, setRegeneratingDay] = useState(false);
   const [swappingMeal, setSwappingMeal] = useState<string | null>(null); // "dayIndex-mealIndex"
   const [showShoppingListModal, setShowShoppingListModal] = useState(false);
@@ -391,9 +392,29 @@ export const PlanScreen: React.FC = () => {
     return labels[slot] || slot;
   };
 
-  const openIngredientsModal = (meal: WeeklyPlanMeal) => {
+  const openIngredientsModal = async (meal: WeeklyPlanMeal) => {
+    console.log('🍽️ Opening meal:', meal.id, meal.title, 'ingredients:', meal.ingredients?.length);
+    // Mostrar el modal inmediatamente con los datos del plan
     setSelectedMeal(meal);
     setShowIngredientsModal(true);
+
+    // Si la meal tiene id, enriquecer con detalles lazy del backend
+    if (meal.id) {
+      try {
+        setLoadingMealDetails(true);
+        const details = await NutritionService.getMealDetails(meal.id);
+        setSelectedMeal(prev => prev ? {
+          ...prev,
+          ingredients: details.ingredients,
+          instructions: details.instructions,
+        } : prev);
+      } catch (error: any) {
+        // Si falla (502, 404, etc.) simplemente usamos los datos del plan
+        console.log('No se pudieron cargar detalles de la comida:', error?.response?.status);
+      } finally {
+        setLoadingMealDetails(false);
+      }
+    }
   };
 
   const closeIngredientsModal = () => {
@@ -737,7 +758,12 @@ export const PlanScreen: React.FC = () => {
               const isSwapping = swappingMeal === swapKey;
               
               return (
-                <View key={`${slot}-${slotMealIndex}`} style={styles.mealItem}>
+                <TouchableOpacity 
+                  key={`${slot}-${slotMealIndex}`} 
+                  style={styles.mealItem}
+                  onPress={() => openIngredientsModal(meal)}
+                  activeOpacity={0.7}
+                >
                   <View style={styles.mealHeader}>
                     <View style={styles.mealInfo}>
                       <Text style={styles.mealName}>{meal.title}</Text>
@@ -755,7 +781,7 @@ export const PlanScreen: React.FC = () => {
                           consumedMeals.has(`${dayIndex}-${globalMealIndex}`) && styles.consumedButtonMarked,
                           markingMeal === `${dayIndex}-${globalMealIndex}` && styles.buttonDisabled
                         ]}
-                        onPress={() => handleMarkMealAsConsumed(meal, dayIndex, globalMealIndex)}
+                        onPress={(e) => { e.stopPropagation?.(); handleMarkMealAsConsumed(meal, dayIndex, globalMealIndex); }}
                         disabled={markingMeal === `${dayIndex}-${globalMealIndex}` || consumedMeals.has(`${dayIndex}-${globalMealIndex}`)}
                       >
                         {markingMeal === `${dayIndex}-${globalMealIndex}` ? (
@@ -776,7 +802,7 @@ export const PlanScreen: React.FC = () => {
                           styles.swapMealButton, 
                           (isSwapping || !canModifyWeek(currentWeek)) && styles.buttonDisabled
                         ]}
-                        onPress={() => handleSwapMeal(globalMealIndex, meal.title)}
+                        onPress={(e) => { e.stopPropagation?.(); handleSwapMeal(globalMealIndex, meal.title); }}
                         disabled={isSwapping || !canModifyWeek(currentWeek)}
                       >
                         {isSwapping ? (
@@ -790,33 +816,8 @@ export const PlanScreen: React.FC = () => {
                     </View>
                   </View>
 
-                  {meal.ingredients.length > 0 && (
-                    <TouchableOpacity 
-                      style={styles.ingredientsContainer}
-                      onPress={() => openIngredientsModal(meal)}
-                    >
-                      <Text style={styles.mealIngredients}>
-                        Ingredientes: {meal.ingredients.slice(0, 3).map(ingredient => {
-                          if (typeof ingredient === 'string') {
-                            return ingredient;
-                          } else {
-                            // Si es objeto, mostrar nombre y cantidad si está disponible
-                            let display = ingredient.name;
-                            const quantity = ingredient.qty || ingredient.quantity;
-                            if (quantity && ingredient.unit) {
-                              display += ` (${quantity} ${ingredient.unit})`;
-                            }
-                            return display;
-                          }
-                        }).join(', ')}
-                        {meal.ingredients.length > 3 && '...'}
-                      </Text>
-                      <Text style={styles.viewAllText}>
-                        {meal.ingredients.length > 3 ? 'Ver todos' : 'Ver detalles'}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+                  <Text style={styles.mealTapHint}>Toca para ver ingredientes y preparación →</Text>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -969,6 +970,7 @@ export const PlanScreen: React.FC = () => {
         mealTitle={selectedMeal?.title || ''}
         instructions={selectedMeal?.instructions}
         videoUrl={selectedMeal?.videoUrl}
+        loading={loadingMealDetails}
       />
 
       {/* Modal de lista de compras */}
@@ -1181,6 +1183,12 @@ const styles = StyleSheet.create({
   mealDetails: {
     fontSize: 14,
     color: '#666',
+  },
+  mealTapHint: {
+    fontSize: 12,
+    color: COLORS.primary,
+    marginTop: 6,
+    fontStyle: 'italic' as const,
   },
   editButton: {
     backgroundColor: '#81C784',

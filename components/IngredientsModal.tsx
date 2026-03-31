@@ -9,6 +9,7 @@ import {
   Dimensions,
   Linking,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WeeklyPlanIngredient } from '../types/nutrition';
@@ -20,8 +21,9 @@ interface IngredientsModalProps {
   onClose: () => void;
   ingredients: (WeeklyPlanIngredient | string)[];
   mealTitle: string;
-  instructions?: string; // Instrucciones de preparación
-  videoUrl?: string; // URL de YouTube
+  instructions?: string;
+  videoUrl?: string;
+  loading?: boolean; // true mientras se cargan detalles lazy del backend
 }
 
 type TabType = 'ingredients' | 'preparation';
@@ -33,6 +35,7 @@ export const IngredientsModal: React.FC<IngredientsModalProps> = ({
   mealTitle,
   instructions,
   videoUrl,
+  loading = false,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('ingredients');
 
@@ -169,7 +172,12 @@ export const IngredientsModal: React.FC<IngredientsModalProps> = ({
 
           {/* Content */}
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {activeTab === 'ingredients' ? (
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#4CAF50" />
+                <Text style={styles.loadingText}>Generando detalles con IA...</Text>
+              </View>
+            ) : activeTab === 'ingredients' ? (
               // Tab de Ingredientes
               ingredients && ingredients.length > 0 ? (
                 <View style={styles.ingredientsList}>
@@ -420,9 +428,19 @@ const styles = StyleSheet.create({
   },
   
   // Empty states
+  loadingContainer: {
+    paddingVertical: 60,
+    alignItems: 'center' as const,
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic' as const,
+  },
   noContentContainer: {
     paddingVertical: 60,
-    alignItems: 'center',
+    alignItems: 'center' as const,
   },
   noContentText: {
     fontSize: 16,

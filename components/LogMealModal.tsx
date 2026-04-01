@@ -50,6 +50,7 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
   const [analyzing, setAnalyzing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [analyzed, setAnalyzed] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
 
   const scrollViewRef = React.useRef<ScrollView>(null);
 
@@ -350,8 +351,8 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
   };
 
   const handleSave = async () => {
-    if (!analyzed) return;
-
+    if (!analyzed || saving) return;
+    setSaving(true);
     try {
       // Formatear fecha para el backend (YYYY-MM-DD)
       const dateStr = selectedDate.toISOString().split('T')[0];
@@ -458,6 +459,8 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
       }
       
       Alert.alert('Error', errorMessage);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -767,8 +770,8 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
             </Text>
           </View>
 
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.saveButtonText}>✓ Guardar comida</Text>
+          <TouchableOpacity style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={handleSave} disabled={saving}>
+            <Text style={styles.saveButtonText}>{saving ? 'Guardando...' : '✓ Guardar comida'}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -1036,6 +1039,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
   },
   datesContainer: {
     flexDirection: 'row',

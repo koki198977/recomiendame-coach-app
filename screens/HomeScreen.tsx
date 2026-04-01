@@ -319,7 +319,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
   const refreshTodayMeals = async () => {
     try {
       console.log('🔄 Refrescando comidas del día...');
-      const mealsConsumed = await NutritionService.getTodayMeals();
+      const today = new Date();
+      const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const mealsConsumed = await NutritionService.getTodayMeals(localDate);
       setTodayMealsConsumed(mealsConsumed);
       console.log('✅ Comidas refrescadas:', mealsConsumed.totals);
       

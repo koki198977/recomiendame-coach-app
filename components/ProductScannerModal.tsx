@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,10 +13,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
 import SimpleBarcodeScanner from './SimpleBarcodeScanner';
 import ProductToMealModal from './ProductToMealModal';
 import openFoodFactsService from '../services/openFoodFactsService';
 import chapiService from '../services/chapiService';
+import { NutritionService } from '../services/nutritionService';
+import { SocialService } from '../services/socialService';
 import { NutritionalAnalysis, PersonalizedNutritionAnalysis } from '../types/openFoodFacts';
 import { UserProfile } from '../types/nutrition';
 
@@ -41,6 +44,11 @@ export default function ProductScannerModal({
   const [chapiAdvice, setChapiAdvice] = useState<string>('');
   const [showCamera, setShowCamera] = useState(false);
   const [showMealModal, setShowMealModal] = useState(false);
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [labelImageUri, setLabelImageUri] = useState<string | null>(null);
+  const [labelAnalysis, setLabelAnalysis] = useState<{ kcal: number; protein_g: number; carbs_g: number; fat_g: number; title: string } | null>(null);
+  const [labelGrams, setLabelGrams] = useState('100');
+  const [isAnalyzingLabel, setIsAnalyzingLabel] = useState(false);
 
   const handleBarcodeFromCamera = async (scannedBarcode: string) => {
     console.log('📷 Código escaneado desde cámara:', scannedBarcode);
@@ -85,10 +93,11 @@ export default function ProductScannerModal({
       } else {
         Alert.alert(
           'Producto no encontrado',
-          response.error || 'No se pudo encontrar información sobre este producto. ¿Quieres intentar con otro código?',
+          response.error || 'No se pudo encontrar información sobre este producto.',
           [
             { text: 'Cancelar', style: 'cancel' },
-            { text: 'Intentar otro', onPress: () => setBarcode('') }
+            { text: 'Intentar otro', onPress: () => setBarcode('') },
+            { text: 'Fotografiar etiqueta', onPress: () => setShowManualForm(true) },
           ]
         );
       }
@@ -153,12 +162,88 @@ Mi análisis automático dice que es: ${personalizedAnalysis.overallRating} (${p
     }
   };
 
+  const handleTakeLabelPhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso denegado', 'Necesitamos acceso a tu cámara.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.8 });
+    if (!result.canceled && result.assets[0]) {
+      setLabelImageUri(result.assets[0].uri);
+      setLabelAnalysis(null);
+    }
+  };
+
+  const handleAnalyzeLabel = async () => {
+    if (!labelImageUri) return;
+    setIsAnalyzingLabel(true);
+    try {
+      const uploaded = await SocialService.uploadImage(labelImageUri);
+      const result = await NutritionService.analyzeMeal(uploaded.url, 'tabla nutricional de producto');
+      setLabelAnalysis(result);
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo analizar la imagen. Intenta de nuevo.');
+    } finally {
+      setIsAnalyzingLabel(false);
+    }
+  };
+
+  const handleAddLabelToMeal = async () => {
+    if (!labelAnalysis) return;
+    const grams = parseFloat(labelGrams) || 100;
+    const factor = grams / 100;
+    // Construir NutritionalAnalysis a partir del análisis de la etiqueta
+    const product: NutritionalAnalysis = {
+      productName: labelAnalysis.title || 'Producto escaneado',
+      barcode: barcode.trim() || 'LABEL',
+      nutritionPer100g: {
+        calories: Math.round(labelAnalysis.kcal / factor),
+        protein: Math.round((labelAnalysis.protein_g / factor) * 10) / 10,
+        carbohydrates: Math.round((labelAnalysis.carbs_g / factor) * 10) / 10,
+        fat: Math.round((labelAnalysis.fat_g / factor) * 10) / 10,
+        saturatedFat: 0,
+        sugar: 0,
+        fiber: 0,
+        sodium: 0,
+        salt: 0,
+      },
+      scores: {},
+    };
+
+    // Guardar en backend para futuras consultas
+    try {
+      const backendApi = (await import('../services/api')).default;
+      const { API_CONFIG } = await import('../config/api');
+      await backendApi.post(API_CONFIG.ENDPOINTS.NUTRITION_ANALYSIS.SUBMIT_PRODUCT, {
+        barcode: product.barcode,
+        productName: product.productName,
+        nutritionPer100g: product.nutritionPer100g,
+        scores: product.scores,
+      });
+      console.log('✅ Producto de etiqueta guardado en NutritionProduct');
+    } catch (saveError: any) {
+      // 409 = ya existe, ignorar silenciosamente
+      if (saveError?.response?.status !== 409) {
+        console.warn('⚠️ No se pudo guardar producto en backend:', saveError);
+      }
+    }
+
+    setShowManualForm(false);
+    setAnalysis(product);
+    onProductAnalyzed?.(product);
+  };
+
   const resetModal = () => {
     setBarcode('');
     setAnalysis(null);
     setChapiAdvice('');
     setShowCamera(false);
     setShowMealModal(false);
+    setShowManualForm(false);
+    setLabelImageUri(null);
+    setLabelAnalysis(null);
+    setLabelGrams('100');
   };
 
   const handleClose = () => {
@@ -192,6 +277,111 @@ Mi análisis automático dice que es: ${personalizedAnalysis.overallRating} (${p
         >
           {!analysis ? (
             <View style={styles.scanSection}>
+              {showManualForm ? (
+                <View style={styles.manualFormSection}>
+                  <Text style={styles.manualFormTitle}>Fotografiar etiqueta nutricional</Text>
+                  <Text style={styles.manualFormSubtitle}>
+                    Saca una foto a la tabla nutricional del producto y Chapi extraerá los datos automáticamente
+                  </Text>
+
+                  {/* Foto de la etiqueta */}
+                  <TouchableOpacity style={styles.photoPickerButton} onPress={handleTakeLabelPhoto}>
+                    {labelImageUri ? (
+                      <Image source={{ uri: labelImageUri }} style={styles.labelPhotoPreview} resizeMode="cover" />
+                    ) : (
+                      <View style={styles.photoPickerPlaceholder}>
+                        <Ionicons name="camera" size={40} color="#667eea" />
+                        <Text style={styles.photoPickerText}>Tomar foto de la etiqueta</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Botón analizar */}
+                  {labelImageUri && !labelAnalysis && (
+                    <TouchableOpacity
+                      style={[styles.primaryCameraButton, isAnalyzingLabel && styles.scanButtonDisabled]}
+                      onPress={handleAnalyzeLabel}
+                      disabled={isAnalyzingLabel}
+                    >
+                      <LinearGradient
+                        colors={['#667eea', '#764ba2']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.primaryCameraButtonGradient}
+                      >
+                        {isAnalyzingLabel ? (
+                          <>
+                            <ActivityIndicator color="white" />
+                            <Text style={styles.primaryCameraButtonText}>Analizando...</Text>
+                          </>
+                        ) : (
+                          <>
+                            <Ionicons name="sparkles" size={22} color="white" />
+                            <Text style={styles.primaryCameraButtonText}>Analizar con Chapi</Text>
+                          </>
+                        )}
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Resultado del análisis */}
+                  {labelAnalysis && (
+                    <View style={styles.labelResultCard}>
+                      <Text style={styles.labelResultTitle}>{labelAnalysis.title}</Text>
+                      <View style={styles.manualRow}>
+                        <View style={styles.labelMacroItem}>
+                          <Text style={styles.labelMacroValue}>{labelAnalysis.kcal}</Text>
+                          <Text style={styles.labelMacroLabel}>kcal</Text>
+                        </View>
+                        <View style={styles.labelMacroItem}>
+                          <Text style={styles.labelMacroValue}>{labelAnalysis.protein_g}g</Text>
+                          <Text style={styles.labelMacroLabel}>Proteína</Text>
+                        </View>
+                        <View style={styles.labelMacroItem}>
+                          <Text style={styles.labelMacroValue}>{labelAnalysis.carbs_g}g</Text>
+                          <Text style={styles.labelMacroLabel}>Carbos</Text>
+                        </View>
+                        <View style={styles.labelMacroItem}>
+                          <Text style={styles.labelMacroValue}>{labelAnalysis.fat_g}g</Text>
+                          <Text style={styles.labelMacroLabel}>Grasas</Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.manualInputGroup}>
+                        <Text style={styles.manualInputLabel}>¿Cuántos gramos vas a consumir?</Text>
+                        <TextInput
+                          style={styles.manualInput}
+                          value={labelGrams}
+                          onChangeText={setLabelGrams}
+                          keyboardType="numeric"
+                          placeholderTextColor="#999"
+                        />
+                      </View>
+
+                      <TouchableOpacity
+                        style={styles.primaryCameraButton}
+                        onPress={handleAddLabelToMeal}
+                      >
+                        <LinearGradient
+                          colors={['#667eea', '#764ba2']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={styles.primaryCameraButtonGradient}
+                        >
+                          <Ionicons name="restaurant" size={22} color="white" />
+                          <Text style={styles.primaryCameraButtonText}>Agregar a comida</Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
+                  <TouchableOpacity style={styles.scanAnotherButton} onPress={() => setShowManualForm(false)}>
+                    <Ionicons name="arrow-back" size={18} color="#007AFF" />
+                    <Text style={styles.scanAnotherText}>Volver</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+              <>
               <View style={styles.chapiContainer}>
                 <Image 
                   source={require('../assets/chapi-3d-onboarding.png')}
@@ -227,6 +417,7 @@ Mi análisis automático dice que es: ${personalizedAnalysis.overallRating} (${p
                   <Ionicons name="camera" size={24} color="white" />
                   <Text style={styles.primaryCameraButtonText}>Escanear con cámara</Text>
                 </LinearGradient>
+
               </TouchableOpacity>
 
               <View style={styles.divider}>
@@ -264,6 +455,8 @@ Mi análisis automático dice que es: ${personalizedAnalysis.overallRating} (${p
                   )}
                 </TouchableOpacity>
               </View>
+              </>
+              )}
             </View>
           ) : (
             <View style={styles.analysisSection}>
@@ -906,5 +1099,106 @@ const styles = StyleSheet.create({
   },
   primaryActionButtonText: {
     color: 'white',
+  },
+  manualFormSection: {
+    width: '100%',
+    paddingVertical: 8,
+  },
+  manualFormTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 4,
+  },
+  manualFormSubtitle: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 20,
+    lineHeight: 18,
+  },
+  photoPickerButton: {
+    width: '100%',
+    height: 180,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: '#667eea',
+    borderStyle: 'dashed',
+  },
+  photoPickerPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f0f0ff',
+    gap: 8,
+  },
+  photoPickerText: {
+    color: '#667eea',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  labelPhotoPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  labelResultCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    gap: 12,
+  },
+  labelResultTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+  },
+  labelMacroItem: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    padding: 10,
+    borderRadius: 8,
+  },
+  labelMacroValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+  },
+  labelMacroLabel: {
+    fontSize: 11,
+    color: '#666',
+    marginTop: 2,
+  },
+  manualSectionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#555',
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  manualInputGroup: {
+    marginBottom: 12,
+  },
+  manualInputLabel: {
+    fontSize: 13,
+    color: '#555',
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  manualInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: '#333',
+    backgroundColor: 'white',
+  },
+  manualRow: {
+    flexDirection: 'row',
+    gap: 12,
   },
 });

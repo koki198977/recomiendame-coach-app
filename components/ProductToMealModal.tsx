@@ -61,6 +61,9 @@ export default function ProductToMealModal({
     setIsLogging(true);
 
     try {
+      const today = new Date();
+      const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
       const mealRequest: LogMealRequest = {
         slot: selectedSlot,
         title: `${product.productName} (${portion}g)`,
@@ -69,6 +72,7 @@ export default function ProductToMealModal({
         carbs_g: calculatedNutrition.carbs,
         fat_g: calculatedNutrition.fat,
         imageUrl: product.imageUrl,
+        date: localDate,
       };
 
       console.log('🍽️ Enviando datos de comida:', mealRequest);

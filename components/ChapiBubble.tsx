@@ -124,15 +124,16 @@ export const ChapiBubble: React.FC<ChapiBubbleProps> = ({ onPress, unreadCount =
   // Pero usamos opacity animada para que sea suave
   
   return (
-    <Animated.View style={[
-      styles.container, 
-      { 
-        bottom: 100 + insets.bottom,
-        opacity: fadeAnim,
-        // Deshabilitar interacción cuando está invisible
-        transform: [{ scale: fadeAnim }] 
-      }
-    ]}>
+    <Animated.View
+      pointerEvents={isKeyboardVisible ? 'none' : 'auto'}
+      style={[
+        styles.container,
+        {
+          bottom: 100 + insets.bottom,
+          opacity: fadeAnim,
+        },
+      ]}
+    >
       {/* Halo de fondo animado */}
       <Animated.View
         style={[

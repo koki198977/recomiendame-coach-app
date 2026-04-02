@@ -10,6 +10,7 @@ import {
   StyleSheet,
   Platform,
   KeyboardAvoidingView,
+  Keyboard,
   ActivityIndicator,
   Alert,
   Image,
@@ -32,8 +33,28 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
+
+  // En Android, gestionamos el teclado manualmente para evitar el parpadeo
+  // que produce KeyboardAvoidingView con behavior='height' dentro de un Modal fullScreen
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 50);
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // Cargar mensajes al abrir el modal
   useEffect(() => {
@@ -285,6 +306,85 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
     );
   };
 
+  // En iOS usamos KeyboardAvoidingView nativo; en Android lo manejamos manualmente
+  const inputBottomPadding =
+    Platform.OS === 'android'
+      ? Math.max(keyboardHeight, insets.bottom) + 12
+      : insets.bottom + 12;
+
+  const content = (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <TouchableOpacity onPress={onClose} style={styles.backButton}>
+          <Text style={styles.backButtonText}>✕</Text>
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <View style={styles.chapiAvatar}>
+            <Image
+              source={require('../assets/chapi-3d.png')}
+              style={styles.chapiAvatarImage}
+              resizeMode="contain"
+            />
+          </View>
+          <View>
+            <Text style={styles.headerTitle}>Chapi 2.0</Text>
+            <Text style={styles.headerSubtitle}>
+              {isSyncing ? 'Sincronizando...' : 'Tu asistente emocional mejorado'}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.headerRight} />
+      </View>
+
+      {/* Messages */}
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.messagesContainer}
+        contentContainerStyle={styles.messagesContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {messages.map((message) => (
+          <React.Fragment key={message.id}>
+            {renderMessage(message)}
+          </React.Fragment>
+        ))}
+
+        {isLoading && (
+          <View style={styles.loadingBubble}>
+            <ActivityIndicator size="small" color="#4CAF50" />
+            <Text style={styles.loadingText}>Chapi está escribiendo...</Text>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Input - Fixed at bottom */}
+      <View style={[styles.inputContainer, { paddingBottom: inputBottomPadding }]}>
+        <TextInput
+          style={styles.input}
+          placeholder="Escribe cómo te sientes..."
+          value={inputText}
+          onChangeText={setInputText}
+          multiline
+          maxLength={500}
+          editable={!isLoading}
+          textAlignVertical="top"
+        />
+        <TouchableOpacity
+          style={[
+            styles.sendButton,
+            (!inputText.trim() || isLoading) && styles.sendButtonDisabled,
+          ]}
+          onPress={handleSendMessage}
+          disabled={!inputText.trim() || isLoading}
+        >
+          <Text style={styles.sendButtonText}>➤</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   return (
     <Modal
       visible={visible}
@@ -292,80 +392,17 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
       presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
-      >
-        {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-          <TouchableOpacity onPress={onClose} style={styles.backButton}>
-            <Text style={styles.backButtonText}>✕</Text>
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <View style={styles.chapiAvatar}>
-              <Image 
-                source={require('../assets/chapi-3d.png')}
-                style={styles.chapiAvatarImage}
-                resizeMode="contain"
-              />
-            </View>
-            <View>
-              <Text style={styles.headerTitle}>Chapi 2.0</Text>
-              <Text style={styles.headerSubtitle}>
-                {isSyncing ? 'Sincronizando...' : 'Tu asistente emocional mejorado'}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.headerRight} />
-        </View>
-
-        {/* Messages */}
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.messagesContainer}
-          contentContainerStyle={styles.messagesContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+      {Platform.OS === 'ios' ? (
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior="padding"
+          keyboardVerticalOffset={0}
         >
-          {messages.map((message) => (
-            <React.Fragment key={message.id}>
-              {renderMessage(message)}
-            </React.Fragment>
-          ))}
-
-          {isLoading && (
-            <View style={styles.loadingBubble}>
-              <ActivityIndicator size="small" color="#4CAF50" />
-              <Text style={styles.loadingText}>Chapi está escribiendo...</Text>
-            </View>
-          )}
-        </ScrollView>
-
-        {/* Input - Fixed at bottom */}
-        <View style={[styles.inputContainer, { paddingBottom: insets.bottom + 12 }]}>
-          <TextInput
-            style={styles.input}
-            placeholder="Escribe cómo te sientes..."
-            value={inputText}
-            onChangeText={setInputText}
-            multiline
-            maxLength={500}
-            editable={!isLoading}
-            textAlignVertical="top"
-          />
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              (!inputText.trim() || isLoading) && styles.sendButtonDisabled,
-            ]}
-            onPress={handleSendMessage}
-            disabled={!inputText.trim() || isLoading}
-          >
-            <Text style={styles.sendButtonText}>➤</Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+          {content}
+        </KeyboardAvoidingView>
+      ) : (
+        content
+      )}
     </Modal>
   );
 };

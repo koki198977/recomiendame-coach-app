@@ -21,8 +21,12 @@ import { PlanGeneratingModal } from '../components/PlanGeneratingModal';
 import { RestTimerModal } from '../components/RestTimerModal';
 import { FreeExerciseLogger } from '../components/FreeExerciseLogger';
 import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
+import { usePlan } from '../hooks/usePlan';
+import { PaywallModal } from '../components/PaywallModal';
+import { LockedButton } from '../components/FeatureGate';
 
 export const WorkoutsTab: React.FC = () => {
+  const plan = usePlan();
   const [workoutPlan, setWorkoutPlan] = useState<WorkoutPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentWeek, setCurrentWeek] = useState<string>('');
@@ -647,7 +651,10 @@ export const WorkoutsTab: React.FC = () => {
             {exercise.videoQuery && (
               <TouchableOpacity 
                 style={styles.videoButton}
-                onPress={() => handleOpenVideo(exercise.videoQuery!)}
+                onPress={() => {
+                  if (!plan.isPro) { plan.showPaywall('exercise_video'); return; }
+                  handleOpenVideo(exercise.videoQuery!);
+                }}
               >
                 <Text style={styles.videoButtonText}>📺</Text>
               </TouchableOpacity>
@@ -1029,7 +1036,11 @@ export const WorkoutsTab: React.FC = () => {
               </Text>
               <TouchableOpacity
                 style={styles.generateButton}
-                onPress={() => setShowGenerateModal(true)}
+                onPress={() => {
+                  const status = plan.checkFeature('workout_generate');
+                  if (!status.allowed) { plan.showPaywall('workout_generate'); return; }
+                  setShowGenerateModal(true);
+                }}
               >
                 <LinearGradient
                   colors={GRADIENTS.primary}
@@ -1143,6 +1154,8 @@ export const WorkoutsTab: React.FC = () => {
           DeviceEventEmitter.emit('freeExerciseSaved');
         }}
       />
+
+      {/* Paywall global en App.tsx */}
     </>
   );
 };

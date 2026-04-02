@@ -25,9 +25,23 @@ import { setUnauthorizedCallback } from './services/api';
 import { PushNotificationService } from './services/pushNotificationService';
 import { NotificationReminderService } from './services/notificationReminderService';
 import { useTour } from './hooks/useTour';
+import { PlanProvider, usePlan } from './hooks/usePlan';
+import { PaywallModal } from './components/PaywallModal';
 
 // Configurar handlers de errores al inicio
 setupErrorHandlers();
+
+// Componente global para el PaywallModal
+const GlobalPaywall: React.FC = () => {
+  const plan = usePlan();
+  return (
+    <PaywallModal
+      visible={plan.paywallVisible}
+      onClose={plan.hidePaywall}
+      onUpgradeSuccess={plan.refreshPlan}
+    />
+  );
+};
 
 // Componente principal con tabs manuales
 const MainApp: React.FC<{ onLogout: () => void; refreshKey: number; tourProfile: { onboardingCompleted: boolean } | null }> = ({ onLogout, refreshKey, tourProfile }) => {
@@ -164,6 +178,9 @@ const MainApp: React.FC<{ onLogout: () => void; refreshKey: number; tourProfile:
         visible={chapiModalVisible}
         onClose={() => setChapiModalVisible(false)}
       />
+
+      {/* Paywall global */}
+      <GlobalPaywall />
 
       <StatusBar style="dark" />
     </SafeAreaView>
@@ -375,18 +392,20 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
-        <TourGuideProvider
-          borderRadius={8}
-          backdropColor="rgba(0,0,0,0.7)"
-          tooltipComponent={CustomTooltip}
-        >
-          <MainApp onLogout={handleLogout} refreshKey={refreshKey} tourProfile={userProfile} />
-        </TourGuideProvider>
-        <CompleteProfileModal
-          visible={showCompleteProfile}
-          onComplete={handleCompleteProfile}
-          onLogout={handleLogout}
-        />
+        <PlanProvider>
+          <TourGuideProvider
+            borderRadius={8}
+            backdropColor="rgba(0,0,0,0.7)"
+            tooltipComponent={CustomTooltip}
+          >
+            <MainApp onLogout={handleLogout} refreshKey={refreshKey} tourProfile={userProfile} />
+          </TourGuideProvider>
+          <CompleteProfileModal
+            visible={showCompleteProfile}
+            onComplete={handleCompleteProfile}
+            onLogout={handleLogout}
+          />
+        </PlanProvider>
       </ErrorBoundary>
     </SafeAreaProvider>
   );

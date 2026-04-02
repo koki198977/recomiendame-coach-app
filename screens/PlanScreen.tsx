@@ -16,6 +16,9 @@ import { ShoppingListModal } from '../components/ShoppingListModal';
 import { PlanGeneratingModal } from '../components/PlanGeneratingModal';
 import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
 import { LinearGradient } from 'expo-linear-gradient';
+import { usePlan } from '../hooks/usePlan';
+import { PaywallModal } from '../components/PaywallModal';
+import { LockedButton } from '../components/FeatureGate';
 
 const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -28,6 +31,7 @@ interface DayInfo {
 }
 
 export const PlanScreen: React.FC = () => {
+  const plan = usePlan();
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentWeek, setCurrentWeek] = useState<string>('');
@@ -724,22 +728,30 @@ export const PlanScreen: React.FC = () => {
       <View style={styles.mealPlan}>
         {/* Botón para regenerar día completo */}
         <View style={styles.dayActions}>
-          <TouchableOpacity 
-            style={[
-              styles.regenerateDayButton, 
-              isButtonDisabled && styles.buttonDisabled
-            ]}
-            onPress={handleRegenerateDay}
-            disabled={isButtonDisabled}
-          >
-            {regeneratingDay ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.regenerateDayButtonText}>
-                {!canModify ? '🔒 Semana pasada' : '🔄 Regenerar día completo'}
-              </Text>
-            )}
-          </TouchableOpacity>
+          {plan.isPro ? (
+            <TouchableOpacity 
+              style={[
+                styles.regenerateDayButton, 
+                isButtonDisabled && styles.buttonDisabled
+              ]}
+              onPress={handleRegenerateDay}
+              disabled={isButtonDisabled}
+            >
+              {regeneratingDay ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.regenerateDayButtonText}>
+                  {!canModify ? '🔒 Semana pasada' : '🔄 Regenerar día completo'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          ) : (
+            <LockedButton
+              label="Regenerar día completo"
+              feature="regenerate_meal"
+              plan={plan}
+            />
+          )}
         </View>
 
         {Object.entries(mealsByType).map(([slot, slotMeals]) => (
@@ -761,7 +773,10 @@ export const PlanScreen: React.FC = () => {
                 <TouchableOpacity 
                   key={`${slot}-${slotMealIndex}`} 
                   style={styles.mealItem}
-                  onPress={() => openIngredientsModal(meal)}
+                  onPress={() => {
+                    if (!plan.isPro) { plan.showPaywall('view_recipe'); return; }
+                    openIngredientsModal(meal);
+                  }}
                   activeOpacity={0.7}
                 >
                   <View style={styles.mealHeader}>
@@ -939,7 +954,11 @@ export const PlanScreen: React.FC = () => {
             {canModifyWeek(currentWeek) && (
               <TouchableOpacity 
                 style={styles.generateButton}
-                onPress={() => generatePlan(currentWeek)}
+                onPress={() => {
+                  const status = plan.checkFeature('plan_generate');
+                  if (!status.allowed) { plan.showPaywall('plan_generate'); return; }
+                  generatePlan(currentWeek);
+                }}
               >
                 <LinearGradient
                   colors={GRADIENTS.primary}
@@ -989,6 +1008,8 @@ export const PlanScreen: React.FC = () => {
         progress={generationProgress}
         type="nutrition"
       />
+
+      {/* Paywall global en App.tsx */}
     </View>
   );
 };

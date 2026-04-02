@@ -31,6 +31,8 @@ import WorkoutService from '../services/workoutService';
 import type { WorkoutPlan, WorkoutDay, Exercise } from '../types/nutrition';
 import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
 import { LinearGradient } from 'expo-linear-gradient';
+import { usePlan } from '../hooks/usePlan';
+import { PaywallModal } from '../components/PaywallModal';
 
 interface HomeScreenProps {
   onNavigateToWorkout: () => void;
@@ -41,6 +43,7 @@ interface HomeScreenProps {
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isTourActive, currentStep, nextStep, skipTour }) => {
+  const plan = usePlan();
   const [user, setUser] = React.useState<any>(null);
   const [userProfile, setUserProfile] = React.useState<any>(null);
   const [weeklyPlan, setWeeklyPlan] = React.useState<WeeklyPlan | null>(null);
@@ -700,7 +703,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
           )}
 
         {/* Insights Personalizados de Chapi */}
-        <ChapiInsightsCard refreshKey={chapiRefreshKey} />
+        {plan.isPro ? (
+          <ChapiInsightsCard refreshKey={chapiRefreshKey} />
+        ) : (
+          <TouchableOpacity
+            style={proStyles.proFeatureTeaser}
+            onPress={() => plan.showPaywall('chapi_v2')}
+            activeOpacity={0.8}
+          >
+            <Text style={proStyles.proFeatureTeaserIcon}>🧠</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={proStyles.proFeatureTeaserTitle}>Chapi Recomienda</Text>
+              <Text style={proStyles.proFeatureTeaserSub}>Insights personalizados con IA avanzada</Text>
+            </View>
+            <View style={proStyles.proBadgeSmall}><Text style={proStyles.proBadgeSmallText}>PRO</Text></View>
+          </TouchableOpacity>
+        )}
 
         {/* Escaneo Nutricional - siempre visible */}
         <View onLayout={handleZoneLayout(3)}>
@@ -709,7 +727,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
               <NutritionScannerCard
                 userProfile={userProfile}
                 onProductScanned={(analysis) => { console.log('Producto escaneado:', analysis.productName); }}
-                onMealAdded={refreshTodayMeals}
+                onMealAdded={() => {
+                  const status = plan.checkFeature('photo_meal_log');
+                  if (!status.allowed) { plan.showPaywall('photo_meal_log'); return; }
+                  refreshTodayMeals();
+                }}
               />
             </View>
           </TourGuideZone>
@@ -933,6 +955,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
           </TouchableOpacity>
         </TourGuideZone>
       </View>
+
+      {/* Paywall global en App.tsx */}
     </>
   );
 };
@@ -1741,4 +1765,30 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
   },
+});
+
+// Estilos adicionales para feature gating PRO
+const proStyles = StyleSheet.create({
+  proFeatureTeaser: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F8E9',
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+    gap: 12,
+  },
+  proFeatureTeaserIcon: { fontSize: 28 },
+  proFeatureTeaserTitle: { fontSize: 15, fontWeight: '700', color: '#2E7D32' },
+  proFeatureTeaserSub: { fontSize: 12, color: '#666', marginTop: 2 },
+  proBadgeSmall: {
+    backgroundColor: '#2E7D32',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  proBadgeSmallText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 });

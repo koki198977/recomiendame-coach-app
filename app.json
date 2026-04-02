@@ -27,7 +27,8 @@
         {
           "cameraPermission": "La app necesita acceso a tu cámara para escanear códigos de barras de productos."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "splash": {
       "image": "./assets/splash-icon.png",

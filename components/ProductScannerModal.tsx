@@ -50,11 +50,16 @@ export default function ProductScannerModal({
   const [labelGrams, setLabelGrams] = useState('100');
   const [isAnalyzingLabel, setIsAnalyzingLabel] = useState(false);
 
+  const scannedRef = React.useRef(false);
+
   const handleBarcodeFromCamera = async (scannedBarcode: string) => {
+    if (scannedRef.current) return; // evitar doble disparo del scanner
+    scannedRef.current = true;
     console.log('📷 Código escaneado desde cámara:', scannedBarcode);
     setShowCamera(false);
     setBarcode(scannedBarcode);
     await handleScanProduct(scannedBarcode);
+    scannedRef.current = false;
   };
 
   const handleScanProduct = async (inputBarcode?: string) => {
@@ -64,6 +69,8 @@ export default function ProductScannerModal({
       Alert.alert('Error', 'Por favor ingresa un código de barras válido');
       return;
     }
+
+    if (isLoading) return;
 
     setIsLoading(true);
     setChapiAdvice('');
@@ -244,6 +251,7 @@ Mi análisis automático dice que es: ${personalizedAnalysis.overallRating} (${p
     setLabelImageUri(null);
     setLabelAnalysis(null);
     setLabelGrams('100');
+    scannedRef.current = false;
   };
 
   const handleClose = () => {

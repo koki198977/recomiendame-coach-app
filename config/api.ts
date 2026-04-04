@@ -25,7 +25,6 @@ export const API_CONFIG = {
       FOODS: '/foods',
       FOOD_SEARCH: '/foods/search',
     },
-    // Mantenemos los endpoints de coaches por si los necesitas después
     COACHES: {
       LIST: '/coaches',
       SEARCH: '/coaches/search',
@@ -49,9 +48,13 @@ export const API_CONFIG = {
       GET_PLAN: '/workouts',
     },
     NUTRITION_ANALYSIS: {
-      SCAN_PRODUCT: '/nutrition/scan-product',
+      SCAN_PRODUCT: '/nutrition/products',
       SEARCH_PRODUCTS: '/nutrition/search-products',
       ANALYZE_MEAL: '/nutrition/analyze-meal',
+      SUBMIT_PRODUCT: '/nutrition/products',
+    },
+    INGREDIENT_SCANNER: {
+      SUGGEST: '/ingredient-scanner/suggest',
     },
   },
 };

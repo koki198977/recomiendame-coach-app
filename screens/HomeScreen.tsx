@@ -18,6 +18,7 @@ import { PlanGeneratingModal } from '../components/PlanGeneratingModal';
 import { ShoppingListModal } from '../components/ShoppingListModal';
 import { DailyCheckinModal } from '../components/DailyCheckinModal';
 import { LogMealModal } from '../components/LogMealModal';
+import { IngredientScannerModal } from '../components/IngredientScannerModal';
 import { ChapiInsightsCard } from '../components/ChapiInsightsCard';
 import NutritionScannerCard from '../components/NutritionScannerCard';
 import CacheService from '../services/cacheService';
@@ -60,6 +61,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
   const [loadingWorkout, setLoadingWorkout] = React.useState(false);
   const [todayMealsConsumed, setTodayMealsConsumed] = React.useState<any>(null);
   const [showLogMealModal, setShowLogMealModal] = React.useState(false);
+  const [showIngredientScanner, setShowIngredientScanner] = React.useState(false);
   const [showHydrationSetup, setShowHydrationSetup] = React.useState(false);
   const [showLogWater, setShowLogWater] = React.useState(false);
   const [hydrationKey, setHydrationKey] = React.useState(0); // Para forzar refresh
@@ -722,6 +724,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
           onLogPress={() => setShowLogWater(true)}
         />
 
+        {/* ¿Qué cocino? - Escáner de ingredientes */}
+        <TouchableOpacity
+          style={styles.ingredientScannerButton}
+          onPress={() => setShowIngredientScanner(true)}
+          activeOpacity={0.85}
+        >
+          <LinearGradient
+            colors={['#FF6B35', '#F7931E']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.ingredientScannerGradient}
+          >
+            <Image
+              source={require('../assets/chapi-3d-alimento.png')}
+              style={styles.ingredientScannerImage}
+              resizeMode="contain"
+            />
+            <View style={styles.ingredientScannerText}>
+              <Text style={styles.ingredientScannerTitle}>¿Qué cocino con esto?</Text>
+              <Text style={styles.ingredientScannerSubtitle}>Fotografía tus ingredientes y Chapix te sugiere platos 🍳</Text>
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+
         {/* Workout */}
         <View style={styles.workoutSection}>
           <Text style={styles.sectionTitle}>Entrenamiento de hoy</Text>
@@ -891,6 +917,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
         visible={showLogMealModal}
         onClose={() => setShowLogMealModal(false)}
         onSuccess={handleLogMealSuccess}
+      />
+
+      {/* Modal de escáner de ingredientes */}
+      <IngredientScannerModal
+        visible={showIngredientScanner}
+        onClose={() => setShowIngredientScanner(false)}
+        onMealAdded={refreshTodayMeals}
       />
 
       {/* Modal de configuración de hidratación */}
@@ -1568,6 +1601,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+  ingredientScannerButton: {
+    marginHorizontal: 20,
+    marginVertical: 8,
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...SHADOWS.card,
+  },
+  ingredientScannerGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  ingredientScannerImage: {
+    width: 56,
+    height: 56,
+  },
+  ingredientScannerText: {
+    flex: 1,
+  },
+  ingredientScannerTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: 'white',
+    marginBottom: 3,
+  },
+  ingredientScannerSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.9)',
+    lineHeight: 16,
   },
 
   // Nutrition Progress Card - Futuristic Design

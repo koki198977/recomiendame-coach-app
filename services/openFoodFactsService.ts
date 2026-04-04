@@ -10,6 +10,8 @@ import {
 } from '../types/openFoodFacts';
 import { UserProfile } from '../types/nutrition';
 import mockFoodDataService from './mockFoodDataService';
+import api from './api';
+import { API_CONFIG } from '../config/api';
 
 // Configuración específica para React Native
 axios.defaults.timeout = 15000;
@@ -159,7 +161,31 @@ class OpenFoodFactsService {
   async analyzeScannedProduct(request: ProductScanRequest): Promise<ProductScanResponse> {
     try {
       console.log(`🔬 Analizando producto escaneado: ${request.barcode}`);
-      
+
+      // 1. Buscar primero en el backend propio
+      try {
+        console.log('🏠 Buscando en backend propio...');
+        const backendResponse = await api.get(
+          `${API_CONFIG.ENDPOINTS.NUTRITION_ANALYSIS.SCAN_PRODUCT}/${request.barcode}`
+        );
+        if (backendResponse.data) {
+          console.log('✅ Producto encontrado en backend propio');
+          const analysis: NutritionalAnalysis = backendResponse.data;
+          if (request.userProfile) {
+            analysis.personalizedAnalysis = this.generatePersonalizedAnalysis(analysis, request.userProfile);
+          }
+          return { success: true, product: analysis };
+        }
+      } catch (backendError: any) {
+        // 404 = no existe, seguir con OpenFoodFacts
+        if (backendError?.response?.status !== 404) {
+          console.warn('⚠️ Error consultando backend propio:', backendError?.message);
+        } else {
+          console.log('🔍 No encontrado en backend, buscando en OpenFoodFacts...');
+        }
+      }
+
+      // 2. Fallback a OpenFoodFacts
       const productData = await this.getProductByBarcode(request.barcode);
       
       if (!productData || !productData.product) {
@@ -175,19 +201,12 @@ class OpenFoodFactsService {
 
       const analysis = this.convertToNutritionalAnalysis(productData);
       
-      // Agregar análisis personalizado si hay perfil de usuario
       if (request.userProfile) {
-        analysis.personalizedAnalysis = this.generatePersonalizedAnalysis(
-          analysis, 
-          request.userProfile
-        );
+        analysis.personalizedAnalysis = this.generatePersonalizedAnalysis(analysis, request.userProfile);
       }
 
       console.log('✅ Análisis completado');
-      return {
-        success: true,
-        product: analysis
-      };
+      return { success: true, product: analysis };
     } catch (error) {
       console.error('❌ Error analizando producto:', error);
       return {

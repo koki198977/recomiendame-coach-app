@@ -82,7 +82,7 @@ def enableMinifyInReleaseBuilds = (findProperty('android.enableMinifyInReleaseBu
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
 android {
-    ndkVersion rootProject.ext.ndkVersion
+    ndkVersion "28.0.13004108"
 
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
@@ -92,8 +92,8 @@ android {
         applicationId 'cl.recomiendameapp.coach'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 130
-        versionName "1.3.0"
+        versionCode 132
+        versionName "1.3.2"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
@@ -123,8 +123,7 @@ android {
     }
     packagingOptions {
         jniLibs {
-            def enableLegacyPackaging = findProperty('expo.useLegacyPackaging') ?: 'false'
-            useLegacyPackaging enableLegacyPackaging.toBoolean()
+            useLegacyPackaging false
         }
     }
     androidResources {

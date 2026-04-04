@@ -91,7 +91,8 @@ class ChapiService {
   async getInsights(): Promise<ChapiInsightsResponse> {
     try {
       const response = await api.get<ChapiInsightsResponse>(
-        API_CONFIG.ENDPOINTS.CHAPI.INSIGHTS
+        API_CONFIG.ENDPOINTS.CHAPI.INSIGHTS,
+        { timeout: API_CONFIG.LONG_TIMEOUT }
       );
       
       console.log('✅ Insights de Chapi 2.0:', response.data);

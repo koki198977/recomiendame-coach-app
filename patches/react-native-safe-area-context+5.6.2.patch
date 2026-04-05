@@ -1,0 +1,14 @@
+diff --git a/node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt b/node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt
+index 52450f0..4fc2476 100644
+--- a/node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt
++++ b/node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt
+@@ -1,6 +1,9 @@
+ cmake_minimum_required(VERSION 3.13)
+ set(CMAKE_VERBOSE_MAKEFILE ON)
+ 
++# 16 KB page size support (Android 15+)
++add_link_options("-Wl,-z,max-page-size=16384")
++
+ set(LIB_LITERAL safeareacontext)
+ set(LIB_TARGET_NAME react_codegen_${LIB_LITERAL})
+ 

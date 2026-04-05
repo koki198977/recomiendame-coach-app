@@ -1,0 +1,27 @@
+diff --git a/node_modules/react-native-screens/android/CMakeLists.txt b/node_modules/react-native-screens/android/CMakeLists.txt
+index 86ec079..4187fed 100644
+--- a/node_modules/react-native-screens/android/CMakeLists.txt
++++ b/node_modules/react-native-screens/android/CMakeLists.txt
+@@ -1,5 +1,8 @@
+ cmake_minimum_required(VERSION 3.9.0)
+ 
++# 16 KB page size support (Android 15+)
++add_link_options("-Wl,-z,max-page-size=16384")
++
+ project(rnscreens)
+ 
+ if(${RNS_NEW_ARCH_ENABLED})
+diff --git a/node_modules/react-native-screens/android/src/main/jni/CMakeLists.txt b/node_modules/react-native-screens/android/src/main/jni/CMakeLists.txt
+index 1b26dac..3950f94 100644
+--- a/node_modules/react-native-screens/android/src/main/jni/CMakeLists.txt
++++ b/node_modules/react-native-screens/android/src/main/jni/CMakeLists.txt
+@@ -1,6 +1,9 @@
+ cmake_minimum_required(VERSION 3.13)
+ set(CMAKE_VERBOSE_MAKEFILE ON)
+ 
++# 16 KB page size support (Android 15+)
++add_link_options("-Wl,-z,max-page-size=16384")
++
+ set(LIB_LITERAL rnscreens)
+ set(LIB_TARGET_NAME react_codegen_${LIB_LITERAL})
+ 

@@ -1,0 +1,13 @@
+diff --git a/node_modules/expo-av/android/CMakeLists.txt b/node_modules/expo-av/android/CMakeLists.txt
+index 6b5f52a..843b092 100644
+--- a/node_modules/expo-av/android/CMakeLists.txt
++++ b/node_modules/expo-av/android/CMakeLists.txt
+@@ -1,5 +1,8 @@
+ cmake_minimum_required(VERSION 3.4.1)
+ 
++# 16 KB page size support (Android 15+)
++add_link_options("-Wl,-z,max-page-size=16384")
++
+ project(expo-av)
+ 
+ set (CMAKE_VERBOSE_MAKEFILE ON)

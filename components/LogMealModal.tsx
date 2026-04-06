@@ -15,7 +15,6 @@ import {
   Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { Audio } from 'expo-av';
 import api from '../services/api';
 import { NutritionService } from '../services/nutritionService';
 import { SocialService } from '../services/socialService';
@@ -39,14 +38,9 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
 }) => {
   const [selectedSlot, setSelectedSlot] = useState<'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK'>('LUNCH');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [inputMethod, setInputMethod] = useState<'photo' | 'text' | 'audio'>('photo');
+  const [inputMethod, setInputMethod] = useState<'photo' | 'text'>('photo');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [textDescription, setTextDescription] = useState<string>('');
-  const [audioUri, setAudioUri] = useState<string | null>(null);
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [analyzed, setAnalyzed] = useState<any>(null);
@@ -86,127 +80,6 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
       return `${days[date.getDay()]} ${date.getDate()}`;
     }
   };
-
-  const startRecording = async () => {
-    try {
-      const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permiso denegado', 'Necesitamos acceso al micrófono.');
-        return;
-      }
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      // Configuración de grabación compatible con servicios de transcripción
-      const recordingOptions = {
-        android: {
-          extension: '.m4a',
-          outputFormat: Audio.AndroidOutputFormat.MPEG_4,
-          audioEncoder: Audio.AndroidAudioEncoder.AAC,
-          sampleRate: 44100,
-          numberOfChannels: 2,
-          bitRate: 128000,
-        },
-        ios: {
-          extension: '.m4a',
-          outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
-          audioQuality: Audio.IOSAudioQuality.HIGH,
-          sampleRate: 44100,
-          numberOfChannels: 2,
-          bitRate: 128000,
-          linearPCMBitDepth: 16,
-          linearPCMIsBigEndian: false,
-          linearPCMIsFloat: false,
-        },
-        web: {
-          mimeType: 'audio/webm',
-          bitsPerSecond: 128000,
-        },
-      };
-
-      const { recording } = await Audio.Recording.createAsync(recordingOptions);
-      
-      setRecording(recording);
-      setIsRecording(true);
-      
-      console.log('🎤 Recording started with format:', Platform.OS === 'ios' ? 'M4A (AAC)' : 'M4A');
-    } catch (err) {
-      console.error('Failed to start recording', err);
-      Alert.alert('Error', 'No se pudo iniciar la grabación');
-    }
-  };
-
-  const stopRecording = async () => {
-    if (!recording) return;
-
-    try {
-      setIsRecording(false);
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-      setAudioUri(uri);
-      setRecording(null);
-    } catch (err) {
-      console.error('Failed to stop recording', err);
-    }
-  };
-
-  const playAudio = async () => {
-    if (!audioUri) return;
-
-    try {
-      // Si ya hay un sonido reproduciéndose, detenerlo
-      if (sound) {
-        await sound.unloadAsync();
-        setSound(null);
-      }
-
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: audioUri },
-        { shouldPlay: true }
-      );
-      
-      setSound(newSound);
-      setIsPlaying(true);
-
-      // Escuchar cuando termine la reproducción
-      newSound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          setIsPlaying(false);
-        }
-      });
-    } catch (err) {
-      console.error('Failed to play audio', err);
-      Alert.alert('Error', 'No se pudo reproducir el audio');
-    }
-  };
-
-  const stopAudio = async () => {
-    if (sound) {
-      await sound.stopAsync();
-      setIsPlaying(false);
-    }
-  };
-
-  const deleteAudio = async () => {
-    if (sound) {
-      await sound.unloadAsync();
-      setSound(null);
-    }
-    setAudioUri(null);
-    setIsPlaying(false);
-  };
-
-  // Limpiar el sonido cuando se cierre el modal
-  useEffect(() => {
-    return () => {
-      if (sound) {
-        sound.unloadAsync();
-      }
-    };
-  }, [sound]);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -256,77 +129,12 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
 
       // Procesar según el método de entrada
       if (inputMethod === 'photo' && imageUri) {
-        // Subir imagen
         const uploadResult = await SocialService.uploadImage(imageUri);
         imageUrl = uploadResult.url;
       } else if (inputMethod === 'text' && textDescription.trim()) {
         description = textDescription.trim();
-      } else if (inputMethod === 'audio' && audioUri) {
-        // Subir audio y transcribir
-        
-        // Detectar la extensión del archivo
-        const uriParts = audioUri.split('.');
-        const fileExtension = uriParts[uriParts.length - 1].toLowerCase();
-        
-        // Mapear extensión a tipo MIME
-        const mimeTypes: { [key: string]: string } = {
-          'm4a': 'audio/m4a',
-          'mp4': 'audio/mp4',
-          'mp3': 'audio/mp3',
-          'wav': 'audio/wav',
-          'ogg': 'audio/ogg',
-        };
-        
-        const mimeType = mimeTypes[fileExtension] || 'audio/m4a';
-        const fileName = `audio.${fileExtension}`;
-        
-        console.log('📤 Preparing audio upload:', { 
-          uri: audioUri, 
-          type: mimeType, 
-          name: fileName,
-          extension: fileExtension 
-        });
-        
-        const formData = new FormData();
-        formData.append('audio', {
-          uri: audioUri,
-          type: mimeType,
-          name: fileName,
-        } as any);
-
-        console.log('📦 FormData created, sending to backend...');
-
-        try {
-          const transcriptionResponse = await api.post('/meals/transcribe-audio', formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          });
-          description = transcriptionResponse.data.transcription || transcriptionResponse.data.text || '';
-          
-          console.log('✅ Audio transcribed:', description);
-          
-          if (!description) {
-            Alert.alert('Error', 'No se pudo transcribir el audio. Intenta de nuevo.');
-            setUploading(false);
-            return;
-          }
-        } catch (transcribeError: any) {
-          console.error('❌ Error transcribing audio:', transcribeError);
-          console.error('Error response:', transcribeError.response?.data);
-          console.error('Error status:', transcribeError.response?.status);
-          
-          let errorMessage = 'No se pudo transcribir el audio. Intenta con texto o foto.';
-          if (transcribeError.response?.data?.message) {
-            errorMessage = transcribeError.response.data.message;
-          }
-          
-          Alert.alert('Error de transcripción', errorMessage);
-          setUploading(false);
-          return;
-        }
       } else {
-        Alert.alert('Error', 'Proporciona una foto, descripción o audio primero');
+        Alert.alert('Error', 'Proporciona una foto o descripción primero');
         setUploading(false);
         return;
       }
@@ -465,15 +273,8 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
   };
 
   const handleClose = () => {
-    // Limpiar audio si existe
-    if (sound) {
-      sound.unloadAsync();
-      setSound(null);
-    }
     setImageUri(null);
     setTextDescription('');
-    setAudioUri(null);
-    setIsPlaying(false);
     setAnalyzed(null);
     setSelectedDate(new Date());
     setInputMethod('photo');
@@ -577,34 +378,11 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[
-              styles.inputMethodButton,
-              inputMethod === 'text' && styles.inputMethodButtonActive,
-            ]}
+            style={[styles.inputMethodButton, inputMethod === 'text' && styles.inputMethodButtonActive]}
             onPress={() => setInputMethod('text')}
           >
             <Text style={styles.inputMethodIcon}>✍️</Text>
-            <Text style={[
-              styles.inputMethodText,
-              inputMethod === 'text' && styles.inputMethodTextActive,
-            ]}>
-              Texto
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.inputMethodButton,
-              inputMethod === 'audio' && styles.inputMethodButtonActive,
-            ]}
-            onPress={() => setInputMethod('audio')}
-          >
-            <Text style={styles.inputMethodIcon}>🎤</Text>
-            <Text style={[
-              styles.inputMethodText,
-              inputMethod === 'audio' && styles.inputMethodTextActive,
-            ]}>
-              Audio
-            </Text>
+            <Text style={[styles.inputMethodText, inputMethod === 'text' && styles.inputMethodTextActive]}>Texto</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -654,67 +432,11 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
             />
           </>
         )}
-
-        {inputMethod === 'audio' && (
-          <>
-            <Text style={styles.sectionTitle}>Graba un audio</Text>
-            <View style={styles.audioContainer}>
-              {!audioUri ? (
-                <TouchableOpacity
-                  style={[
-                    styles.recordButton,
-                    isRecording && styles.recordButtonActive,
-                  ]}
-                  onPress={isRecording ? stopRecording : startRecording}
-                >
-                  <Text style={styles.recordButtonIcon}>
-                    {isRecording ? '⏹️' : '🎤'}
-                  </Text>
-                  <Text style={styles.recordButtonText}>
-                    {isRecording ? 'Detener grabación' : 'Iniciar grabación'}
-                  </Text>
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.audioPreviewContainer}>
-                  <View style={styles.audioPreview}>
-                    <View style={styles.audioPreviewLeft}>
-                      <Text style={styles.audioPreviewIcon}>🎵</Text>
-                      <Text style={styles.audioPreviewText}>Audio grabado</Text>
-                    </View>
-                  </View>
-                  
-                  <View style={styles.audioControls}>
-                    <TouchableOpacity
-                      style={[styles.audioControlButton, styles.playButton]}
-                      onPress={isPlaying ? stopAudio : playAudio}
-                    >
-                      <Text style={styles.audioControlIcon}>
-                        {isPlaying ? '⏸️' : '▶️'}
-                      </Text>
-                      <Text style={styles.audioControlText}>
-                        {isPlaying ? 'Pausar' : 'Escuchar'}
-                      </Text>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity
-                      style={[styles.audioControlButton, styles.rerecordButton]}
-                      onPress={deleteAudio}
-                    >
-                      <Text style={styles.audioControlIcon}>🔄</Text>
-                      <Text style={styles.audioControlText}>Grabar de nuevo</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-            </View>
-          </>
-        )}
       </View>
 
       {/* Analyze button */}
-      {((inputMethod === 'photo' && imageUri) || 
-        (inputMethod === 'text' && textDescription.trim()) ||
-        (inputMethod === 'audio' && audioUri)) && !analyzed && (
+      {((inputMethod === 'photo' && imageUri) ||
+        (inputMethod === 'text' && textDescription.trim())) && !analyzed && (
         <TouchableOpacity
           style={[styles.analyzeButton, (analyzing || uploading) && styles.buttonDisabled]}
           onPress={handleAnalyze}
@@ -723,9 +445,7 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
           {uploading ? (
             <>
               <ActivityIndicator size="small" color="#fff" />
-              <Text style={styles.analyzeButtonText}>
-                {inputMethod === 'audio' ? 'Transcribiendo audio...' : 'Subiendo...'}
-              </Text>
+              <Text style={styles.analyzeButtonText}>Subiendo...</Text>
             </>
           ) : analyzing ? (
             <>

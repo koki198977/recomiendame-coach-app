@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,15 +7,19 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ProductScannerModal from './ProductScannerModal';
 import ProductToMealModal from './ProductToMealModal';
 import { NutritionalAnalysis } from '../types/openFoodFacts';
 import { UserProfile } from '../types/nutrition';
+import { usePlan } from '../hooks/usePlan';
+
+const SCAN_STORAGE_KEY = '@barcode_scan_count';
 
 interface NutritionScannerCardProps {
   userProfile?: UserProfile;
   onProductScanned?: (analysis: NutritionalAnalysis) => void;
-  onMealAdded?: () => void; // Nuevo callback para refresh
+  onMealAdded?: () => void;
 }
 
 export default function NutritionScannerCard({ 
@@ -26,13 +30,68 @@ export default function NutritionScannerCard({
   const [showScanner, setShowScanner] = useState(false);
   const [showMealModal, setShowMealModal] = useState(false);
   const [lastScannedProduct, setLastScannedProduct] = useState<NutritionalAnalysis | null>(null);
+  const { checkFeature, showPaywall, isPro } = usePlan();
+  const [todayScanCount, setTodayScanCount] = useState(0);
+
+  useEffect(() => {
+    loadTodayScanCount();
+  }, []);
+
+  const loadTodayScanCount = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(SCAN_STORAGE_KEY);
+      if (stored) {
+        const { count, date } = JSON.parse(stored);
+        const today = new Date().toDateString();
+        if (date === today) {
+          setTodayScanCount(count);
+        } else {
+          // Nuevo día, resetear
+          await AsyncStorage.setItem(SCAN_STORAGE_KEY, JSON.stringify({ count: 0, date: today }));
+          setTodayScanCount(0);
+        }
+      }
+    } catch {}
+  };
+
+  const incrementScanCount = async () => {
+    try {
+      const today = new Date().toDateString();
+      const stored = await AsyncStorage.getItem(SCAN_STORAGE_KEY);
+      let count = 0;
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        count = parsed.date === today ? parsed.count : 0;
+      }
+      const newCount = count + 1;
+      await AsyncStorage.setItem(SCAN_STORAGE_KEY, JSON.stringify({ count: newCount, date: today }));
+      setTodayScanCount(newCount);
+    } catch {}
+  };
+
+  const handleOpenScanner = async () => {
+    if (!isPro) {
+      try {
+        const today = new Date().toDateString();
+        const stored = await AsyncStorage.getItem(SCAN_STORAGE_KEY);
+        let count = 0;
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          count = parsed.date === today ? parsed.count : 0;
+        }
+        if (count >= 1) {
+          showPaywall('barcode_scan');
+          return;
+        }
+      } catch {}
+    }
+    setShowScanner(true);
+  };
 
   const handleProductAnalyzed = (analysis: NutritionalAnalysis) => {
     setLastScannedProduct(analysis);
     onProductScanned?.(analysis);
-    
-    // No mostrar popup, solo actualizar el estado para mostrar los botones en el modal
-    console.log('✅ Producto analizado:', analysis.productName);
+    incrementScanCount();
   };
 
   const getRatingColor = (rating?: string) => {
@@ -91,7 +150,7 @@ export default function NutritionScannerCard({
 
             <TouchableOpacity
               style={styles.scanButton}
-              onPress={() => setShowScanner(true)}
+              onPress={handleOpenScanner}
               activeOpacity={0.8}
             >
               <Ionicons name="camera" size={20} color="#667eea" />
@@ -102,7 +161,7 @@ export default function NutritionScannerCard({
 
             <TouchableOpacity
               style={styles.manualButton}
-              onPress={() => setShowScanner(true)}
+              onPress={handleOpenScanner}
               activeOpacity={0.8}
             >
               <Ionicons name="keypad" size={20} color="#667eea" />

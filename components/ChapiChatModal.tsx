@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ChapiService from '../services/chapiService';
 import { ChapiMessage, ChapiAction } from '../types/nutrition';
+import { usePlan } from '../hooks/usePlan';
 
 interface ChapiChatModalProps {
   visible: boolean;
@@ -34,6 +35,13 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
   const [isSyncing, setIsSyncing] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
+  const { checkFeature, showPaywall } = usePlan();
+  const chapiV2Status = checkFeature('chapi_v2');
+
+  const handleShowPaywall = () => {
+    onClose();
+    setTimeout(() => showPaywall('chapi_v2'), 400);
+  };
 
   // Cargar mensajes al abrir el modal
   useEffect(() => {
@@ -89,6 +97,11 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
 
   const handleSendMessage = async () => {
     if (!inputText.trim() || isLoading) return;
+
+    if (!chapiV2Status.allowed) {
+      handleShowPaywall();
+      return;
+    }
 
     const userMessage: ChapiMessage = {
       id: ChapiService.generateMessageId(),
@@ -344,26 +357,33 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
 
         {/* Input - Fixed at bottom */}
         <View style={[styles.inputContainer, { paddingBottom: insets.bottom + 12 }]}>
-          <TextInput
-            style={styles.input}
-            placeholder="Escribe cómo te sientes..."
-            value={inputText}
-            onChangeText={setInputText}
-            multiline
-            maxLength={500}
-            editable={!isLoading}
-            textAlignVertical="top"
-          />
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              (!inputText.trim() || isLoading) && styles.sendButtonDisabled,
-            ]}
-            onPress={handleSendMessage}
-            disabled={!inputText.trim() || isLoading}
-          >
-            <Text style={styles.sendButtonText}>➤</Text>
-          </TouchableOpacity>
+          {!chapiV2Status.allowed && (
+            <TouchableOpacity style={styles.proLockBanner} onPress={handleShowPaywall}>
+              <Text style={styles.proLockText}>🔒 Chapi 2.0 es exclusivo de PRO. Toca para desbloquear.</Text>
+            </TouchableOpacity>
+          )}
+          <View style={styles.inputRow}>
+            <TextInput
+              style={[styles.input, !chapiV2Status.allowed && styles.inputDisabled]}
+              placeholder={chapiV2Status.allowed ? 'Escribe cómo te sientes...' : 'Disponible en PRO'}
+              value={inputText}
+              onChangeText={setInputText}
+              multiline
+              maxLength={500}
+              editable={!isLoading && chapiV2Status.allowed}
+              textAlignVertical="top"
+            />
+            <TouchableOpacity
+              style={[
+                styles.sendButton,
+                (!inputText.trim() || isLoading || !chapiV2Status.allowed) && styles.sendButtonDisabled,
+              ]}
+              onPress={handleSendMessage}
+              disabled={!inputText.trim() || isLoading || !chapiV2Status.allowed}
+            >
+              <Text style={styles.sendButtonText}>➤</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -546,13 +566,33 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   inputContainer: {
-    flexDirection: 'row',
     paddingHorizontal: 12,
     paddingVertical: 12,
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
+  },
+  proLockBanner: {
+    backgroundColor: '#FFF8E1',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#FFD54F',
+  },
+  proLockText: {
+    fontSize: 13,
+    color: '#F57F17',
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  inputRow: {
+    flexDirection: 'row',
     alignItems: 'flex-end',
+  },
+  inputDisabled: {
+    backgroundColor: '#f0f0f0',
+    color: '#aaa',
   },
   input: {
     flex: 1,

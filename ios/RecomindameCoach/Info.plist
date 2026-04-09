@@ -27,6 +27,12 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
+          <string>coachapp</string>
+        </array>
+      </dict>
+      <dict>
+        <key>CFBundleURLSchemes</key>
+        <array>
           <string>cl.recomiendameapp.coach</string>
         </array>
       </dict>

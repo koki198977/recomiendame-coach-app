@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Text, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Linking from 'expo-linking';
 import { TourGuideProvider, TourGuideZone } from 'rn-tourguide';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LoginScreen } from './screens/LoginScreen';
@@ -343,10 +344,29 @@ export default function App() {
     }
   };
 
+  // Manejar deep links de pago (coachapp://subscription/success)
+  useEffect(() => {
+    const handleDeepLink = async (url: string) => {
+      if (url.includes('subscription/success')) {
+        Alert.alert('¡Suscripción activada!', 'Tu plan PRO ya está activo. ¡Disfrútalo!');
+        // Refrescar el plan para que la app refleje el nuevo estado
+        setRefreshKey(prev => prev + 1);
+      }
+    };
+
+    // URL inicial si la app fue abierta desde el deep link
+    Linking.getInitialURL().then(url => {
+      if (url) handleDeepLink(url);
+    });
+
+    // Escuchar deep links mientras la app está abierta
+    const subscription = Linking.addEventListener('url', ({ url }) => handleDeepLink(url));
+    return () => subscription.remove();
+  }, []);
+
   // Registrar callback para manejar 401 (token inválido/expirado)
   React.useEffect(() => {
     setUnauthorizedCallback(() => {
-      console.log('🔒 Sesión expirada - Redirigiendo al login');
       handleLogout();
     });
   }, []);

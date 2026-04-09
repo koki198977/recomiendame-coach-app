@@ -37,7 +37,7 @@ const PLANS = [
     period: '/mes',
     priceId: '4cd005247e2f4225981c9d46531ab700', // TEST vendedor prueba
     badge: 'Más popular',
-    saving: 'Ahorra 29%',
+    saving: '$59.988/año · Ahorra 29%',
   },
 ];
 

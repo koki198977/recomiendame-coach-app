@@ -5,6 +5,7 @@ import api from '../services/api';
 export type PlanType = 'FREE' | 'PRO';
 export type FeatureKey =
   | 'photo_meal_log'
+  | 'barcode_scan'
   | 'plan_generate'
   | 'workout_generate'
   | 'chapi_basic'

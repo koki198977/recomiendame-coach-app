@@ -22,6 +22,35 @@ import { NutritionService } from '../services/nutritionService';
 import { SocialService } from '../services/socialService';
 import { NutritionalAnalysis, PersonalizedNutritionAnalysis } from '../types/openFoodFacts';
 import { UserProfile } from '../types/nutrition';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { usePlan } from '../hooks/usePlan';
+
+const SCAN_STORAGE_KEY = '@barcode_scan_count';
+
+const checkScanAllowed = async (): Promise<boolean> => {
+  try {
+    const today = new Date().toDateString();
+    const stored = await AsyncStorage.getItem(SCAN_STORAGE_KEY);
+    if (!stored) return true;
+    const { count, date } = JSON.parse(stored);
+    return date !== today || count < 1;
+  } catch {
+    return true;
+  }
+};
+
+const incrementScanCount = async () => {
+  try {
+    const today = new Date().toDateString();
+    const stored = await AsyncStorage.getItem(SCAN_STORAGE_KEY);
+    let count = 0;
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      count = parsed.date === today ? parsed.count : 0;
+    }
+    await AsyncStorage.setItem(SCAN_STORAGE_KEY, JSON.stringify({ count: count + 1, date: today }));
+  } catch {}
+};
 
 interface ProductScannerModalProps {
   visible: boolean;
@@ -49,6 +78,23 @@ export default function ProductScannerModal({
   const [labelAnalysis, setLabelAnalysis] = useState<{ kcal: number; protein_g: number; carbs_g: number; fat_g: number; title: string } | null>(null);
   const [labelGrams, setLabelGrams] = useState('100');
   const [isAnalyzingLabel, setIsAnalyzingLabel] = useState(false);
+  const { isPro, showPaywall } = usePlan();
+
+  const handleOpenCamera = async () => {
+    if (!isPro) {
+      const allowed = await checkScanAllowed();
+      if (!allowed) { showPaywall('barcode_scan'); return; }
+    }
+    setShowCamera(true);
+  };
+
+  const handleAnalyzeBarcode = async () => {
+    if (!isPro) {
+      const allowed = await checkScanAllowed();
+      if (!allowed) { showPaywall('barcode_scan'); return; }
+    }
+    handleScanProduct();
+  };
 
   const handleBarcodeFromCamera = async (scannedBarcode: string) => {
     console.log('📷 Código escaneado desde cámara:', scannedBarcode);
@@ -90,6 +136,7 @@ export default function ProductScannerModal({
         }
         
         onProductAnalyzed?.(response.product);
+        incrementScanCount();
       } else {
         Alert.alert(
           'Producto no encontrado',
@@ -406,7 +453,7 @@ Mi análisis automático dice que es: ${personalizedAnalysis.overallRating} (${p
               {/* Botón principal de cámara */}
               <TouchableOpacity 
                 style={styles.primaryCameraButton} 
-                onPress={() => setShowCamera(true)}
+                onPress={handleOpenCamera}
               >
                 <LinearGradient
                   colors={['#667eea', '#764ba2']}
@@ -442,7 +489,7 @@ Mi análisis automático dice que es: ${personalizedAnalysis.overallRating} (${p
                 </View>
                 <TouchableOpacity
                   style={[styles.scanButton, isLoading && styles.scanButtonDisabled]}
-                  onPress={() => handleScanProduct()}
+                  onPress={handleAnalyzeBarcode}
                   disabled={isLoading}
                 >
                   {isLoading ? (

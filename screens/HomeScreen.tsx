@@ -840,26 +840,34 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
             {todayMealsConsumed?.logs && todayMealsConsumed.logs.length > 0 ? (
               todayMealsConsumed.logs.map((log: any, index: number) => (
                 <View key={index} style={styles.mealCard}>
-                  <View style={styles.mealHeader}>
-                    <View style={styles.mealHeaderLeft}>
-                      <Text style={styles.mealTime}>{getMealTypeLabel(log.slot)}</Text>
-                      {log.fromPlan && <View style={styles.fromPlanBadge}><Text style={styles.fromPlanText}>Plan</Text></View>}
+                  {log.imageUrl && (
+                    <Image
+                      source={{ uri: log.imageUrl }}
+                      style={styles.mealImage}
+                      resizeMode="cover"
+                    />
+                  )}
+                  <View style={styles.mealCardContent}>
+                    <View style={styles.mealHeader}>
+                      <View style={styles.mealHeaderLeft}>
+                        <Text style={styles.mealTime}>{getMealTypeLabel(log.slot)}</Text>
+                        {log.fromPlan && <View style={styles.fromPlanBadge}><Text style={styles.fromPlanText}>Plan</Text></View>}
+                      </View>
+                      <View style={styles.mealHeaderRight}>
+                        <Text style={styles.mealCalories}>{log.kcal} kcal</Text>
+                        <TouchableOpacity onPress={() => handleDeleteMeal(log.id)} style={styles.deleteMealButton}>
+                          <Text style={styles.deleteMealIcon}>🗑️</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                    <View style={styles.mealHeaderRight}>
-                      <Text style={styles.mealCalories}>{log.kcal} kcal</Text>
-                      <TouchableOpacity onPress={() => handleDeleteMeal(log.id)} style={styles.deleteMealButton}>
-                        <Text style={styles.deleteMealIcon}>🗑️</Text>
-                      </TouchableOpacity>
+                    <Text style={styles.mealDescription}>{log.title}</Text>
+                    <View style={styles.mealMacros}>
+                      <Text style={styles.mealMacroText}>P: {log.protein_g}g</Text>
+                      <Text style={styles.mealMacroText}>C: {log.carbs_g}g</Text>
+                      <Text style={styles.mealMacroText}>G: {log.fat_g}g</Text>
                     </View>
+                    {log.notes && <Text style={styles.mealNotes}>💡 {log.notes}</Text>}
                   </View>
-                  <Text style={styles.mealDescription}>{log.title}</Text>
-                  <View style={styles.mealMacros}>
-                    <Text style={styles.mealMacroText}>P: {log.protein_g}g</Text>
-                    <Text style={styles.mealMacroText}>C: {log.carbs_g}g</Text>
-                    <Text style={styles.mealMacroText}>G: {log.fat_g}g</Text>
-                  </View>
-                  {log.imageUrl && <View style={styles.mealImageContainer}><Text style={styles.mealImageIcon}>📸</Text><Text style={styles.mealImageText}>Con foto</Text></View>}
-                  {log.notes && <Text style={styles.mealNotes}>💡 {log.notes}</Text>}
                 </View>
               ))
             ) : (
@@ -913,6 +921,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
         visible={showLogMealModal}
         onClose={() => setShowLogMealModal(false)}
         onSuccess={handleLogMealSuccess}
+        existingMeals={todayMealsConsumed?.logs ?? []}
       />
 
       {/* Modal de configuración de hidratación */}
@@ -1027,12 +1036,21 @@ const styles = StyleSheet.create({
   },
   mealCard: {
     backgroundColor: COLORS.card,
-    padding: 20,
     borderRadius: 20,
     marginBottom: 16,
     ...SHADOWS.card,
+    overflow: 'hidden',
     borderLeftWidth: 4,
     borderLeftColor: COLORS.primaryStart,
+  },
+  mealImage: {
+    width: '100%',
+    height: 180,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  mealCardContent: {
+    padding: 16,
   },
   
   // Text Styles

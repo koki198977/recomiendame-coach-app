@@ -2,6 +2,7 @@
   "expo": {
     "name": "Recomiéndame Coach",
     "slug": "recomiendame-coach-app",
+    "scheme": "coachapp",
     "version": "1.2.9",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -63,6 +64,18 @@
       ],
       "softwareKeyboardLayoutMode": "pan",
       "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "coachapp"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
         {
           "action": "VIEW",
           "data": [

@@ -39,11 +39,30 @@
     "rn-tourguide": "^3.3.2"
   },
   "devDependencies": {
+    "@testing-library/jest-native": "^5.4.3",
+    "@testing-library/react-native": "^13.3.3",
     "@types/react": "~19.1.0",
     "@types/react-native": "^0.72.8",
     "fast-check": "^4.6.0",
+    "jest": "^30.3.0",
+    "jest-expo": "^55.0.14",
     "patch-package": "^8.0.1",
+    "react-test-renderer": "^19.1.0",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "jest": {
+    "preset": "jest-expo",
+    "transformIgnorePatterns": [
+      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg)"
+    ],
+    "setupFiles": [
+      "<rootDir>/jest.setup.js"
+    ],
+    "moduleNameMapper": {
+      "^expo/src/winter$": "<rootDir>/__mocks__/expo-winter.js",
+      "^expo/src/winter/(.*)$": "<rootDir>/__mocks__/expo-winter.js",
+      "^expo/src/async-require/(.*)$": "<rootDir>/__mocks__/expo-winter.js"
+    }
+  }
 }

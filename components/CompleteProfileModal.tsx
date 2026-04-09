@@ -676,7 +676,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <KeyboardAvoidingView 
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior="padding"
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <View style={styles.modalContainer}>
@@ -730,6 +730,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
               contentContainerStyle={styles.scrollContent}
               keyboardShouldPersistTaps="handled"
               scrollEventThrottle={16}
+              nestedScrollEnabled={true}
             >
           {/* Step 1: Welcome */}
           {currentStep === 0 && (

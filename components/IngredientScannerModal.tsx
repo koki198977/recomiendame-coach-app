@@ -35,6 +35,7 @@ interface DishSuggestion {
   compatibility: string;
   ingredients_used: string[];
   steps: string[];
+  how_to_cook?: string;
   chapix_note: string;
 }
 
@@ -322,14 +323,15 @@ export const IngredientScannerModal: React.FC<IngredientScannerModalProps> = ({
               <Text style={styles.ingredientsList}>{dish.ingredients_used.join(', ')}</Text>
             </View>
 
-            {dish.steps.length > 0 && (
+            {(dish.steps.length > 0 || dish.how_to_cook) && (
               <View style={styles.stepsContainer}>
-                {dish.steps.slice(0, 3).map((s, si) => (
+                <Text style={styles.stepsTitle}>📋 Preparación</Text>
+                {dish.how_to_cook ? (
+                  <Text style={styles.howToCook}>{dish.how_to_cook}</Text>
+                ) : null}
+                {dish.steps.map((s, si) => (
                   <Text key={si} style={styles.stepItem}>{si + 1}. {s}</Text>
                 ))}
-                {dish.steps.length > 3 && (
-                  <Text style={styles.stepsMore}>+{dish.steps.length - 3} pasos más</Text>
-                )}
               </View>
             )}
 
@@ -493,8 +495,9 @@ const styles = StyleSheet.create({
   ingredientsLabel: { fontSize: 12, color: '#888', fontWeight: '600' },
   ingredientsList: { fontSize: 12, color: '#555', flex: 1 },
   stepsContainer: { backgroundColor: 'white', borderRadius: 10, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: '#e8ecff' },
+  stepsTitle: { fontSize: 13, fontWeight: '700', color: '#1a1a1a', marginBottom: 8 },
+  howToCook: { fontSize: 13, color: '#444', lineHeight: 20, marginBottom: 8, fontStyle: 'italic' },
   stepItem: { fontSize: 12, color: '#444', lineHeight: 18, marginBottom: 4 },
-  stepsMore: { fontSize: 11, color: '#888', fontStyle: 'italic', marginTop: 2 },
   chooseDishButton: { borderRadius: 12, overflow: 'hidden' },
   chooseDishGradient: { paddingVertical: 12, alignItems: 'center' },
   chooseDishText: { fontSize: 15, fontWeight: '700', color: 'white' },

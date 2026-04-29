@@ -516,6 +516,7 @@ export interface GenerateWorkoutRequest {
   environment?: WorkoutEnvironment;
   sportName?: string;
   startDayIndex?: number; // 1 = Lunes, 2 = Martes, ..., 7 = Domingo
+  equipmentImageUrls?: string[]; // URLs de imágenes de equipamiento subidas
 }
 
 export interface GenerateWorkoutResponse {

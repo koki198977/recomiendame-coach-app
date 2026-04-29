@@ -252,6 +252,11 @@ export const SocialScreen: React.FC = () => {
     );
   };
 
+  const handlePostDeleted = (postId: string) => {
+    // Eliminar el post del estado local
+    setPosts((prevPosts) => prevPosts.filter((post) => post.id !== postId));
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
@@ -358,6 +363,7 @@ export const SocialScreen: React.FC = () => {
                 post={post}
                 onPostUpdate={handlePostUpdate}
                 onCommentPress={handleCommentPress}
+                onDelete={handlePostDeleted}
                 isMyPost={feedType === "mine" || isMyPost(post)}
                 showFollowButton={false}
                 isFollowingAuthor={isFollowingAuthor(post)}

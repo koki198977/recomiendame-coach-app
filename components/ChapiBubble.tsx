@@ -16,9 +16,10 @@ import { TourGuideZone } from 'rn-tourguide';
 interface ChapiBubbleProps {
   onPress: () => void;
   unreadCount?: number;
+  tabBarHeight?: number;
 }
 
-export const ChapiBubble: React.FC<ChapiBubbleProps> = ({ onPress, unreadCount = 0 }) => {
+export const ChapiBubble: React.FC<ChapiBubbleProps> = ({ onPress, unreadCount = 0, tabBarHeight = 90 }) => {
   const insets = useSafeAreaInsets();
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
   const blinkAnim = React.useRef(new Animated.Value(1)).current;
@@ -129,7 +130,7 @@ export const ChapiBubble: React.FC<ChapiBubbleProps> = ({ onPress, unreadCount =
       style={[
         styles.container,
         {
-          bottom: 100 + insets.bottom,
+          bottom: tabBarHeight + 10,
           opacity: fadeAnim,
         },
       ]}

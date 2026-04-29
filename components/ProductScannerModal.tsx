@@ -22,6 +22,7 @@ import { NutritionService } from '../services/nutritionService';
 import { SocialService } from '../services/socialService';
 import { NutritionalAnalysis, PersonalizedNutritionAnalysis } from '../types/openFoodFacts';
 import { UserProfile } from '../types/nutrition';
+import { usePlan } from '../hooks/usePlan';
 
 interface ProductScannerModalProps {
   visible: boolean;
@@ -49,6 +50,19 @@ export default function ProductScannerModal({
   const [labelAnalysis, setLabelAnalysis] = useState<{ kcal: number; protein_g: number; carbs_g: number; fat_g: number; title: string } | null>(null);
   const [labelGrams, setLabelGrams] = useState('100');
   const [isAnalyzingLabel, setIsAnalyzingLabel] = useState(false);
+  const { checkFeature, showPaywall } = usePlan();
+
+  const handleOpenCamera = () => {
+    const status = checkFeature('barcode_scan');
+    if (!status.allowed) { showPaywall('barcode_scan'); return; }
+    setShowCamera(true);
+  };
+
+  const handleAnalyzeBarcode = () => {
+    const status = checkFeature('barcode_scan');
+    if (!status.allowed) { showPaywall('barcode_scan'); return; }
+    handleScanProduct();
+  };
 
   const scannedRef = React.useRef(false);
 
@@ -414,7 +428,7 @@ Mi análisis automático dice que es: ${personalizedAnalysis.overallRating} (${p
               {/* Botón principal de cámara */}
               <TouchableOpacity 
                 style={styles.primaryCameraButton} 
-                onPress={() => setShowCamera(true)}
+                onPress={handleOpenCamera}
               >
                 <LinearGradient
                   colors={['#667eea', '#764ba2']}
@@ -450,7 +464,7 @@ Mi análisis automático dice que es: ${personalizedAnalysis.overallRating} (${p
                 </View>
                 <TouchableOpacity
                   style={[styles.scanButton, isLoading && styles.scanButtonDisabled]}
-                  onPress={() => handleScanProduct()}
+                  onPress={handleAnalyzeBarcode}
                   disabled={isLoading}
                 >
                   {isLoading ? (

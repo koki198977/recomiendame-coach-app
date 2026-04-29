@@ -11,11 +11,12 @@ import ProductScannerModal from './ProductScannerModal';
 import ProductToMealModal from './ProductToMealModal';
 import { NutritionalAnalysis } from '../types/openFoodFacts';
 import { UserProfile } from '../types/nutrition';
+import { usePlan } from '../hooks/usePlan';
 
 interface NutritionScannerCardProps {
   userProfile?: UserProfile;
   onProductScanned?: (analysis: NutritionalAnalysis) => void;
-  onMealAdded?: () => void; // Nuevo callback para refresh
+  onMealAdded?: () => void;
 }
 
 export default function NutritionScannerCard({ 
@@ -26,13 +27,17 @@ export default function NutritionScannerCard({
   const [showScanner, setShowScanner] = useState(false);
   const [showMealModal, setShowMealModal] = useState(false);
   const [lastScannedProduct, setLastScannedProduct] = useState<NutritionalAnalysis | null>(null);
+  const { checkFeature, showPaywall } = usePlan();
+
+  const handleOpenScanner = () => {
+    const status = checkFeature('barcode_scan');
+    if (!status.allowed) { showPaywall('barcode_scan'); return; }
+    setShowScanner(true);
+  };
 
   const handleProductAnalyzed = (analysis: NutritionalAnalysis) => {
     setLastScannedProduct(analysis);
     onProductScanned?.(analysis);
-    
-    // No mostrar popup, solo actualizar el estado para mostrar los botones en el modal
-    console.log('✅ Producto analizado:', analysis.productName);
   };
 
   const getRatingColor = (rating?: string) => {
@@ -91,7 +96,7 @@ export default function NutritionScannerCard({
 
             <TouchableOpacity
               style={styles.scanButton}
-              onPress={() => setShowScanner(true)}
+              onPress={handleOpenScanner}
               activeOpacity={0.8}
             >
               <Ionicons name="camera" size={20} color="#667eea" />
@@ -102,7 +107,7 @@ export default function NutritionScannerCard({
 
             <TouchableOpacity
               style={styles.manualButton}
-              onPress={() => setShowScanner(true)}
+              onPress={handleOpenScanner}
               activeOpacity={0.8}
             >
               <Ionicons name="keypad" size={20} color="#667eea" />

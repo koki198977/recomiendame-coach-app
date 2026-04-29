@@ -28,10 +28,50 @@ class OpenFoodFactsService {
 
   /**
    * Obtener información de un producto por código de barras
+   * Primero consulta el backend, si no existe va a OpenFoodFacts y guarda el resultado
    */
   async getProductByBarcode(barcode: string): Promise<OpenFoodFactsProduct | null> {
     try {
       console.log(`🔍 Buscando producto con código: ${barcode}`);
+
+      // 1. Consultar primero el backend
+      try {
+        const backendResponse = await api.get(`/nutrition/products/${barcode}`);
+        if (backendResponse.data) {
+          console.log('✅ Producto encontrado en backend:', backendResponse.data.productName);
+          // Convertir formato del backend al formato OpenFoodFacts esperado
+          const p = backendResponse.data;
+          return {
+            status: 1,
+            product: {
+              product_name: p.productName,
+              brands: p.brand,
+              image_url: p.imageUrl,
+              ingredients_text: p.ingredients,
+              allergens_tags: p.allergens ? [p.allergens] : [],
+              nutriments: {
+                energy_100g: (p.nutritionPer100g?.calories || 0) * 4.184,
+                'energy-kcal_100g': p.nutritionPer100g?.calories || 0,
+                proteins_100g: p.nutritionPer100g?.protein || 0,
+                carbohydrates_100g: p.nutritionPer100g?.carbohydrates || 0,
+                fat_100g: p.nutritionPer100g?.fat || 0,
+                'saturated-fat_100g': p.nutritionPer100g?.saturatedFat || 0,
+                sugars_100g: p.nutritionPer100g?.sugar || 0,
+                sodium_100g: p.nutritionPer100g?.sodium || 0,
+              },
+              nutriscore_grade: p.scores?.nutriscore?.grade,
+              nova_group: p.scores?.novaGroup,
+              code: barcode,
+            },
+          } as OpenFoodFactsProduct;
+        }
+      } catch (backendError: any) {
+        if (backendError?.response?.status !== 404) {
+          console.warn('⚠️ Error consultando backend, continuando con OpenFoodFacts:', backendError.message);
+        } else {
+          console.log('📭 Producto no encontrado en backend, consultando OpenFoodFacts...');
+        }
+      }
       
       // Intentar con diferentes URLs si la primera falla
       const urls = [
@@ -58,7 +98,41 @@ class OpenFoodFactsService {
           console.log(`📡 Respuesta recibida. Status: ${response.status}`);
 
           if (response.status === 200 && response.data.status === 1 && response.data.product) {
-            console.log('✅ Producto encontrado:', response.data.product.product_name || 'Sin nombre');
+            console.log('✅ Producto encontrado en OpenFoodFacts:', response.data.product.product_name || 'Sin nombre');
+            // Guardar en backend para futuras consultas
+            const p = response.data.product;
+            const savePayload = {
+              barcode,
+              productName: p.product_name || 'Producto sin nombre',
+              brand: p.brands || null,
+              imageUrl: p.image_front_url || p.image_url || null,
+              ingredients: p.ingredients_text_es || p.ingredients_text || null,
+              allergens: (p.allergens_tags || []).join(', '),
+              nutritionPer100g: {
+                calories: p.nutriments?.['energy-kcal_100g'] || 0,
+                protein: p.nutriments?.proteins_100g || 0,
+                carbohydrates: p.nutriments?.carbohydrates_100g || 0,
+                fat: p.nutriments?.fat_100g || 0,
+                saturatedFat: p.nutriments?.['saturated-fat_100g'] || 0,
+                sugar: p.nutriments?.sugars_100g || 0,
+                fiber: p.nutriments?.fiber_100g || 0,
+                sodium: p.nutriments?.sodium_100g || 0,
+              },
+              scores: {
+                nutriscore: p.nutriscore_grade ? { grade: p.nutriscore_grade.toUpperCase() } : null,
+                novaGroup: p.nova_group || null,
+              },
+            };
+            console.log('📦 Payload enviado al backend:', JSON.stringify(savePayload, null, 2));
+            try {
+              await api.post('/nutrition/products', savePayload);
+              console.log('💾 Producto guardado en backend');
+            } catch (saveError: any) {
+              if (saveError?.response?.status !== 409) {
+                console.warn('⚠️ No se pudo guardar en backend:', saveError.message);
+                console.warn('⚠️ Respuesta del backend:', JSON.stringify(saveError?.response?.data, null, 2));
+              }
+            }
             return response.data;
           } else if (response.status === 200 && response.data.status === 0) {
             console.log('❌ Producto no encontrado en la base de datos');
@@ -203,6 +277,24 @@ class OpenFoodFactsService {
       
       if (request.userProfile) {
         analysis.personalizedAnalysis = this.generatePersonalizedAnalysis(analysis, request.userProfile);
+      }
+
+      // Guardar en backend para caché futura
+      try {
+        await api.post(API_CONFIG.ENDPOINTS.NUTRITION_ANALYSIS.SUBMIT_PRODUCT, {
+          barcode: analysis.barcode,
+          productName: analysis.productName,
+          brand: analysis.brand,
+          imageUrl: analysis.imageUrl,
+          ingredients: analysis.ingredients,
+          allergens: analysis.allergens,
+          nutritionPer100g: analysis.nutritionPer100g,
+          scores: analysis.scores,
+        });
+        console.log('💾 Producto guardado en backend para caché');
+      } catch (saveError: any) {
+        // No bloquear si falla el guardado
+        console.log('⚠️ No se pudo cachear el producto:', saveError?.message);
       }
 
       console.log('✅ Análisis completado');

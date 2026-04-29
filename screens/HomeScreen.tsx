@@ -32,6 +32,8 @@ import WorkoutService from '../services/workoutService';
 import type { WorkoutPlan, WorkoutDay, Exercise } from '../types/nutrition';
 import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
 import { LinearGradient } from 'expo-linear-gradient';
+import { usePlan } from '../hooks/usePlan';
+import { PaywallModal } from '../components/PaywallModal';
 
 interface HomeScreenProps {
   onNavigateToWorkout: () => void;
@@ -42,6 +44,7 @@ interface HomeScreenProps {
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isTourActive, currentStep, nextStep, skipTour }) => {
+  const plan = usePlan();
   const [user, setUser] = React.useState<any>(null);
   const [userProfile, setUserProfile] = React.useState<any>(null);
   const [weeklyPlan, setWeeklyPlan] = React.useState<WeeklyPlan | null>(null);
@@ -702,7 +705,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
           )}
 
         {/* Insights Personalizados de Chapi */}
-        <ChapiInsightsCard refreshKey={chapiRefreshKey} />
+        {plan.isPro ? (
+          <ChapiInsightsCard refreshKey={chapiRefreshKey} />
+        ) : (
+          <TouchableOpacity
+            style={proStyles.proFeatureTeaser}
+            onPress={() => plan.showPaywall('chapi_v2')}
+            activeOpacity={0.8}
+          >
+            <Text style={proStyles.proFeatureTeaserIcon}>🧠</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={proStyles.proFeatureTeaserTitle}>Chapi Recomienda</Text>
+              <Text style={proStyles.proFeatureTeaserSub}>Insights personalizados con IA avanzada</Text>
+            </View>
+            <View style={proStyles.proBadgeSmall}><Text style={proStyles.proBadgeSmallText}>PRO</Text></View>
+          </TouchableOpacity>
+        )}
 
         {/* Escaneo Nutricional - siempre visible */}
         <View onLayout={handleZoneLayout(3)}>
@@ -711,7 +729,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
               <NutritionScannerCard
                 userProfile={userProfile}
                 onProductScanned={(analysis) => { console.log('Producto escaneado:', analysis.productName); }}
-                onMealAdded={refreshTodayMeals}
+                onMealAdded={() => {
+                  const status = plan.checkFeature('photo_meal_log');
+                  if (!status.allowed) { plan.showPaywall('photo_meal_log'); return; }
+                  refreshTodayMeals();
+                }}
               />
             </View>
           </TourGuideZone>
@@ -724,10 +746,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
           onLogPress={() => setShowLogWater(true)}
         />
 
-        {/* ¿Qué cocino? - Escáner de ingredientes */}
+        {/* ¿Qué cocino? - Escáner de ingredientes - Solo PRO */}
         <TouchableOpacity
           style={styles.ingredientScannerButton}
-          onPress={() => setShowIngredientScanner(true)}
+          onPress={() => plan.isPro ? setShowIngredientScanner(true) : plan.showPaywall('view_recipe')}
           activeOpacity={0.85}
         >
           <LinearGradient
@@ -743,7 +765,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
             />
             <View style={styles.ingredientScannerText}>
               <Text style={styles.ingredientScannerTitle}>¿Qué cocino con esto?</Text>
-              <Text style={styles.ingredientScannerSubtitle}>Fotografía tus ingredientes y Chapix te sugiere platos 🍳</Text>
+              <Text style={styles.ingredientScannerSubtitle}>
+                {plan.isPro
+                  ? 'Fotografía tus ingredientes y Chapix te sugiere platos 🍳'
+                  : '🔒 Disponible en PRO — toca para desbloquear'}
+              </Text>
             </View>
           </LinearGradient>
         </TouchableOpacity>
@@ -844,26 +870,34 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
             {todayMealsConsumed?.logs && todayMealsConsumed.logs.length > 0 ? (
               todayMealsConsumed.logs.map((log: any, index: number) => (
                 <View key={index} style={styles.mealCard}>
-                  <View style={styles.mealHeader}>
-                    <View style={styles.mealHeaderLeft}>
-                      <Text style={styles.mealTime}>{getMealTypeLabel(log.slot)}</Text>
-                      {log.fromPlan && <View style={styles.fromPlanBadge}><Text style={styles.fromPlanText}>Plan</Text></View>}
+                  {log.imageUrl && (
+                    <Image
+                      source={{ uri: log.imageUrl }}
+                      style={styles.mealImage}
+                      resizeMode="cover"
+                    />
+                  )}
+                  <View style={styles.mealCardContent}>
+                    <View style={styles.mealHeader}>
+                      <View style={styles.mealHeaderLeft}>
+                        <Text style={styles.mealTime}>{getMealTypeLabel(log.slot)}</Text>
+                        {log.fromPlan && <View style={styles.fromPlanBadge}><Text style={styles.fromPlanText}>Plan</Text></View>}
+                      </View>
+                      <View style={styles.mealHeaderRight}>
+                        <Text style={styles.mealCalories}>{log.kcal} kcal</Text>
+                        <TouchableOpacity onPress={() => handleDeleteMeal(log.id)} style={styles.deleteMealButton}>
+                          <Text style={styles.deleteMealIcon}>🗑️</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                    <View style={styles.mealHeaderRight}>
-                      <Text style={styles.mealCalories}>{log.kcal} kcal</Text>
-                      <TouchableOpacity onPress={() => handleDeleteMeal(log.id)} style={styles.deleteMealButton}>
-                        <Text style={styles.deleteMealIcon}>🗑️</Text>
-                      </TouchableOpacity>
+                    <Text style={styles.mealDescription}>{log.title}</Text>
+                    <View style={styles.mealMacros}>
+                      <Text style={styles.mealMacroText}>P: {log.protein_g}g</Text>
+                      <Text style={styles.mealMacroText}>C: {log.carbs_g}g</Text>
+                      <Text style={styles.mealMacroText}>G: {log.fat_g}g</Text>
                     </View>
+                    {log.notes && <Text style={styles.mealNotes}>💡 {log.notes}</Text>}
                   </View>
-                  <Text style={styles.mealDescription}>{log.title}</Text>
-                  <View style={styles.mealMacros}>
-                    <Text style={styles.mealMacroText}>P: {log.protein_g}g</Text>
-                    <Text style={styles.mealMacroText}>C: {log.carbs_g}g</Text>
-                    <Text style={styles.mealMacroText}>G: {log.fat_g}g</Text>
-                  </View>
-                  {log.imageUrl && <View style={styles.mealImageContainer}><Text style={styles.mealImageIcon}>📸</Text><Text style={styles.mealImageText}>Con foto</Text></View>}
-                  {log.notes && <Text style={styles.mealNotes}>💡 {log.notes}</Text>}
                 </View>
               ))
             ) : (
@@ -917,6 +951,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
         visible={showLogMealModal}
         onClose={() => setShowLogMealModal(false)}
         onSuccess={handleLogMealSuccess}
+        existingMeals={todayMealsConsumed?.logs ?? []}
       />
 
       {/* Modal de escáner de ingredientes */}
@@ -966,6 +1001,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
           </TouchableOpacity>
         </TourGuideZone>
       </View>
+
+      {/* Paywall global en App.tsx */}
     </>
   );
 };
@@ -1036,12 +1073,21 @@ const styles = StyleSheet.create({
   },
   mealCard: {
     backgroundColor: COLORS.card,
-    padding: 20,
     borderRadius: 20,
     marginBottom: 16,
     ...SHADOWS.card,
+    overflow: 'hidden',
     borderLeftWidth: 4,
     borderLeftColor: COLORS.primaryStart,
+  },
+  mealImage: {
+    width: '100%',
+    height: 180,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  mealCardContent: {
+    padding: 16,
   },
   
   // Text Styles
@@ -1156,7 +1202,7 @@ const styles = StyleSheet.create({
   floatingButtonContainer: {
     position: 'absolute',
     right: 20,
-    bottom: 90,
+    bottom: 130,
     zIndex: 100,
   },
   floatingButton: {
@@ -1806,4 +1852,30 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
   },
+});
+
+// Estilos adicionales para feature gating PRO
+const proStyles = StyleSheet.create({
+  proFeatureTeaser: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F8E9',
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+    gap: 12,
+  },
+  proFeatureTeaserIcon: { fontSize: 28 },
+  proFeatureTeaserTitle: { fontSize: 15, fontWeight: '700', color: '#2E7D32' },
+  proFeatureTeaserSub: { fontSize: 12, color: '#666', marginTop: 2 },
+  proBadgeSmall: {
+    backgroundColor: '#2E7D32',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  proBadgeSmallText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 });

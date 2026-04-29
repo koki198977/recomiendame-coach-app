@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Text, TouchableOpacity, Alert, Animated, LayoutChangeEvent } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Linking from 'expo-linking';
 import { TourGuideProvider, TourGuideZone } from 'rn-tourguide';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LoginScreen } from './screens/LoginScreen';
@@ -25,9 +26,149 @@ import { setUnauthorizedCallback } from './services/api';
 import { PushNotificationService } from './services/pushNotificationService';
 import { NotificationReminderService } from './services/notificationReminderService';
 import { useTour } from './hooks/useTour';
+import { PlanProvider, usePlan } from './hooks/usePlan';
+import { PaywallModal } from './components/PaywallModal';
 
 // Configurar handlers de errores al inicio
 setupErrorHandlers();
+
+// Componente global para el PaywallModal
+const GlobalPaywall: React.FC = () => {
+  const plan = usePlan();
+  return (
+    <PaywallModal
+      visible={plan.paywallVisible}
+      onClose={plan.hidePaywall}
+      onUpgradeSuccess={plan.refreshPlan}
+    />
+  );
+};
+
+// Tabs con flex fijo — la pill se superpone sin mover nada
+const TABS = [
+  { key: 'home',     label: 'Inicio',   icon: '🏠' },
+  { key: 'plan',     label: 'Plan',     icon: '🍎' },
+  { key: 'social',   label: 'Social',   icon: '👥' },
+  { key: 'progress', label: 'Progreso', icon: '📊' },
+  { key: 'profile',  label: 'Perfil',   icon: '👤' },
+];
+
+// Tab bar animado con pill deslizante
+// Ancho de pill por label (ícono 18px + gap 5px + texto + padding 20px)
+const PILL_WIDTHS: Record<string, number> = {
+  home:     105,
+  plan:      90,
+  social:   105,
+  progress: 118,
+  profile:   98,
+};
+
+const AnimatedTabBar: React.FC<{
+  activeTab: string;
+  onTabChange: (tab: string) => void;
+  onHeightChange?: (h: number) => void;
+  tourZones?: Record<string, React.ReactNode>;
+}> = ({ activeTab, onTabChange, onHeightChange, tourZones }) => {
+  const pillX = useRef(new Animated.Value(0)).current;
+  const pillW = useRef(new Animated.Value(0)).current;
+  const tabBarRef = useRef<View>(null);
+  const tabRefs = useRef<Record<string, View | null>>({});
+  const [ready, setReady] = useState(false);
+  const measuredCount = useRef(0);
+
+  // Centra la pill dentro del tab medido
+  const calcPill = (tabX: number, tabWidth: number, key: string) => {
+    const pw = PILL_WIDTHS[key] ?? 105;
+    const px = tabX + (tabWidth - pw) / 2;
+    return { px, pw };
+  };
+
+  const tryInit = useCallback(() => {
+    const bar = tabBarRef.current;
+    if (!bar) return;
+    let done = 0;
+    const results: Record<string, { x: number; width: number }> = {};
+    TABS.forEach(tab => {
+      const node = tabRefs.current[tab.key];
+      if (!node) return;
+      node.measureLayout(bar as any, (x, _y, width) => {
+        results[tab.key] = { x, width };
+        done++;
+        if (done === TABS.length) {
+          const t = results[activeTab];
+          if (t) {
+            const { px, pw } = calcPill(t.x, t.width, activeTab);
+            pillX.setValue(px);
+            pillW.setValue(pw);
+            setReady(true);
+          }
+        }
+      }, () => {});
+    });
+  }, [activeTab, pillX, pillW]);
+
+  const animateTo = useCallback((key: string) => {
+    const bar = tabBarRef.current;
+    const node = tabRefs.current[key];
+    if (!bar || !node) return;
+    node.measureLayout(bar as any, (x, _y, width) => {
+      const { px, pw } = calcPill(x, width, key);
+      Animated.parallel([
+        Animated.spring(pillX, { toValue: px, useNativeDriver: false, tension: 70, friction: 12 }),
+        Animated.spring(pillW, { toValue: pw, useNativeDriver: false, tension: 70, friction: 12 }),
+      ]).start();
+    }, () => {});
+  }, [pillX, pillW]);
+
+  const handlePress = (key: string) => {
+    onTabChange(key);
+    setTimeout(() => animateTo(key), 20);
+  };
+
+  return (
+    <SafeAreaView
+      style={styles.tabBarContainer}
+      edges={['bottom']}
+      onLayout={(e) => onHeightChange?.(e.nativeEvent.layout.height)}
+    >
+      <View ref={tabBarRef} style={styles.tabBar}>
+        {ready && (
+          <Animated.View style={[styles.pill, { left: pillX, width: pillW }]} />
+        )}
+        {TABS.map((tab) => {
+          const isActive = activeTab === tab.key;
+          const button = (
+            <TouchableOpacity
+              ref={(r) => {
+                tabRefs.current[tab.key] = r as View | null;
+                if (!ready) {
+                  measuredCount.current++;
+                  if (measuredCount.current >= TABS.length) tryInit();
+                }
+              }}
+              style={styles.tab}
+              onPress={() => handlePress(tab.key)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.tabIcon}>{tab.icon}</Text>
+              {isActive && (
+                <Text style={styles.activeTabLabel} numberOfLines={1}>
+                  {tab.label}
+                </Text>
+              )}
+            </TouchableOpacity>
+          );
+
+          const zone = tourZones?.[tab.key];
+          if (zone) {
+            return React.cloneElement(zone as React.ReactElement<any>, { key: tab.key }, button);
+          }
+          return <React.Fragment key={tab.key}>{button}</React.Fragment>;
+        })}
+      </View>
+    </SafeAreaView>
+  );
+};
 
 // Componente principal con tabs manuales
 const MainApp: React.FC<{ onLogout: () => void; refreshKey: number; tourProfile: { onboardingCompleted: boolean } | null }> = ({ onLogout, refreshKey, tourProfile }) => {
@@ -36,6 +177,7 @@ const MainApp: React.FC<{ onLogout: () => void; refreshKey: number; tourProfile:
   const [chapiModalVisible, setChapiModalVisible] = useState(false);
   const [progressRefreshKey, setProgressRefreshKey] = useState(0);
   const [hasForcedTour, setHasForcedTour] = useState(false);
+  const [tabBarHeight, setTabBarHeight] = useState(90);
 
   const { isTourActive, currentStep, nextStep, skipTour, initTour } = useTour(activeTab);
 
@@ -47,7 +189,6 @@ const MainApp: React.FC<{ onLogout: () => void; refreshKey: number; tourProfile:
     }
   }, [hasForcedTour, initTour, tourProfile]);
 
-  // Incrementar el refresh key cuando se activa el tab de progreso
   const handleTabChange = (tab: string) => {
     if (tab === 'progress') {
       setProgressRefreshKey(prev => prev + 1);
@@ -78,6 +219,30 @@ const MainApp: React.FC<{ onLogout: () => void; refreshKey: number; tourProfile:
     }
   };
 
+  // TourGuideZones para los tabs que lo necesitan
+  const tourZones: Record<string, React.ReactNode> = {
+    plan: (
+      <TourGuideZone zone={7} text="Aquí encontrarás tu plan nutricional y tu rutina de ejercicios personalizados, generados con IA para ti. 🍎💪" style={{ flex: 1 }} borderRadius={12}>
+        {null}
+      </TourGuideZone>
+    ),
+    social: (
+      <TourGuideZone zone={8} text="Comparte tu progreso, descubre historias inspiradoras y apóyate en personas con objetivos similares a los tuyos. 👥" style={{ flex: 1 }} borderRadius={12}>
+        {null}
+      </TourGuideZone>
+    ),
+    progress: (
+      <TourGuideZone zone={9} text="Revisa tu historial, tendencias de peso y evolución a lo largo del tiempo. ¡Celebra cada logro! 📊" style={{ flex: 1 }} borderRadius={12}>
+        {null}
+      </TourGuideZone>
+    ),
+    profile: (
+      <TourGuideZone zone={10} text="Ajusta tus datos, metas, restricciones alimenticias y preferencias en cualquier momento. 👤" style={{ flex: 1 }} borderRadius={12}>
+        {null}
+      </TourGuideZone>
+    ),
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Content */}
@@ -85,85 +250,23 @@ const MainApp: React.FC<{ onLogout: () => void; refreshKey: number; tourProfile:
         {renderScreen()}
       </View>
 
-      {/* Modern Bottom Tabs */}
-      <SafeAreaView style={styles.tabBarContainer} edges={['bottom']}>
-        <View style={styles.tabBar}>
-          <TouchableOpacity
-            style={styles.tab}
-            onPress={() => handleTabChange('home')}
-          >
-            <View style={[styles.tabIconContainer, activeTab === 'home' && styles.activeTabIconContainer]}>
-              <Text style={[styles.tabIcon, activeTab === 'home' && styles.activeTabIcon]}>🏠</Text>
-            </View>
-            <Text style={[styles.tabText, activeTab === 'home' && styles.activeTabText]}>
-              Inicio
-            </Text>
-          </TouchableOpacity>
-
-          <TourGuideZone zone={7} text="Aquí encontrarás tu plan nutricional y tu rutina de ejercicios personalizados, generados con IA para ti. 🍎💪" style={{ flex: 1 }} borderRadius={12}>
-            <TouchableOpacity
-              style={styles.tab}
-              onPress={() => handleTabChange('plan')}
-            >
-              <View style={[styles.tabIconContainer, activeTab === 'plan' && styles.activeTabIconContainer]}>
-                <Text style={[styles.tabIcon, activeTab === 'plan' && styles.activeTabIcon]}>🍎</Text>
-              </View>
-              <Text style={[styles.tabText, activeTab === 'plan' && styles.activeTabText]}>
-                Mi Programa
-              </Text>
-            </TouchableOpacity>
-          </TourGuideZone>
-
-          <TourGuideZone zone={8} text="Comparte tu progreso, descubre historias inspiradoras y apóyate en personas con objetivos similares a los tuyos. 👥" style={{ flex: 1 }} borderRadius={12}>
-            <TouchableOpacity
-              style={styles.tab}
-              onPress={() => handleTabChange('social')}
-            >
-              <View style={[styles.tabIconContainer, activeTab === 'social' && styles.activeTabIconContainer]}>
-                <Text style={[styles.tabIcon, activeTab === 'social' && styles.activeTabIcon]}>👥</Text>
-              </View>
-              <Text style={[styles.tabText, activeTab === 'social' && styles.activeTabText]}>
-                Social
-              </Text>
-            </TouchableOpacity>
-          </TourGuideZone>
-
-          <TourGuideZone zone={9} text="Revisa tu historial, tendencias de peso y evolución a lo largo del tiempo. ¡Celebra cada logro! 📊" style={{ flex: 1 }} borderRadius={12}>
-            <TouchableOpacity
-              style={styles.tab}
-              onPress={() => handleTabChange('progress')}
-            >
-              <View style={[styles.tabIconContainer, activeTab === 'progress' && styles.activeTabIconContainer]}>
-                <Text style={[styles.tabIcon, activeTab === 'progress' && styles.activeTabIcon]}>📊</Text>
-              </View>
-              <Text style={[styles.tabText, activeTab === 'progress' && styles.activeTabText]}>
-                Progreso
-              </Text>
-            </TouchableOpacity>
-          </TourGuideZone>
-
-          <TourGuideZone zone={10} text="Ajusta tus datos, metas, restricciones alimenticias y preferencias en cualquier momento. 👤" style={{ flex: 1 }} borderRadius={12}>
-            <TouchableOpacity
-              style={styles.tab}
-              onPress={() => handleTabChange('profile')}
-            >
-              <View style={[styles.tabIconContainer, activeTab === 'profile' && styles.activeTabIconContainer]}>
-                <Text style={[styles.tabIcon, activeTab === 'profile' && styles.activeTabIcon]}>👤</Text>
-              </View>
-              <Text style={[styles.tabText, activeTab === 'profile' && styles.activeTabText]}>
-                Perfil
-              </Text>
-            </TouchableOpacity>
-          </TourGuideZone>
-        </View>
-      </SafeAreaView>
+      {/* Animated Pill Tab Bar */}
+      <AnimatedTabBar
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+        onHeightChange={setTabBarHeight}
+        tourZones={tourZones}
+      />
 
       {/* Chapi - Asistente Virtual */}
-      <ChapiBubble onPress={() => setChapiModalVisible(true)} />
+      <ChapiBubble onPress={() => setChapiModalVisible(true)} tabBarHeight={tabBarHeight} />
       <ChapiChatModal
         visible={chapiModalVisible}
         onClose={() => setChapiModalVisible(false)}
       />
+
+      {/* Paywall global */}
+      <GlobalPaywall />
 
       <StatusBar style="dark" />
     </SafeAreaView>
@@ -326,10 +429,29 @@ export default function App() {
     }
   };
 
+  // Manejar deep links de pago (coachapp://subscription/success)
+  useEffect(() => {
+    const handleDeepLink = async (url: string) => {
+      if (url.includes('subscription/success')) {
+        Alert.alert('¡Suscripción activada!', 'Tu plan PRO ya está activo. ¡Disfrútalo!');
+        // Refrescar el plan para que la app refleje el nuevo estado
+        setRefreshKey(prev => prev + 1);
+      }
+    };
+
+    // URL inicial si la app fue abierta desde el deep link
+    Linking.getInitialURL().then(url => {
+      if (url) handleDeepLink(url);
+    });
+
+    // Escuchar deep links mientras la app está abierta
+    const subscription = Linking.addEventListener('url', ({ url }) => handleDeepLink(url));
+    return () => subscription.remove();
+  }, []);
+
   // Registrar callback para manejar 401 (token inválido/expirado)
   React.useEffect(() => {
     setUnauthorizedCallback(() => {
-      console.log('🔒 Sesión expirada - Redirigiendo al login');
       handleLogout();
     });
   }, []);
@@ -375,18 +497,20 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
-        <TourGuideProvider
-          borderRadius={8}
-          backdropColor="rgba(0,0,0,0.7)"
-          tooltipComponent={CustomTooltip}
-        >
-          <MainApp onLogout={handleLogout} refreshKey={refreshKey} tourProfile={userProfile} />
-        </TourGuideProvider>
-        <CompleteProfileModal
-          visible={showCompleteProfile}
-          onComplete={handleCompleteProfile}
-          onLogout={handleLogout}
-        />
+        <PlanProvider>
+          <TourGuideProvider
+            borderRadius={8}
+            backdropColor="rgba(0,0,0,0.7)"
+            tooltipComponent={CustomTooltip}
+          >
+            <MainApp onLogout={handleLogout} refreshKey={refreshKey} tourProfile={userProfile} />
+          </TourGuideProvider>
+          <CompleteProfileModal
+            visible={showCompleteProfile}
+            onComplete={handleCompleteProfile}
+            onLogout={handleLogout}
+          />
+        </PlanProvider>
       </ErrorBoundary>
     </SafeAreaProvider>
   );
@@ -416,53 +540,59 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     paddingHorizontal: 20,
     paddingTop: 10,
+    paddingBottom: 4,
   },
   tabBar: {
     flexDirection: 'row',
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 25,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    borderRadius: 30,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
     shadowRadius: 20,
     elevation: 10,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  pill: {
+    position: 'absolute',
+    height: 44,
+    backgroundColor: '#4CAF50',
+    borderRadius: 22,
+    top: 6,
+    shadowColor: '#4CAF50',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
   },
   tab: {
     flex: 1,
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  tabIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
-    backgroundColor: 'transparent',
+    height: 44,
+    paddingHorizontal: 2,
+    zIndex: 1,
   },
-  activeTabIconContainer: {
-    backgroundColor: '#4CAF50',
-    shadowColor: '#4CAF50',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
+  activeTab: {},
   tabIcon: {
-    fontSize: 20,
+    fontSize: 18,
   },
   activeTabIcon: {
-    fontSize: 22,
+    fontSize: 18,
   },
+  activeTabLabel: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: '700',
+    marginLeft: 5,
+  },
+  // Legacy styles kept to avoid TS errors
+  tabIconContainer: {},
+  activeTabIconContainer: {},
   tabText: {
     fontSize: 11,
     color: '#999',

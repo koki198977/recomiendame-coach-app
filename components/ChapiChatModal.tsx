@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ChapiService from '../services/chapiService';
 import { ChapiMessage, ChapiAction } from '../types/nutrition';
+import { usePlan } from '../hooks/usePlan';
 
 interface ChapiChatModalProps {
   visible: boolean;
@@ -36,6 +37,16 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
+  const { checkFeature, showPaywall, isPro } = usePlan();
+  const chapiBasicStatus = checkFeature('chapi_basic');
+
+  // PRO siempre tiene acceso. FREE se bloquea cuando agota chapi_basic.
+  const isChatBlocked = !isPro && !chapiBasicStatus.allowed;
+
+  const handleShowPaywall = () => {
+    onClose();
+    setTimeout(() => showPaywall('chapi_basic'), 400);
+  };
 
   // En Android, gestionamos el teclado manualmente para evitar el parpadeo
   // que produce KeyboardAvoidingView con behavior='height' dentro de un Modal fullScreen
@@ -110,6 +121,11 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
 
   const handleSendMessage = async () => {
     if (!inputText.trim() || isLoading) return;
+
+    if (isChatBlocked) {
+      handleShowPaywall();
+      return;
+    }
 
     const userMessage: ChapiMessage = {
       id: ChapiService.generateMessageId(),
@@ -361,26 +377,35 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
 
       {/* Input - Fixed at bottom */}
       <View style={[styles.inputContainer, { paddingBottom: inputBottomPadding }]}>
-        <TextInput
-          style={styles.input}
-          placeholder="Escribe cómo te sientes..."
-          value={inputText}
-          onChangeText={setInputText}
-          multiline
-          maxLength={500}
-          editable={!isLoading}
-          textAlignVertical="top"
-        />
-        <TouchableOpacity
-          style={[
-            styles.sendButton,
-            (!inputText.trim() || isLoading) && styles.sendButtonDisabled,
-          ]}
-          onPress={handleSendMessage}
-          disabled={!inputText.trim() || isLoading}
-        >
-          <Text style={styles.sendButtonText}>➤</Text>
-        </TouchableOpacity>
+        {isChatBlocked && (
+          <TouchableOpacity style={styles.proLockBanner} onPress={handleShowPaywall}>
+            <Text style={styles.proLockText}>
+              💬 Alcanzaste el límite diario de mensajes. Toca para ver planes.
+            </Text>
+          </TouchableOpacity>
+        )}
+        <View style={styles.inputRow}>
+          <TextInput
+            style={[styles.input, isChatBlocked && styles.inputDisabled]}
+            placeholder={isChatBlocked ? 'Límite diario alcanzado' : 'Escribe cómo te sientes...'}
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
+            maxLength={500}
+            editable={!isLoading && !isChatBlocked}
+            textAlignVertical="top"
+          />
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              (!inputText.trim() || isLoading || isChatBlocked) && styles.sendButtonDisabled,
+            ]}
+            onPress={handleSendMessage}
+            disabled={!inputText.trim() || isLoading || isChatBlocked}
+          >
+            <Text style={styles.sendButtonText}>➤</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -583,13 +608,33 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   inputContainer: {
-    flexDirection: 'row',
     paddingHorizontal: 12,
     paddingVertical: 12,
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
+  },
+  proLockBanner: {
+    backgroundColor: '#FFF8E1',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#FFD54F',
+  },
+  proLockText: {
+    fontSize: 13,
+    color: '#F57F17',
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  inputRow: {
+    flexDirection: 'row',
     alignItems: 'flex-end',
+  },
+  inputDisabled: {
+    backgroundColor: '#f0f0f0',
+    color: '#aaa',
   },
   input: {
     flex: 1,

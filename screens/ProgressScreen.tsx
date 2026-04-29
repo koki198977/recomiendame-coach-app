@@ -23,6 +23,7 @@ import { AppHeader } from '../components/AppHeader';
 import { WeeklyDashboard } from '../components/WeeklyDashboard';
 import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
 import { LinearGradient } from 'expo-linear-gradient';
+import { usePlan } from '../hooks/usePlan';
 
 const { width } = Dimensions.get('window');
 
@@ -35,6 +36,7 @@ export const ProgressScreen: React.FC = () => {
   const [selectedTrophy, setSelectedTrophy] = useState<Achievement | null>(null);
   const [activityStats, setActivityStats] = useState<ActivityStat[]>([]);
   const [historicalInitialWeight, setHistoricalInitialWeight] = useState<number | null>(null);
+  const { isPro, showPaywall } = usePlan();
 
   useEffect(() => {
     const loadAllData = async () => {
@@ -779,8 +781,15 @@ export const ProgressScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Custom Header with Chapi */}
-      <View style={styles.customHeader}>
+      {/* Custom Header with Gradient */}
+      <LinearGradient
+        colors={GRADIENTS.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.customHeader}
+      >
+        <View style={styles.circle1} />
+        <View style={styles.circle2} />
         <View style={styles.headerContent}>
           <View style={styles.headerTextContainer}>
             <Text style={styles.headerTitle}>Mi Progreso</Text>
@@ -794,7 +803,7 @@ export const ProgressScreen: React.FC = () => {
             />
           </View>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Period Selector */}
       {renderPeriodSelector()}
@@ -807,8 +816,19 @@ export const ProgressScreen: React.FC = () => {
           </View>
         ) : (
           <>
-            {/* Dashboard Semanal - Nuevo componente */}
-            <WeeklyDashboard selectedPeriod={selectedPeriod} />
+            {/* Dashboard Semanal - Solo PRO */}
+            {isPro ? (
+              <WeeklyDashboard selectedPeriod={selectedPeriod} />
+            ) : (
+              <TouchableOpacity style={styles.proLockCard} onPress={() => showPaywall('weekly_analysis')}>
+                <Text style={styles.proLockIcon}>📊</Text>
+                <Text style={styles.proLockTitle}>Análisis semanal PRO</Text>
+                <Text style={styles.proLockDesc}>Cumplimiento, tendencias y análisis de Chapi disponibles en PRO</Text>
+                <View style={styles.proLockButton}>
+                  <Text style={styles.proLockButtonText}>Desbloquear PRO</Text>
+                </View>
+              </TouchableOpacity>
+            )}
             
             {renderWeightProgress()}
             {renderWorkoutProgress()}
@@ -830,25 +850,65 @@ export const ProgressScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  proLockCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#E8F5E9',
+    borderStyle: 'dashed',
+  },
+  proLockIcon: { fontSize: 36, marginBottom: 8 },
+  proLockTitle: { fontSize: 16, fontWeight: '700', color: '#333', marginBottom: 4 },
+  proLockDesc: { fontSize: 13, color: '#888', textAlign: 'center', marginBottom: 14 },
+  proLockButton: {
+    backgroundColor: '#2E7D32',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+  },
+  proLockButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
   customHeader: {
-    backgroundColor: COLORS.card,
     paddingTop: 60,
     paddingBottom: 20,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+    overflow: 'hidden',
     ...SHADOWS.glow,
     shadowColor: COLORS.primaryStart,
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
+  },
+  circle1: {
+    position: 'absolute',
+    top: -50,
+    right: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  circle2: {
+    position: 'absolute',
+    bottom: -30,
+    left: -30,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    zIndex: 1,
   },
   headerTextContainer: {
     flex: 1,
@@ -856,12 +916,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: '800',
-    color: COLORS.text,
+    color: '#fff',
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: COLORS.textLight,
+    color: 'rgba(255,255,255,0.9)',
     fontWeight: '600',
   },
   chapiContainer: {

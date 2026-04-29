@@ -22,6 +22,7 @@ import { FoodPhotoStreakService } from '../services/foodPhotoStreakService';
 import { NotificationService } from '../services/notificationService';
 import CacheService from '../services/cacheService';
 import { COLORS } from '../theme/theme';
+import { usePlan } from '../hooks/usePlan';
 
 interface LogMealModalProps {
   visible: boolean;
@@ -45,6 +46,7 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
   const [uploading, setUploading] = useState(false);
   const [analyzed, setAnalyzed] = useState<any>(null);
   const [saving, setSaving] = useState(false);
+  const { checkFeature, showPaywall, refreshPlan, isPro } = usePlan();
 
   const scrollViewRef = React.useRef<ScrollView>(null);
 
@@ -82,9 +84,11 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
   };
 
   const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (isPhotoBlocked) { showPaywall('photo_meal_log'); return; }
+
+    const { status: permStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     
-    if (status !== 'granted') {
+    if (permStatus !== 'granted') {
       Alert.alert('Permiso denegado', 'Necesitamos acceso a tu galería.');
       return;
     }
@@ -102,9 +106,11 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
   };
 
   const takePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (isPhotoBlocked) { showPaywall('photo_meal_log'); return; }
+
+    const { status: permStatus } = await ImagePicker.requestCameraPermissionsAsync();
     
-    if (status !== 'granted') {
+    if (permStatus !== 'granted') {
       Alert.alert('Permiso denegado', 'Necesitamos acceso a tu cámara.');
       return;
     }
@@ -252,6 +258,7 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
 
       // Cerrar automáticamente sin alert
       onSuccess();
+      refreshPlan(); // Actualizar contador de uso para reflejar la foto registrada
       handleClose();
     } catch (error: any) {
       console.error('❌ Error logging meal:', error);
@@ -281,6 +288,9 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
     onClose();
   };
 
+  const photoStatus = checkFeature('photo_meal_log');
+  const isPhotoBlocked = !isPro && !photoStatus.allowed;
+
   const renderModalContent = () => (
     <>
       {/* Header */}
@@ -299,6 +309,24 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
           <Text style={styles.closeButtonText}>✕</Text>
         </TouchableOpacity>
       </View>
+
+      {isPhotoBlocked ? (
+        <View style={styles.blockedContainer}>
+          <Text style={styles.blockedIcon}>📸</Text>
+          <Text style={styles.blockedTitle}>Límite diario alcanzado</Text>
+          <Text style={styles.blockedDesc}>
+            Con el plan FREE puedes registrar 1 foto de comida por día.{'\n'}
+            Actualiza a PRO para registros ilimitados.
+          </Text>
+          <TouchableOpacity
+            style={styles.blockedButton}
+            onPress={() => { handleClose(); setTimeout(() => showPaywall('photo_meal_log'), 300); }}
+          >
+            <Text style={styles.blockedButtonText}>Ver planes PRO</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+      <>
 
       {/* Date selector */}
       <View style={styles.section}>
@@ -494,6 +522,8 @@ export const LogMealModal: React.FC<LogMealModalProps> = ({
             <Text style={styles.saveButtonText}>{saving ? 'Guardando...' : '✓ Guardar comida'}</Text>
           </TouchableOpacity>
         </View>
+      )}
+      </>
       )}
     </>
   );
@@ -921,4 +951,19 @@ const styles = StyleSheet.create({
     color: '#F44336',
     fontWeight: '600',
   },
+  blockedContainer: {
+    alignItems: 'center',
+    padding: 32,
+    paddingTop: 24,
+  },
+  blockedIcon: { fontSize: 48, marginBottom: 12 },
+  blockedTitle: { fontSize: 18, fontWeight: '700', color: '#333', marginBottom: 8 },
+  blockedDesc: { fontSize: 14, color: '#888', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  blockedButton: {
+    backgroundColor: '#2E7D32',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+  },
+  blockedButtonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

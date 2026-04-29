@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,11 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Post } from '../types/nutrition';
 import { SocialService } from '../services/socialService';
+import { useStoryShare } from '../hooks/useStoryShare';
+import { StoryImageView } from './StoryImageView';
 
 interface PostCardProps {
   post: Post;
@@ -19,6 +22,8 @@ interface PostCardProps {
   showFollowButton?: boolean; // Mostrar botón seguir
   isFollowingAuthor?: boolean; // Si ya sigo al autor
   onFollowChange?: (authorId: string, isFollowing: boolean) => void; // Callback cuando cambia el seguimiento
+  onShare?: (post: Post) => void; // Callback opcional para override externo
+  onDelete?: (postId: string) => void; // Callback cuando se elimina un post
 }
 
 export const PostCard: React.FC<PostCardProps> = ({
@@ -29,11 +34,15 @@ export const PostCard: React.FC<PostCardProps> = ({
   showFollowButton = false,
   isFollowingAuthor = false,
   onFollowChange,
+  onShare,
+  onDelete,
 }) => {
   const [isLiking, setIsLiking] = useState(false);
   const [currentPost, setCurrentPost] = useState(post);
   const [isFollowing, setIsFollowing] = useState(isFollowingAuthor);
   const [followingUser, setFollowingUser] = useState(false);
+  const { isSharing, handleShare } = useStoryShare();
+  const storyViewRef = useRef<View>(null);
 
   // Sincronizar el estado local cuando el prop cambie
   useEffect(() => {
@@ -208,8 +217,46 @@ export const PostCard: React.FC<PostCardProps> = ({
     }
   };
 
+  const handleDeletePost = async () => {
+    Alert.alert(
+      'Eliminar post',
+      '¿Estás seguro de que quieres eliminar este post?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await SocialService.deletePost(currentPost.id);
+              onDelete?.(currentPost.id);
+              Alert.alert('Post eliminado', 'Tu post ha sido eliminado exitosamente');
+            } catch (error) {
+              console.log('Error deleting post:', error);
+              Alert.alert('Error', 'No se pudo eliminar el post');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
+      {/* Off-screen StoryImageView for capture — no opacity:0, it prevents native rendering */}
+      <View style={styles.offScreenContainer}>
+        <View
+          ref={storyViewRef}
+          collapsable={false}
+          pointerEvents="none"
+        >
+          <StoryImageView post={currentPost} />
+        </View>
+      </View>
+
       {/* Header del post */}
       <View style={styles.header}>
         <View style={styles.avatar}>
@@ -277,6 +324,30 @@ export const PostCard: React.FC<PostCardProps> = ({
           </Text>
         </TouchableOpacity>
 
+        {/* Botones de compartir y eliminar solo para mis posts */}
+        {isMyPost && (
+          <>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleShare(currentPost, storyViewRef)}
+              disabled={isSharing}
+            >
+              {isSharing ? (
+                <ActivityIndicator size="small" color="#4CAF50" />
+              ) : (
+                <Ionicons name="share-outline" size={22} color="#666" />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={handleDeletePost}
+            >
+              <Ionicons name="trash-outline" size={22} color="#666" />
+            </TouchableOpacity>
+          </>
+        )}
+
 
       </View>
     </View>
@@ -284,6 +355,14 @@ export const PostCard: React.FC<PostCardProps> = ({
 };
 
 const styles = StyleSheet.create({
+  offScreenContainer: {
+    position: 'absolute',
+    top: -10000,
+    left: -10000,
+    width: 1080,
+    height: 1920,
+    overflow: 'hidden',
+  },
   container: {
     backgroundColor: '#fff',
     marginBottom: 15,

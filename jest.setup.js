@@ -15,3 +15,34 @@ Object.defineProperty(global, '__ExpoImportMetaRegistry', {
   get: () => ({ url: null }),
   configurable: true,
 });
+
+// Mock @react-native-async-storage/async-storage
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
+
+// Mock expo-sharing
+jest.mock('expo-sharing', () => ({
+  isAvailableAsync: jest.fn().mockResolvedValue(true),
+  shareAsync: jest.fn().mockResolvedValue(undefined),
+}));
+
+// Mock expo-file-system (legacy API used by storyImageGenerator)
+jest.mock('expo-file-system/legacy', () => ({
+  cacheDirectory: 'file:///cache/',
+  deleteAsync: jest.fn().mockResolvedValue(undefined),
+  moveAsync: jest.fn().mockResolvedValue(undefined),
+}));
+
+// Mock expo-file-system (new API)
+jest.mock('expo-file-system', () => ({
+  cacheDirectory: 'file:///cache/',
+  deleteAsync: jest.fn().mockResolvedValue(undefined),
+  moveAsync: jest.fn().mockResolvedValue(undefined),
+}));
+
+// Mock expo-image-manipulator
+jest.mock('expo-image-manipulator', () => ({
+  manipulateAsync: jest.fn().mockResolvedValue({ uri: 'file:///cache/story.jpg' }),
+  SaveFormat: { JPEG: 'jpeg' },
+}));

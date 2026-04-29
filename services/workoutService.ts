@@ -140,17 +140,23 @@ class WorkoutService {
           console.log(`✅ [GENERATE] ${imageUrls.length} imágenes subidas exitosamente`);
           console.log(`📋 [GENERATE] Image URLs:`, imageUrls);
           
-          // Agregar URLs al request
-          (request as any).equipmentImageUrls = imageUrls;
+          // Agregar URLs al request (ahora tipado correctamente)
+          request.equipmentImageUrls = imageUrls;
         } catch (uploadError: any) {
           console.error('❌ [GENERATE] Error subiendo imágenes:', uploadError);
+          console.error('❌ [GENERATE] Error details:', {
+            message: uploadError.message,
+            status: uploadError.response?.status,
+            data: uploadError.response?.data
+          });
           console.warn('⚠️ [GENERATE] Continuando sin imágenes de equipamiento');
+          // No lanzar el error, continuar sin imágenes
         }
       }
 
       console.log('🏋️ Generando plan de entrenamiento:', {
         ...request,
-        equipmentImages: (request as any).equipmentImageUrls?.length || 0
+        equipmentImages: request.equipmentImageUrls?.length || 0
       });
 
       // Usar timeout largo para generación (2 minutos)
@@ -168,6 +174,21 @@ class WorkoutService {
       return response.data;
     } catch (error: any) {
       console.error('❌ Error generando plan de entrenamiento:', error);
+      
+      // Log detallado del error para debugging
+      if (error.response) {
+        console.error('❌ Error response status:', error.response.status);
+        console.error('❌ Error response data:', JSON.stringify(error.response.data, null, 2));
+        console.error('❌ Request data:', JSON.stringify({
+          ...request,
+          equipmentImageUrls: request.equipmentImageUrls?.length || 0
+        }, null, 2));
+      } else if (error.request) {
+        console.error('❌ No response received:', error.request);
+      } else {
+        console.error('❌ Error message:', error.message);
+      }
+      
       throw error;
     }
   }

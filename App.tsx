@@ -302,6 +302,17 @@ function AppContent() {
     console.log('🔍 showCompleteProfile changed to:', showCompleteProfile);
   }, [showCompleteProfile]);
 
+  // Timeout de seguridad: si Clerk no carga en 5s, mostrar login de todas formas
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (currentScreen === 'loading') {
+        console.log('⚠️ Clerk timeout — mostrando login');
+        setCurrentScreen('login');
+      }
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, []);
+
   useEffect(() => {
     const checkStatus = async () => {
       try {

@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Logo } from '../components/Logo';
-import { AuthService } from '../services/authService';
+import { useSignUp } from '@clerk/expo';
 
 interface RegisterScreenProps {
   onRegisterSuccess: (message?: string, email?: string) => void;
@@ -30,6 +30,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
     password: '',
     confirmPassword: '',
   });
+  const { signUp, setActive, isLoaded } = useSignUp();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -69,49 +70,43 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
   };
 
   const handleRegister = async () => {
+    if (!isLoaded) return;
     if (!validateForm()) return;
 
     setLoading(true);
     try {
-      // Crear usuario
-      const response = await AuthService.register({
-        email: formData.email.trim().toLowerCase(),
+      await signUp.create({
+        emailAddress: formData.email.trim().toLowerCase(),
         password: formData.password,
       });
 
-      // Verificar que el registro fue exitoso (status 201)
-      console.log('Registration successful with status 201');
-      
-      // Registro exitoso - redirigir al login con mensaje de verificación
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+
       Alert.alert(
         '¡Cuenta creada exitosamente! 🎉',
         'Hemos enviado un correo de verificación a tu email. Por favor verifica tu correo antes de iniciar sesión.',
         [
-          { 
-            text: 'Ir a iniciar sesión', 
-            onPress: () => onRegisterSuccess('Por favor verifica tu correo electrónico antes de iniciar sesión.', formData.email.trim().toLowerCase())
-          }
+          {
+            text: 'Ir a iniciar sesión',
+            onPress: () => onRegisterSuccess('Por favor verifica tu correo electrónico antes de iniciar sesión.', formData.email),
+          },
         ]
       );
     } catch (error: any) {
       console.log('Registration error:', error);
-      console.log('Error status:', error.response?.status);
-      
+
       let errorMessage = 'Error al crear la cuenta. Intenta de nuevo.';
-      
-      // Manejar diferentes códigos de estado
-      if (error.response?.status === 400) {
-        errorMessage = 'Email ya registrado o datos inválidos';
-      } else if (error.response?.status === 422) {
-        errorMessage = 'Por favor verifica que todos los datos sean correctos';
-      } else if (error.response?.status === 500) {
-        errorMessage = 'Este correo electrónico ya se encuentra registrado. Intenta iniciar sesión o usa otro email.';
-      } else if (error.response?.status === 409) {
-        errorMessage = 'Este correo electrónico ya está en uso. Por favor usa otro email.';
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
+
+      const clerkErrorCode = error.errors?.[0]?.code;
+      if (clerkErrorCode === 'form_identifier_exists') {
+        errorMessage = 'Ya existe una cuenta con este correo electrónico.';
+      } else if (
+        clerkErrorCode === 'form_password_pwned' ||
+        clerkErrorCode === 'form_password_too_short'
+      ) {
+        errorMessage = 'La contraseña es demasiado débil. Usa al menos 8 caracteres con letras y números.';
       }
-      
+
       Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);

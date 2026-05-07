@@ -13,6 +13,7 @@ export const API_CONFIG = {
       LOGIN: '/auth/login',
       REGISTER: '/auth/register',
       PROFILE: '/auth/profile',
+      CLERK: '/auth/clerk',
     },
     NUTRITION: {
       PROFILE: '/me/profile',

@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { ClerkProvider, useAuth, useSession } from '@clerk/expo';
+import { tokenCache } from '@clerk/expo/token-cache';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View, StyleSheet, Text, TouchableOpacity, Alert, Animated, LayoutChangeEvent } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -23,11 +25,21 @@ import { NutritionService } from './services/nutritionService';
 import { UserProfile } from './types/nutrition';
 import { setupErrorHandlers } from './utils/errorLogger';
 import { setUnauthorizedCallback } from './services/api';
+import { AuthService } from './services/authService';
 import { PushNotificationService } from './services/pushNotificationService';
 import { NotificationReminderService } from './services/notificationReminderService';
 import { useTour } from './hooks/useTour';
 import { PlanProvider, usePlan } from './hooks/usePlan';
 import { PaywallModal } from './components/PaywallModal';
+
+const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
+if (!publishableKey) {
+  throw new Error(
+    'EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY no está definida. ' +
+    'Agrega esta variable a tu archivo .env'
+  );
+}
 
 // Configurar handlers de errores al inicio
 setupErrorHandlers();
@@ -171,7 +183,7 @@ const AnimatedTabBar: React.FC<{
 };
 
 // Componente principal con tabs manuales
-const MainApp: React.FC<{ onLogout: () => void; refreshKey: number; tourProfile: { onboardingCompleted: boolean } | null }> = ({ onLogout, refreshKey, tourProfile }) => {
+const MainApp: React.FC<{ onLogout: () => void; refreshKey: number; tourProfile: { onboardingCompleted?: boolean } | null }> = ({ onLogout, refreshKey, tourProfile }) => {
   const [activeTab, setActiveTab] = useState('home');
   const [planInitialTab, setPlanInitialTab] = useState<'nutrition' | 'workouts'>('nutrition');
   const [chapiModalVisible, setChapiModalVisible] = useState(false);
@@ -274,7 +286,10 @@ const MainApp: React.FC<{ onLogout: () => void; refreshKey: number; tourProfile:
 };
 
 // App sin React Navigation para evitar el error
-export default function App() {
+function AppContent() {
+  const { getToken, isSignedIn, signOut } = useAuth();
+  const { isLoaded: isSessionLoaded } = useSession();
+
   const [currentScreen, setCurrentScreen] = useState('loading');
   const [showCompleteProfile, setShowCompleteProfile] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -290,9 +305,13 @@ export default function App() {
   useEffect(() => {
     const checkStatus = async () => {
       try {
+        // Wait for Clerk session to be loaded
+        if (!isSessionLoaded) return;
+
         const token = await AsyncStorage.getItem('authToken');
 
         if (token) {
+          // Case 1: Backend JWT exists → go to home (existing behavior)
           // Verificar si hay perfil guardado localmente primero
           const localProfile = await AsyncStorage.getItem('userProfile');
           if (localProfile) {
@@ -317,7 +336,21 @@ export default function App() {
           // Si no hay perfil local completo, verificar con la API
           console.log('🔍 Token encontrado, verificando perfil con API...');
           await handleLoginSuccess();
+        } else if (isSignedIn) {
+          // Case 2: No Backend JWT but Clerk has active session → exchange for Backend JWT
+          try {
+            const clerkToken = await getToken();
+            if (clerkToken) {
+              await AuthService.loginWithClerkToken(clerkToken);
+              await handleLoginSuccess();
+              return;
+            }
+          } catch (error) {
+            console.log('Error exchanging Clerk token:', error);
+          }
+          setCurrentScreen('login');
         } else {
+          // Case 3: No session at all → show login
           setCurrentScreen('login');
         }
       } catch (error) {
@@ -327,7 +360,7 @@ export default function App() {
     };
 
     checkStatus();
-  }, []);
+  }, [isSessionLoaded, isSignedIn]);
 
   const handleLoginSuccess = async () => {
     // Limpiar mensaje de verificación al hacer login exitoso
@@ -418,7 +451,9 @@ export default function App() {
       // Eliminar push token del backend antes de limpiar sesión
       await PushNotificationService.unregisterPushToken();
       
-      await AsyncStorage.multiRemove(['authToken', 'userData', 'userProfile']);
+      // Usar AuthService.logout con clerkSignOut para limpieza resiliente
+      await AuthService.logout(signOut);
+      
       setCurrentScreen('login');
       setShowCompleteProfile(false);
       setUserProfile(null);
@@ -426,6 +461,10 @@ export default function App() {
       setRegisteredEmail(undefined);
     } catch (error) {
       console.log('Error during logout:', error);
+      // Incluso si hay error, limpiar el estado de la UI
+      setCurrentScreen('login');
+      setShowCompleteProfile(false);
+      setUserProfile(null);
     }
   };
 
@@ -513,6 +552,14 @@ export default function App() {
         </PlanProvider>
       </ErrorBoundary>
     </SafeAreaProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+      <AppContent />
+    </ClerkProvider>
   );
 }
 

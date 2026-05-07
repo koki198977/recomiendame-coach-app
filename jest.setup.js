@@ -46,3 +46,43 @@ jest.mock('expo-image-manipulator', () => ({
   manipulateAsync: jest.fn().mockResolvedValue({ uri: 'file:///cache/story.jpg' }),
   SaveFormat: { JPEG: 'jpeg' },
 }));
+
+// Mock @clerk/expo
+jest.mock('@clerk/expo', () => ({
+  ClerkProvider: ({ children }) => children,
+  useSignIn: () => ({
+    signIn: {
+      create: jest.fn(),
+    },
+    setActive: jest.fn(),
+    isLoaded: true,
+  }),
+  useSignUp: () => ({
+    signUp: {
+      create: jest.fn(),
+      prepareEmailAddressVerification: jest.fn(),
+    },
+    setActive: jest.fn(),
+    isLoaded: true,
+  }),
+  useSSO: () => ({
+    startSSOFlow: jest.fn(),
+  }),
+  useAuth: () => ({
+    getToken: jest.fn(),
+    signOut: jest.fn(),
+    isSignedIn: false,
+  }),
+  useSession: () => ({
+    session: null,
+    isLoaded: true,
+  }),
+}));
+
+// Mock @clerk/expo/token-cache
+jest.mock('@clerk/expo/token-cache', () => ({
+  tokenCache: {
+    getToken: jest.fn(),
+    saveToken: jest.fn(),
+  },
+}));

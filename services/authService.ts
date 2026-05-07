@@ -1,6 +1,8 @@
+import axios from 'axios';
 import api from './api';
 import StorageService from './storage';
 import { LoginRequest, RegisterRequest, AuthResponse, User } from '../types';
+import { API_CONFIG } from '../config/api';
 
 export class AuthService {
   static async login(credentials: LoginRequest): Promise<AuthResponse> {
@@ -53,18 +55,15 @@ export class AuthService {
     return response.data;
   }
 
-  static async logout(): Promise<void> {
+  static async logout(clerkSignOut?: () => Promise<void>): Promise<void> {
     try {
-      await StorageService.multiRemove(['authToken', 'userData']);
-    } catch (error) {
-      console.log('Error during logout cleanup:', error);
-      // Como fallback, intentar limpiar individualmente
-      try {
-        await StorageService.removeItem('authToken');
-        await StorageService.removeItem('userData');
-      } catch (fallbackError) {
-        console.log('Fallback cleanup also failed:', fallbackError);
+      if (clerkSignOut) {
+        await clerkSignOut();
       }
+    } catch (error) {
+      console.warn('Clerk signOut failed, proceeding with local cleanup:', error);
+    } finally {
+      await StorageService.multiRemove(['authToken', 'userData', 'userProfile', 'onboardingCompleted']);
     }
   }
 
@@ -113,6 +112,33 @@ export class AuthService {
     
     if (response.status === 200 || response.status === 201) {
       console.log('✅ Email verification resent successfully');
+    }
+  }
+
+  static async loginWithClerkToken(clerkToken: string): Promise<string> {
+    try {
+      const response = await axios.post<{ access_token: string }>(
+        `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH.CLERK}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${clerkToken}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: API_CONFIG.TIMEOUT,
+        }
+      );
+      const backendJwt = response.data.access_token;
+      await StorageService.setItem('authToken', backendJwt);
+      return backendJwt;
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        throw new Error('Token de Clerk inválido o expirado.');
+      }
+      if (error.response?.status === 404) {
+        throw new Error('Usuario no encontrado en el sistema.');
+      }
+      throw error;
     }
   }
 

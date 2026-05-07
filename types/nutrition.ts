@@ -63,6 +63,7 @@ export interface UserProfile {
   timeFrame?: TimeFrame;
   intensity?: "GENTLE" | "MODERATE" | "AGGRESSIVE";
   currentMotivation?: string;
+  onboardingCompleted?: boolean;
 }
 
 export interface Food {

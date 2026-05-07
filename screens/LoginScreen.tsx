@@ -13,9 +13,14 @@ import {
   ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth, useSSO } from '@clerk/expo';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+import Constants from 'expo-constants';
 import { AuthService } from '../services/authService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Logo } from '../components/Logo';
+
+WebBrowser.maybeCompleteAuthSession();
 
 const { width, height } = Dimensions.get('window');
 
@@ -35,49 +40,34 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
   const [isResending, setIsResending] = useState(false);
   const [isRequestingReset, setIsRequestingReset] = useState(false);
 
+  const { getToken } = useAuth();
+  const { startSSOFlow } = useSSO();
+
   const handleLogin = async () => {
-    console.log('🔐 Login button pressed');
     if (!email || !password) {
       Alert.alert('Error', 'Por favor completa todos los campos');
       return;
     }
 
-    console.log('📧 Attempting login with email:', email);
+    console.log('🔐 Intentando login con:', email);
     setIsLoading(true);
     try {
-      console.log('📡 Calling AuthService.login...');
       await AuthService.login({ email, password });
-      
-      // Crear datos de usuario simples
-      const userData = {
-        id: 'user-' + Date.now(),
-        email: email,
-        name: email.split('@')[0],
-        role: 'USER',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      
-      await AsyncStorage.setItem('userData', JSON.stringify(userData));
       onLoginSuccess();
     } catch (error: any) {
       console.log('Login error:', error);
-      
+
       let errorMessage = 'Error al iniciar sesión. Verifica tus credenciales.';
-      
-      // Manejar diferentes códigos de estado
       if (error.response?.status === 401) {
         errorMessage = 'Email o contraseña incorrectos.';
       } else if (error.response?.status === 403) {
-        errorMessage = 'Tu cuenta no ha sido verificada. Por favor revisa tu correo electrónico y haz clic en el enlace de verificación.';
-      } else if (error.response?.status === 423) {
-        errorMessage = 'Tu cuenta está temporalmente bloqueada. Contacta al soporte.';
+        errorMessage = 'Tu cuenta no ha sido verificada. Por favor revisa tu correo electrónico.';
       } else if (error.response?.status === 404) {
         errorMessage = 'No existe una cuenta con este correo electrónico.';
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       }
-      
+
       Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
@@ -149,6 +139,36 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
       Alert.alert('Error', errorMessage);
     } finally {
       setIsRequestingReset(false);
+    }
+  };
+
+  const handleSocialLogin = async (provider: 'oauth_google' | 'oauth_apple') => {
+    try {
+      // En Expo Go el scheme es exp://, en builds es coachapp://
+      // Clerk necesita el redirect URL correcto para completar el flujo OAuth
+      const isExpoGo = Constants.appOwnership === 'expo';
+      const redirectUrl = isExpoGo
+        ? Linking.createURL('/')  // exp://... en Expo Go
+        : Linking.createURL('/', { scheme: 'coachapp' });
+
+      const { createdSessionId, setActive: setSSOActive } = await startSSOFlow({
+        strategy: provider,
+        redirectUrl,
+      });
+      if (createdSessionId && setSSOActive) {
+        await setSSOActive({ session: createdSessionId });
+        // Pequeña espera para que la sesión se active completamente
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const clerkToken = await getToken();
+        if (!clerkToken) throw new Error('No se pudo obtener el token de sesión.');
+        await AuthService.loginWithClerkToken(clerkToken);
+        onLoginSuccess();
+      }
+    } catch (err: any) {
+      console.log('SSO error:', JSON.stringify(err));
+      if (err.cancelled) return;
+      const providerName = provider === 'oauth_google' ? 'Google' : 'Apple';
+      Alert.alert('Error', `No se pudo completar el inicio de sesión con ${providerName}. Intenta de nuevo.`);
     }
   };
 
@@ -285,6 +305,31 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Divider */}
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>o continúa con</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        {/* Google Button */}
+        <TouchableOpacity
+          style={styles.socialButton}
+          onPress={() => handleSocialLogin('oauth_google')}
+        >
+          <Text style={styles.socialButtonText}>Continuar con Google</Text>
+        </TouchableOpacity>
+
+        {/* Apple Button — iOS only */}
+        {Platform.OS === 'ios' && (
+          <TouchableOpacity
+            style={[styles.socialButton, styles.appleButton]}
+            onPress={() => handleSocialLogin('oauth_apple')}
+          >
+            <Text style={[styles.socialButtonText, styles.appleButtonText]}>Continuar con Apple</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Bottom Section */}
         <View style={styles.bottomSection}>
@@ -569,5 +614,45 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     fontWeight: 'bold',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  dividerText: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 14,
+    fontWeight: '500',
+    marginHorizontal: 12,
+  },
+  socialButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  socialButtonText: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  appleButton: {
+    backgroundColor: '#000',
+  },
+  appleButtonText: {
+    color: '#fff',
   },
 });

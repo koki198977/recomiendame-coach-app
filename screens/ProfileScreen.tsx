@@ -26,12 +26,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 interface ProfileScreenProps {
   onLogout?: () => void;
+  userProfile?: UserProfile | null;
 }
 
-export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
+export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProfile: userProfileProp }) => {
   const [user, setUser] = React.useState<any>(null);
   const [userProfile, setUserProfile] = React.useState<UserProfile | null>(
-    null
+    userProfileProp || null
   );
   const [socialProfile, setSocialProfile] =
     React.useState<SocialUserProfile | null>(null);
@@ -56,6 +57,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
   React.useEffect(() => {
     loadUserData();
   }, []);
+
+  // Sincronizar si la prop cambia
+  React.useEffect(() => {
+    if (userProfileProp) {
+      setUserProfile(userProfileProp);
+    }
+  }, [userProfileProp]);
 
   const loadCurrentWeight = async () => {
     try {

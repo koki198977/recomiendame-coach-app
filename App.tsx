@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ClerkProvider, useAuth, useSession } from '@clerk/expo';
+import { ClerkProvider, useAuth, useSession, useUser } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View, StyleSheet, Text, TouchableOpacity, Alert, Animated, LayoutChangeEvent } from 'react-native';
@@ -183,7 +183,7 @@ const AnimatedTabBar: React.FC<{
 };
 
 // Componente principal con tabs manuales
-const MainApp: React.FC<{ onLogout: () => void; refreshKey: number; tourProfile: { onboardingCompleted?: boolean } | null }> = ({ onLogout, refreshKey, tourProfile }) => {
+const MainApp: React.FC<{ onLogout: () => void; refreshKey: number; userProfile: any; tourProfile: { onboardingCompleted?: boolean } | null }> = ({ onLogout, refreshKey, userProfile, tourProfile }) => {
   const [activeTab, setActiveTab] = useState('home');
   const [planInitialTab, setPlanInitialTab] = useState<'nutrition' | 'workouts'>('nutrition');
   const [chapiModalVisible, setChapiModalVisible] = useState(false);
@@ -214,7 +214,7 @@ const MainApp: React.FC<{ onLogout: () => void; refreshKey: number; tourProfile:
         return <HomeScreen key={refreshKey} onNavigateToWorkout={() => {
           setPlanInitialTab('workouts');
           handleTabChange('plan');
-        }} isTourActive={isTourActive} currentStep={currentStep} nextStep={nextStep} skipTour={skipTour} />;
+        }} isTourActive={isTourActive} currentStep={currentStep} nextStep={nextStep} skipTour={skipTour} userProfile={userProfile} />;
       case 'plan':
         return <PlanScreenWithTabs initialTab={planInitialTab} isTourActive={isTourActive} currentStep={currentStep} nextStep={nextStep} skipTour={skipTour} />;
       case 'social':
@@ -222,7 +222,7 @@ const MainApp: React.FC<{ onLogout: () => void; refreshKey: number; tourProfile:
       case 'progress':
         return <ProgressScreen key={progressRefreshKey} />;
       case 'profile':
-        return <ProfileScreen onLogout={onLogout} />;
+        return <ProfileScreen onLogout={onLogout} userProfile={userProfile} />;
       default:
         return <HomeScreen key={refreshKey} onNavigateToWorkout={() => {
           setPlanInitialTab('workouts');
@@ -289,6 +289,7 @@ const MainApp: React.FC<{ onLogout: () => void; refreshKey: number; tourProfile:
 function AppContent() {
   const { getToken, isSignedIn, signOut } = useAuth();
   const { isLoaded: isSessionLoaded } = useSession();
+  const { user, isLoaded: isUserLoaded } = useUser();
 
   const [currentScreen, setCurrentScreen] = useState('loading');
   const [showCompleteProfile, setShowCompleteProfile] = useState(false);
@@ -302,16 +303,16 @@ function AppContent() {
     console.log('🔍 showCompleteProfile changed to:', showCompleteProfile);
   }, [showCompleteProfile]);
 
-  // Timeout de seguridad: si Clerk no carga en 5s, mostrar login de todas formas
+  // Timeout de seguridad: si Clerk no carga en 10s, mostrar login de todas formas
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (currentScreen === 'loading') {
-        console.log('⚠️ Clerk timeout — mostrando login');
+        console.log('⚠️ Clerk timeout (10s) — mostrando login por seguridad');
         setCurrentScreen('login');
       }
-    }, 5000);
+    }, 10000);
     return () => clearTimeout(timeout);
-  }, []);
+  }, [currentScreen]);
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -347,14 +348,36 @@ function AppContent() {
           // Si no hay perfil local completo, verificar con la API
           console.log('🔍 Token encontrado, verificando perfil con API...');
           await handleLoginSuccess();
+          return;
         } else if (isSignedIn) {
+          // Si estamos firmados pero Clerk aún no carga el objeto User, esperamos
+          if (!isUserLoaded) {
+            console.log('⏳ Sesión de Clerk detectada, esperando a que carguen los datos del usuario...');
+            return;
+          }
+
           // Case 2: No Backend JWT but Clerk has active session → exchange for Backend JWT
+          console.log('🔄 Sesión de Clerk detectada sin token local. Intercambiando...');
           try {
-            const clerkToken = await getToken();
+            // Reintentar obtener token si falla la primera vez (race condition)
+            let clerkToken = await getToken();
+            if (!clerkToken) {
+              console.log('⏳ Token de Clerk no disponible aún, reintentando en 1s...');
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              clerkToken = await getToken();
+            }
+
             if (clerkToken) {
-              await AuthService.loginWithClerkToken(clerkToken);
+              const clerkUserData: any = {};
+              if (user?.primaryEmailAddress?.emailAddress) clerkUserData.email = user.primaryEmailAddress.emailAddress;
+              if (user?.firstName) clerkUserData.firstName = user.firstName;
+              if (user?.lastName) clerkUserData.lastName = user.lastName;
+
+              await AuthService.loginWithClerkToken(clerkToken, clerkUserData);
               await handleLoginSuccess();
               return;
+            } else {
+              console.log('❌ No se pudo obtener token de Clerk después de reintentar');
             }
           } catch (error) {
             console.log('Error exchanging Clerk token:', error);
@@ -362,6 +385,7 @@ function AppContent() {
           setCurrentScreen('login');
         } else {
           // Case 3: No session at all → show login
+          console.log('ℹ️ No hay sesión activa, mostrando login');
           setCurrentScreen('login');
         }
       } catch (error) {
@@ -371,7 +395,7 @@ function AppContent() {
     };
 
     checkStatus();
-  }, [isSessionLoaded, isSignedIn]);
+  }, [isSessionLoaded, isSignedIn, isUserLoaded]);
 
   const handleLoginSuccess = async () => {
     // Limpiar mensaje de verificación al hacer login exitoso
@@ -553,7 +577,7 @@ function AppContent() {
             backdropColor="rgba(0,0,0,0.7)"
             tooltipComponent={CustomTooltip}
           >
-            <MainApp onLogout={handleLogout} refreshKey={refreshKey} tourProfile={userProfile} />
+            <MainApp onLogout={handleLogout} refreshKey={refreshKey} userProfile={userProfile} tourProfile={userProfile} />
           </TourGuideProvider>
           <CompleteProfileModal
             visible={showCompleteProfile}

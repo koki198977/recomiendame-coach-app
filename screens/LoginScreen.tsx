@@ -13,12 +13,24 @@ import {
   ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useAuth, useSSO } from '@clerk/expo';
+import { useAuth, useSSO, useUser } from '@clerk/expo';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
 import { AuthService } from '../services/authService';
 import { Logo } from '../components/Logo';
+
+// Hook para mejorar la experiencia de login en Android
+export const useWarmUpBrowser = () => {
+  React.useEffect(() => {
+    // Warm up the android browser to improve UX
+    // https://docs.expo.dev/guides/authentication/#improving-user-experience
+    void WebBrowser.warmUpAsync();
+    return () => {
+      void WebBrowser.coolDownAsync();
+    };
+  }, []);
+};
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -40,8 +52,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
   const [isResending, setIsResending] = useState(false);
   const [isRequestingReset, setIsRequestingReset] = useState(false);
 
-  const { getToken } = useAuth();
+  useWarmUpBrowser();
+
+  const { getToken, isSignedIn } = useAuth();
   const { startSSOFlow } = useSSO();
+  const { user } = useUser();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -144,31 +159,53 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
 
   const handleSocialLogin = async (provider: 'oauth_google' | 'oauth_apple') => {
     try {
-      // En Expo Go el scheme es exp://, en builds es coachapp://
-      // Clerk necesita el redirect URL correcto para completar el flujo OAuth
-      const isExpoGo = Constants.appOwnership === 'expo';
-      const redirectUrl = isExpoGo
-        ? Linking.createURL('/')  // exp://... en Expo Go
-        : Linking.createURL('/', { scheme: 'coachapp' });
+      if (isSignedIn) {
+        console.log('ℹ️ Usuario ya autenticado en Clerk, esperando sincronización...');
+        // Si ya está firmado en Clerk pero sigue aquí, App.tsx se encargará 
+        // de intercambiar el token cuando detecte el estado.
+        return;
+      }
+      console.log(` iniciando flujo SSO para ${provider}...`);
+      
+      // Clerk necesita el redirect URL correcto. 
+      // Linking.createURL('/oauth-native-callback') genera automáticamente:
+      // - exp://192.168.1.x:8081/--/oauth-native-callback (en Expo Go)
+      // - coachapp://oauth-native-callback (en builds con scheme 'coachapp')
+      const redirectUrl = Linking.createURL('/oauth-native-callback');
+      
+      console.log('Redirect URL configurada:', redirectUrl);
 
       const { createdSessionId, setActive: setSSOActive } = await startSSOFlow({
         strategy: provider,
         redirectUrl,
       });
+
+      console.log('Resultado startSSOFlow:', { createdSessionId, hasSetActive: !!setSSOActive });
+
       if (createdSessionId && setSSOActive) {
+        console.log('✅ Sesión creada en Clerk, activando...');
         await setSSOActive({ session: createdSessionId });
-        // Pequeña espera para que la sesión se active completamente
-        await new Promise(resolve => setTimeout(resolve, 300));
-        const clerkToken = await getToken();
-        if (!clerkToken) throw new Error('No se pudo obtener el token de sesión.');
-        await AuthService.loginWithClerkToken(clerkToken);
-        onLoginSuccess();
+        // No llamamos al backend aquí para evitar duplicados con App.tsx
+      } else {
+        console.log('⚠️ No se creó Session ID o no hay setActive');
       }
     } catch (err: any) {
-      console.log('SSO error:', JSON.stringify(err));
-      if (err.cancelled) return;
+      console.error('❌ Error SSO Detallado:', err);
+      // Loggear propiedades individuales si stringify falla
+      console.log('SSO error message:', err.message);
+      console.log('SSO error code:', err.code);
+      console.log('SSO error meta:', JSON.stringify(err.meta || {}));
+
+      if (err.cancelled || err.code === 'session_exists') {
+        console.log('SSO cancelado o sesión ya existe');
+        return;
+      }
+      
       const providerName = provider === 'oauth_google' ? 'Google' : 'Apple';
-      Alert.alert('Error', `No se pudo completar el inicio de sesión con ${providerName}. Intenta de nuevo.`);
+      Alert.alert(
+        'Error de Autenticación', 
+        `No se pudo completar el inicio de sesión con ${providerName}. \n\n${err.message || 'Error desconocido'}`
+      );
     }
   };
 

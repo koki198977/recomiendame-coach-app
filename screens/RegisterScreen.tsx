@@ -10,11 +10,24 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Logo } from '../components/Logo';
-import { useSignUp } from '@clerk/expo';
+import { useSignUp, useAuth, useSSO, useUser } from '@clerk/expo';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+
+// Hook para mejorar la experiencia de login en Android
+const useWarmUpBrowser = () => {
+  React.useEffect(() => {
+    void WebBrowser.warmUpAsync();
+    return () => {
+      void WebBrowser.coolDownAsync();
+    };
+  }, []);
+};
+
+WebBrowser.maybeCompleteAuthSession();
 
 interface RegisterScreenProps {
   onRegisterSuccess: (message?: string, email?: string) => void;
@@ -31,10 +44,15 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
     confirmPassword: '',
   });
   const { signUp, setActive, isLoaded } = useSignUp();
+  const { getToken, isSignedIn } = useAuth();
+  const { startSSOFlow } = useSSO();
+  const { user } = useUser();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const scrollViewRef = React.useRef<ScrollView>(null);
+
+  useWarmUpBrowser();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -110,6 +128,37 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
       Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSocialLogin = async (provider: 'oauth_google' | 'oauth_apple') => {
+    try {
+      if (isSignedIn) {
+        console.log('ℹ️ Usuario ya autenticado en Clerk (Registro), esperando sincronización...');
+        return;
+      }
+      console.log(` iniciando flujo SSO para registro con ${provider}...`);
+      const redirectUrl = Linking.createURL('/oauth-native-callback');
+      
+      const { createdSessionId, setActive: setSSOActive } = await startSSOFlow({
+        strategy: provider,
+        redirectUrl,
+      });
+
+      if (createdSessionId && setSSOActive) {
+        console.log('✅ Sesión creada en Clerk (Registro), activando...');
+        await setSSOActive({ session: createdSessionId });
+        // App.tsx se encargará del intercambio de forma centralizada
+      }
+    } catch (err: any) {
+      console.error('❌ Error SSO Registro:', err);
+      if (err.cancelled || err.code === 'session_exists') return;
+      
+      const providerName = provider === 'oauth_google' ? 'Google' : 'Apple';
+      Alert.alert(
+        'Error de Registro', 
+        `No se pudo completar el registro con ${providerName}. \n\n${err.message || 'Error desconocido'}`
+      );
     }
   };
 
@@ -256,6 +305,31 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
               ¿Ya tienes cuenta? <Text style={styles.backButtonLink}>Iniciar sesión</Text>
             </Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Social Registration */}
+        <View style={styles.socialSection}>
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>o regístrate con</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <TouchableOpacity
+            style={styles.socialButton}
+            onPress={() => handleSocialLogin('oauth_google')}
+          >
+            <Text style={styles.socialButtonText}>Continuar con Google</Text>
+          </TouchableOpacity>
+
+          {Platform.OS === 'ios' && (
+            <TouchableOpacity
+              style={[styles.socialButton, styles.appleButton]}
+              onPress={() => handleSocialLogin('oauth_apple')}
+            >
+              <Text style={[styles.socialButtonText, styles.appleButtonText]}>Continuar con Apple</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Terms */}
@@ -456,5 +530,47 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     textDecorationLine: 'underline',
+  },
+  socialSection: {
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  dividerText: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 14,
+    marginHorizontal: 10,
+  },
+  socialButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  socialButtonText: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  appleButton: {
+    backgroundColor: '#000',
+  },
+  appleButtonText: {
+    color: '#fff',
   },
 });

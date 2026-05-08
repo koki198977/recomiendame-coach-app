@@ -41,12 +41,13 @@ interface HomeScreenProps {
   currentStep?: import('../config/onboardingSteps').OnboardingStep | null;
   nextStep?: () => void;
   skipTour?: () => void;
+  userProfile?: any;
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isTourActive, currentStep, nextStep, skipTour }) => {
+export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isTourActive, currentStep, nextStep, skipTour, userProfile: userProfileProp }) => {
   const plan = usePlan();
   const [user, setUser] = React.useState<any>(null);
-  const [userProfile, setUserProfile] = React.useState<any>(null);
+  const [userProfile, setUserProfile] = React.useState<any>(userProfileProp || null);
   const [weeklyPlan, setWeeklyPlan] = React.useState<WeeklyPlan | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [currentWeek, setCurrentWeek] = React.useState<string>('');
@@ -199,6 +200,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
   React.useEffect(() => {
     loadData();
   }, []);
+
+  // Sincronizar si la prop userProfile cambia (desde App.tsx)
+  React.useEffect(() => {
+    if (userProfileProp) {
+      setUserProfile(userProfileProp);
+    }
+  }, [userProfileProp]);
 
   const handleGeneratePlan = async () => {
     try {

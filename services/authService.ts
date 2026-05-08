@@ -115,11 +115,12 @@ export class AuthService {
     }
   }
 
-  static async loginWithClerkToken(clerkToken: string): Promise<string> {
+  static async loginWithClerkToken(clerkToken: string, userData?: { email?: string; firstName?: string; lastName?: string }): Promise<string> {
     try {
+      console.log('Intercambiando token de Clerk por JWT del backend...', userData ? `(con datos de usuario: ${userData.email})` : '');
       const response = await axios.post<{ access_token: string }>(
         `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH.CLERK}`,
-        {},
+        userData || {},
         {
           headers: {
             Authorization: `Bearer ${clerkToken}`,

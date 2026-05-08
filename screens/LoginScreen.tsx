@@ -167,11 +167,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
       }
       console.log(` iniciando flujo SSO para ${provider}...`);
       
-      // Clerk necesita el redirect URL correcto. 
-      // Linking.createURL('/oauth-native-callback') genera automáticamente:
-      // - exp://192.168.1.x:8081/--/oauth-native-callback (en Expo Go)
-      // - coachapp://oauth-native-callback (en builds con scheme 'coachapp')
-      const redirectUrl = Linking.createURL('/oauth-native-callback');
+      // Quitamos la barra inicial '/' para evitar el problema de las 3 barras (coachapp:///)
+      const redirectUrl = Linking.createURL('oauth-native-callback');
       
       console.log('Redirect URL configurada:', redirectUrl);
 

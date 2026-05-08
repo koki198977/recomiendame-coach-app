@@ -138,7 +138,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
         return;
       }
       console.log(` iniciando flujo SSO para registro con ${provider}...`);
-      const redirectUrl = Linking.createURL('/oauth-native-callback');
+      const redirectUrl = Linking.createURL('oauth-native-callback');
       
       const { createdSessionId, setActive: setSSOActive } = await startSSOFlow({
         strategy: provider,

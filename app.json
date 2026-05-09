@@ -2,7 +2,7 @@
   "expo": {
     "name": "Recomiéndame Coach",
     "slug": "recomiendame-coach-app",
-    "version": "1.4.4",
+    "version": "1.4.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -48,7 +48,7 @@
     },
     "android": {
       "package": "cl.recomiendameapp.coach",
-      "versionCode": 144,
+      "versionCode": 145,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#4CAF50"
@@ -71,6 +71,18 @@
             },
             {
               "scheme": "http"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "coachapp"
             }
           ],
           "category": [

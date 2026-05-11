@@ -84,7 +84,6 @@ struct CoachWidgetEntryView : View {
     }
 }
 
-@main
 struct CoachWidget: Widget {
     let kind: String = "CoachWidget"
 

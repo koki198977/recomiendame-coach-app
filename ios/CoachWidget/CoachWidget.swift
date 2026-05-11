@@ -22,17 +22,29 @@ struct Provider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
         let entry = SimpleEntry(date: Date(), data: loadData())
-        let timeline = Timeline(entries: [entry], policy: .atEnd)
+        // Refrescar cada 15 minutos como fallback por si no se llama reloadAllTimelines()
+        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: Date()) ?? Date()
+        let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
         completion(timeline)
     }
     
     private func loadData() -> WidgetData {
         let userDefaults = UserDefaults(suiteName: "group.cl.recomiendameapp.coach")
+        
+        // Intentar leer como string (formato de react-native-shared-group-preferences)
         if let savedData = userDefaults?.string(forKey: "widgetData"),
            let jsonData = savedData.data(using: .utf8),
            let decodedData = try? JSONDecoder().decode(WidgetData.self, from: jsonData) {
             return decodedData
         }
+        
+        // Fallback: intentar leer como diccionario nativo (por si acaso)
+        if let dict = userDefaults?.dictionary(forKey: "widgetData"),
+           let jsonData = try? JSONSerialization.data(withJSONObject: dict),
+           let decodedData = try? JSONDecoder().decode(WidgetData.self, from: jsonData) {
+            return decodedData
+        }
+        
         return WidgetData(caloriesTarget: 2000, caloriesConsumed: 0, proteinTarget: 150, proteinConsumed: 0, nextWorkout: "Sin datos", lastUpdated: "")
     }
 }
@@ -44,6 +56,16 @@ struct SimpleEntry: TimelineEntry {
 
 struct CoachWidgetEntryView : View {
     var entry: Provider.Entry
+    
+    var calorieProgress: Double {
+        guard entry.data.caloriesTarget > 0 else { return 0 }
+        return min(Double(entry.data.caloriesConsumed) / Double(entry.data.caloriesTarget), 1.0)
+    }
+    
+    var proteinProgress: Double {
+        guard entry.data.proteinTarget > 0 else { return 0 }
+        return min(Double(entry.data.proteinConsumed) / Double(entry.data.proteinTarget), 1.0)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -53,7 +75,7 @@ struct CoachWidgetEntryView : View {
                     .fontWeight(.bold)
                     .foregroundColor(.green)
                 Spacer()
-                Text(entry.data.lastUpdated.prefix(5))
+                Text(formatTime(entry.data.lastUpdated))
                     .font(.system(size: 8))
                     .foregroundColor(.gray)
             }
@@ -62,7 +84,7 @@ struct CoachWidgetEntryView : View {
                 Text("Calorías")
                     .font(.system(size: 10, weight: .bold))
                 
-                ProgressView(value: Double(entry.data.caloriesConsumed), total: Double(entry.data.caloriesTarget))
+                ProgressView(value: calorieProgress)
                     .accentColor(.green)
                 
                 Text("\(entry.data.caloriesConsumed) / \(entry.data.caloriesTarget) kcal")
@@ -71,16 +93,44 @@ struct CoachWidgetEntryView : View {
             
             Divider()
             
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Siguiente:")
-                    .font(.system(size: 8))
-                    .foregroundColor(.gray)
-                Text(entry.data.nextWorkout ?? "Descanso")
-                    .font(.system(size: 11, weight: .bold))
-                    .lineLimit(1)
+            HStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("🥩 Proteína")
+                        .font(.system(size: 8))
+                        .foregroundColor(.gray)
+                    Text("\(entry.data.proteinConsumed)/\(entry.data.proteinTarget)g")
+                        .font(.system(size: 10, weight: .bold))
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Siguiente:")
+                        .font(.system(size: 8))
+                        .foregroundColor(.gray)
+                    Text(entry.data.nextWorkout ?? "Descanso")
+                        .font(.system(size: 10, weight: .bold))
+                        .lineLimit(1)
+                }
             }
         }
         .padding()
+    }
+    
+    /// Formatea el timestamp ISO a hora local legible (HH:mm)
+    private func formatTime(_ isoString: String) -> String {
+        guard !isoString.isEmpty else { return "" }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        
+        if let date = formatter.date(from: isoString) {
+            let timeFormatter = DateFormatter()
+            timeFormatter.dateFormat = "HH:mm"
+            return timeFormatter.string(from: date)
+        }
+        
+        // Fallback: mostrar los primeros 5 chars
+        return String(isoString.prefix(5))
     }
 }
 

@@ -20,6 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { usePlan } from '../hooks/usePlan';
 import { PaywallModal } from '../components/PaywallModal';
 import { LockedButton } from '../components/FeatureGate';
+import { WidgetService } from '../services/widgetService';
 
 const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -566,6 +567,19 @@ export const PlanScreen: React.FC = () => {
       
       // Recargar comidas del día para actualizar el progreso
       await loadTodayMeals();
+
+      // Sincronizar widget con los nuevos datos de comidas consumidas
+      try {
+        const mealsConsumed = await NutritionService.getTodayMeals();
+        await WidgetService.updateWidgetData({
+          caloriesTarget: weeklyPlan?.macros?.kcalTarget || 2000,
+          caloriesConsumed: mealsConsumed?.totals?.kcal || 0,
+          proteinTarget: weeklyPlan?.macros?.protein_g || 150,
+          proteinConsumed: mealsConsumed?.totals?.protein_g || 0,
+        });
+      } catch (e) {
+        console.log('⚠️ Error sincronizando widget:', e);
+      }
       
       Alert.alert('¡Registrado! ✅', `"${meal.title}" ha sido marcada como consumida.`);
     } catch (error: any) {

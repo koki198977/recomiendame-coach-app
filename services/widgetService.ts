@@ -19,9 +19,13 @@ const WIDGET_DATA_KEY = 'widget_data_sync';
 // En iOS esto debe coincidir con tu App Group ID (ej: group.cl.recomiendameapp.coach)
 const APP_GROUP = 'group.cl.recomiendameapp.coach';
 
+// Módulo nativo para recargar widgets
+const { WidgetBridge } = NativeModules;
+
 export class WidgetService {
   /**
    * Sincroniza los datos actuales con el almacenamiento del widget
+   * y fuerza la recarga del timeline del widget
    */
   static async updateWidgetData(data: Partial<WidgetData>): Promise<void> {
     try {
@@ -53,6 +57,9 @@ export class WidgetService {
       } else if (Platform.OS === 'android') {
         await this.syncToAndroidWidget(updatedData);
       }
+
+      // 5. Forzar recarga del widget para que muestre los datos actualizados
+      await this.reloadWidgets();
 
       console.log('✅ Datos del Widget actualizados:', updatedData);
     } catch (error) {
@@ -88,13 +95,16 @@ export class WidgetService {
   }
 
   /**
-   * Forzar al sistema operativo a recargar el widget
+   * Forzar al sistema operativo a recargar el widget inmediatamente
    */
   static async reloadWidgets(): Promise<void> {
-    if (Platform.OS === 'ios') {
-      // WidgetCenter.reloadAllTimelines() vía NativeModule
-    } else {
-      // Intent para actualizar widgets en Android
+    try {
+      if (Platform.OS === 'ios' && WidgetBridge?.reloadAllTimelines) {
+        WidgetBridge.reloadAllTimelines();
+        console.log('🔄 [iOS] Widget timeline recargado');
+      }
+    } catch (error) {
+      console.log('⚠️ Error recargando widgets:', error);
     }
   }
 }

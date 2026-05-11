@@ -476,6 +476,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
       const mealsConsumed = await NutritionService.getTodayMeals();
       setTodayMealsConsumed(mealsConsumed);
 
+      // Sincronizar Widget
+      syncWidget(weeklyPlan, mealsConsumed, todayWorkout);
+
       // Limpiar cache de Chapi para que se actualice con las nuevas comidas
       await CacheService.clearChapiCache();
       setChapiRefreshKey(prev => prev + 1);
@@ -504,6 +507,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
               // Recargar comidas consumidas
               const mealsConsumed = await NutritionService.getTodayMeals();
               setTodayMealsConsumed(mealsConsumed);
+              
+              // Sincronizar Widget
+              syncWidget(weeklyPlan, mealsConsumed, todayWorkout);
               
               // Limpiar cache de Chapi para que se actualice
               await CacheService.clearChapiCache();

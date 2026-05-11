@@ -24,6 +24,7 @@ import NutritionScannerCard from '../components/NutritionScannerCard';
 import CacheService from '../services/cacheService';
 import { AppHeader } from '../components/AppHeader';
 import { NotificationBadge } from '../components/NotificationBadge';
+import { WidgetService } from '../services/widgetService';
 import { HydrationCard } from '../components/HydrationCard';
 import { HydrationSetupModal } from '../components/HydrationSetupModal';
 import { LogWaterModal } from '../components/LogWaterModal';
@@ -46,12 +47,13 @@ interface HomeScreenProps {
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isTourActive, currentStep, nextStep, skipTour, userProfile: userProfileProp }) => {
   const plan = usePlan();
+  const { isGeneratingNutrition: isGenerating, setIsGeneratingNutrition: setIsGenerating } = plan;
+  const [showGeneratingModal, setShowGeneratingModal] = React.useState(false);
   const [user, setUser] = React.useState<any>(null);
   const [userProfile, setUserProfile] = React.useState<any>(userProfileProp || null);
   const [weeklyPlan, setWeeklyPlan] = React.useState<WeeklyPlan | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [currentWeek, setCurrentWeek] = React.useState<string>('');
-  const [isGenerating, setIsGenerating] = React.useState(false);
   const [generationProgress, setGenerationProgress] = React.useState(0);
   const [showShoppingListModal, setShowShoppingListModal] = React.useState(false);
   const [shoppingListItems, setShoppingListItems] = React.useState<ShoppingListItem[]>([]);
@@ -132,6 +134,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
     return () => sub.remove();
   }, []);
 
+  // Escuchar cuando el plan está listo (vía Notificación Push o evento global)
+  React.useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('planReady', async (data) => {
+      const isWorkout = data?.type === 'WORKOUT_READY' || data?.type === 'WORKOUT_PLAN_READY';
+      if (isWorkout) return; // La Home se enfoca en nutrición/plan general
+
+      console.log('🍎 Plan listo recibido por evento en Home — refrescando pantalla');
+      setIsGenerating(false);
+      setShowGeneratingModal(false);
+      setGenerationProgress(0);
+      await loadData();
+    });
+    return () => sub.remove();
+  }, []);
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -159,6 +176,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
       // Cargar comidas consumidas del día
       const mealsConsumed = await NutritionService.getTodayMeals();
       setTodayMealsConsumed(mealsConsumed);
+
+      // Sincronizar Widget
+      syncWidget(plan, mealsConsumed, todayWorkout);
 
       // Cargar workout del día
       loadWorkoutPlan();
@@ -208,50 +228,50 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
     }
   }, [userProfileProp]);
 
-  const handleGeneratePlan = async () => {
+  const handleGeneratePlan = async (week: string) => {
     try {
       setIsGenerating(true);
+      setShowGeneratingModal(true);
       setGenerationProgress(10);
 
       // Iniciar la generación del plan
-      const generateResponse = await NutritionService.generatePlanWithAI(currentWeek);
+      const generateResponse = await NutritionService.generatePlanWithAI(week);
 
       if (generateResponse.created) {
         // Iniciar polling para verificar si el plan está listo
-        pollForPlan(generateResponse.planId);
+        pollForPlan(generateResponse.planId, week);
       }
     } catch (error: any) {
-      console.log('Error generating plan:', error);
+      // Detectar 504 Gateway Timeout o cualquier timeout
+      const is504 = error.response?.status === 504;
+      const isNetworkError = error.message?.toLowerCase().includes('network');
+      const isTimeout = error.code === 'ECONNABORTED' || 
+                       error.code === 'ETIMEDOUT' ||
+                       error.message?.toLowerCase().includes('timeout') || 
+                       error.message?.includes('504');
       
-      // Si es un 504 Gateway Timeout, el plan se está creando en background
-      if (error.response?.status === 504) {
-        console.log('⏰ 504 Gateway Timeout - Plan creating in background, starting polling...');
+      if (is504 || isTimeout || isNetworkError) {
         setGenerationProgress(20);
-        // Generar un planId temporal basado en la semana
-        const tempPlanId = `${currentWeek}-${Date.now()}`;
-        // Iniciar polling de todas formas
-        pollForPlan(tempPlanId);
+        // Iniciar polling inmediatamente - el plan se está creando en el backend
+        pollForPlan(`temp-${week}`, week);
         return;
       }
 
+      // Si es otro tipo de error, cerrar el modal y mostrar error
       setIsGenerating(false);
+      setShowGeneratingModal(false);
       setGenerationProgress(0);
 
       let errorMessage = 'No se pudo generar el plan. Intenta de nuevo.';
-
-      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-        errorMessage = 'La generación del plan está tardando más de lo esperado. El plan se está creando en segundo plano, puedes refrescar en unos minutos.';
-      }
-
       Alert.alert('Error', errorMessage);
     }
   };
 
-  const pollForPlan = async (planId: string, attempts: number = 0) => {
+  const pollForPlan = async (planId: string, week: string, attempts: number = 0) => {
     const maxAttempts = 20; // 20 intentos = ~2 minutos
     
     // Si el planId contiene la semana, es un ID temporal (viene de 504)
-    const is504Timeout = planId.includes(currentWeek);
+    const is504Timeout = planId.includes(week);
     
     // Intervalo adaptativo: 10s para 504, 6s para normal
     const pollInterval = is504Timeout ? 10000 : 6000;
@@ -264,12 +284,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
 
     try {
       // Intentar obtener el plan actualizado
-      const plan = await NutritionService.getWeeklyPlan(currentWeek);
+      const plan = await NutritionService.getWeeklyPlan(week);
 
       console.log('📋 Plan received:', plan ? `ID: ${plan.id}, Days: ${plan.days?.length}` : 'null');
 
       // Verificar si el plan existe (sin importar el ID si fue un 504)
-      const isPlanReady = plan && (plan.id === planId || planId.includes(currentWeek));
+      const isPlanReady = plan && (plan.id === planId || planId.includes(week));
       
       if (isPlanReady) {
         // El plan está listo
@@ -278,6 +298,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
         setTimeout(() => {
           setWeeklyPlan(plan);
           setIsGenerating(false);
+          setShowGeneratingModal(false);
           setGenerationProgress(0);
           Alert.alert('¡Listo! 🎉', 'Tu plan nutricional personalizado ha sido creado exitosamente.');
         }, 1000); // Pequeña pausa para mostrar 100%
@@ -288,12 +309,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
       if (attempts < maxAttempts) {
         console.log(`⏳ Plan not ready yet, will retry in ${pollInterval/1000} seconds...`);
         setTimeout(() => {
-          pollForPlan(planId, attempts + 1);
+          pollForPlan(planId, week, attempts + 1);
         }, pollInterval);
       } else {
         // Timeout - el plan tardó demasiado
         console.log('⏰ Polling timeout reached');
         setIsGenerating(false);
+        setShowGeneratingModal(false);
         setGenerationProgress(0);
         Alert.alert(
           'Plan en proceso',
@@ -318,13 +340,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
       // Si no hemos alcanzado el máximo de intentos, continuar
       if (attempts < maxAttempts) {
         setTimeout(() => {
-          pollForPlan(planId, attempts + 1);
+          pollForPlan(planId, week, attempts + 1);
         }, pollInterval);
       } else {
         setIsGenerating(false);
+        setShowGeneratingModal(false);
         setGenerationProgress(0);
         Alert.alert('Error', 'Hubo un problema verificando tu plan. Intenta refrescar la pantalla.');
       }
+    }
+  };
+
+  const syncWidget = async (plan: any, meals: any, workout: any) => {
+    try {
+      await WidgetService.updateWidgetData({
+        caloriesTarget: plan?.macros?.kcalTarget || 2000,
+        caloriesConsumed: meals?.totals?.kcal || 0,
+        proteinTarget: plan?.macros?.protein_g || 150,
+        proteinConsumed: meals?.totals?.protein_g || 0,
+        nextWorkout: workout?.title || 'Descanso'
+      });
+    } catch (error) {
+      console.log('Error syncing widget:', error);
     }
   };
 
@@ -337,6 +374,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
       const mealsConsumed = await NutritionService.getTodayMeals(localDate);
       setTodayMealsConsumed(mealsConsumed);
       console.log('✅ Comidas refrescadas:', mealsConsumed.totals);
+      
+      // Sincronizar Widget
+      syncWidget(weeklyPlan, mealsConsumed, todayWorkout);
       
       // Limpiar cache de Chapi para que se actualice con las nuevas comidas
       await CacheService.clearChapiCache();
@@ -933,8 +973,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
 
       {/* Modal de generación de plan */}
       <PlanGeneratingModal
-        visible={isGenerating}
+        visible={showGeneratingModal}
         progress={generationProgress}
+        onRunInBackground={() => {
+          setShowGeneratingModal(false);
+          Alert.alert(
+            '¡Excelente elección! 🚀', 
+            'Chapi seguirá trabajando duro en tu plan. Puedes seguir explorando la app o hacer otras cosas; te enviaremos una notificación en cuanto todo esté listo.',
+            [{ text: 'Entendido' }]
+          );
+        }}
       />
 
       {/* Modal de lista de compras */}

@@ -38,6 +38,10 @@ interface PlanContextType {
   refreshPlan: () => Promise<void>;
   paywallVisible: boolean;
   paywallFeature: FeatureKey | undefined;
+  isGeneratingNutrition: boolean;
+  setIsGeneratingNutrition: (generating: boolean) => void;
+  isGeneratingWorkout: boolean;
+  setIsGeneratingWorkout: (generating: boolean) => void;
 }
 
 const PlanContext = createContext<PlanContextType | undefined>(undefined);
@@ -49,6 +53,8 @@ export const PlanProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [usageData, setUsageData] = useState<UsageData | null>(null);
   const [paywallVisible, setPaywallVisible] = useState(false);
   const [paywallFeature, setPaywallFeature] = useState<FeatureKey | undefined>();
+  const [isGeneratingNutrition, setIsGeneratingNutrition] = useState(false);
+  const [isGeneratingWorkout, setIsGeneratingWorkout] = useState(false);
 
   const isPro = plan === 'PRO';
   const isFree = plan === 'FREE';
@@ -125,6 +131,8 @@ export const PlanProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isPro, isFree, plan,
       checkFeature, showPaywall, hidePaywall,
       refreshPlan, paywallVisible, paywallFeature,
+      isGeneratingNutrition, setIsGeneratingNutrition,
+      isGeneratingWorkout, setIsGeneratingWorkout
     }}>
       {children}
     </PlanContext.Provider>

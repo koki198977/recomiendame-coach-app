@@ -1,8 +1,7 @@
 // Configuración de la API
 export const API_CONFIG = {
   // URL de tu backend en producción
-  BASE_URL: 'https://api-coach.recomiendameapp.cl',
-  //BASE_URL: 'http://192.168.1.87:3001',
+  BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'https://api-coach.recomiendameapp.cl',
   
   TIMEOUT: 30000, // 30 segundos por defecto
   LONG_TIMEOUT: 120000, // 2 minutos para operaciones largas (generación de planes)
@@ -11,7 +10,7 @@ export const API_CONFIG = {
   ENDPOINTS: {
     AUTH: {
       LOGIN: '/auth/login',
-      REGISTER: '/auth/register',
+      REGISTER: '/users',
       PROFILE: '/auth/profile',
       CLERK: '/auth/clerk',
     },

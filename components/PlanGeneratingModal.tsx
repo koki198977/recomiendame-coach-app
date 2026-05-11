@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Dimensions,
   Image,
+  TouchableOpacity,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -18,6 +19,7 @@ interface PlanGeneratingModalProps {
   type?: 'nutrition' | 'workout'; // Tipo de plan
   title?: string; // Título personalizado
   description?: string; // Descripción personalizada
+  onRunInBackground?: () => void; // Callback para cerrar el modal y seguir en background
 }
 
 export const PlanGeneratingModal: React.FC<PlanGeneratingModalProps> = ({
@@ -26,6 +28,7 @@ export const PlanGeneratingModal: React.FC<PlanGeneratingModalProps> = ({
   type = 'nutrition',
   title,
   description,
+  onRunInBackground,
 }) => {
   // Textos por defecto según el tipo
   const defaultTitle = type === 'workout' 
@@ -85,7 +88,7 @@ export const PlanGeneratingModal: React.FC<PlanGeneratingModalProps> = ({
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>{title || defaultTitle}</Text>
+          <Text style={styles.title}>🚀 {title || defaultTitle}</Text>
           
           {/* Description */}
           <Text style={styles.description}>
@@ -100,6 +103,15 @@ export const PlanGeneratingModal: React.FC<PlanGeneratingModalProps> = ({
             <Text style={styles.progressText}>{Math.round(progress)}%</Text>
           </View>
 
+          {/* Mensaje de Segundo Plano */}
+          {onRunInBackground && (
+            <View style={styles.backgroundInfoContainer}>
+              <Text style={styles.backgroundInfoText}>
+                🚀 No necesitas esperar aquí. Presiona abajo para seguir usando la app y te notificaremos al terminar.
+              </Text>
+            </View>
+          )}
+
           {/* Status Messages */}
           <View style={styles.statusContainer}>
             <Text style={styles.statusText}>{getStatusMessage()}</Text>
@@ -109,9 +121,20 @@ export const PlanGeneratingModal: React.FC<PlanGeneratingModalProps> = ({
           <Text style={styles.timeEstimate}>
             Esto tomará de 30 segundos a 1 minuto ⏱️
           </Text>
-          <Text style={styles.timeNote}>
-            Mantén la app abierta mientras trabajo en esto
-          </Text>
+          
+          {onRunInBackground !== undefined && onRunInBackground !== null ? (
+            <TouchableOpacity 
+              style={styles.backgroundButton} 
+              onPress={onRunInBackground}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.backgroundButtonText}>Entendido, avísame cuando termine 🚀</Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.timeNote}>
+              Mantén la app abierta mientras trabajo en esto
+            </Text>
+          )}
         </View>
       </View>
     </Modal>
@@ -223,5 +246,35 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 5,
     fontStyle: 'italic',
+  },
+  backgroundButton: {
+    marginTop: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  backgroundButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  backgroundInfoContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 20,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  backgroundInfoText: {
+    color: '#fff',
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+    fontWeight: '500',
   },
 });

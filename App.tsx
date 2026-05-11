@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ClerkProvider, useAuth, useSession, useUser } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View, StyleSheet, Text, TouchableOpacity, Alert, Animated, LayoutChangeEvent } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Text, TouchableOpacity, Alert, Animated, LayoutChangeEvent, DeviceEventEmitter } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
@@ -503,12 +503,24 @@ function AppContent() {
     }
   };
 
-  // Manejar deep links de pago (coachapp://subscription/success)
+  // Manejar deep links de pago (coachapp://subscription/success|failure|pending)
   useEffect(() => {
     const handleDeepLink = async (url: string) => {
       if (url.includes('subscription/success')) {
-        Alert.alert('¡Suscripción activada!', 'Tu plan PRO ya está activo. ¡Disfrútalo!');
-        // Refrescar el plan para que la app refleje el nuevo estado
+        Alert.alert('¡Suscripción activada! 🎉', 'Tu plan PRO ya está activo. ¡Disfrútalo!');
+        setRefreshKey(prev => prev + 1);
+      } else if (url.includes('subscription/failure')) {
+        Alert.alert(
+          'Pago no completado',
+          'El pago no pudo ser procesado. Puedes intentar de nuevo desde tu perfil.',
+          [{ text: 'Entendido' }]
+        );
+      } else if (url.includes('subscription/pending')) {
+        Alert.alert(
+          'Pago pendiente ⏳',
+          'Tu pago está siendo procesado. Te notificaremos cuando se confirme.',
+          [{ text: 'Entendido' }]
+        );
         setRefreshKey(prev => prev + 1);
       }
     };
@@ -528,6 +540,45 @@ function AppContent() {
     setUnauthorizedCallback(() => {
       handleLogout();
     });
+  }, []);
+
+  // Configurar listeners de Notificaciones Push
+  React.useEffect(() => {
+    const cleanup = PushNotificationService.setupNotificationListeners(
+      (notification) => {
+        // Notificación recibida en primer plano
+        const data = notification.request.content.data;
+        console.log('📬 Notificación Push recibida (foreground):', data);
+        
+        if (data?.type === 'PLAN_READY' || data?.type === 'WORKOUT_READY' || data?.type === 'WORKOUT_PLAN_READY' || data?.planId) {
+          const isWorkout = data?.type === 'WORKOUT_READY' || data?.type === 'WORKOUT_PLAN_READY' || (data?.body && data.body.toLowerCase().includes('rutina'));
+          console.log(`🚀 Notificación de ${isWorkout ? 'Rutina' : 'Plan'} detectada`);
+          
+          DeviceEventEmitter.emit('planReady', data);
+          
+          Alert.alert(
+            isWorkout ? '¡Rutina lista! 💪' : '¡Plan listo! 🎉', 
+            isWorkout 
+              ? 'Chapi ha terminado de generar tu rutina personalizada. Se ha actualizado automáticamente.'
+              : 'Chapi ha terminado de generar tu plan nutricional. Se ha actualizado automáticamente.',
+            [{ text: '¡Genial!' }]
+          );
+        }
+      },
+      (response) => {
+        // Notificación tocada por el usuario (app abierta desde la notificación)
+        const data = response.notification.request.content.data;
+        console.log('👆 Notificación Push tocada:', data);
+        
+        if (data?.type === 'PLAN_READY' || data?.type === 'WORKOUT_READY' || data?.type === 'WORKOUT_PLAN_READY') {
+          // Esperar un momento a que la app cargue el home si estaba cerrada
+          setTimeout(() => {
+            DeviceEventEmitter.emit('planReady', data);
+          }, 1000);
+        }
+      }
+    );
+    return () => cleanup();
   }, []);
 
   if (currentScreen === 'loading') {

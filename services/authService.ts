@@ -36,10 +36,9 @@ export class AuthService {
   }
 
   static async register(userData: RegisterRequest): Promise<User> {
-    console.log('🚀 Starting registration with:', userData.email);
+    console.log('🚀 Iniciando registro en backend con:', userData.email);
     
-    // Tu endpoint es /users, no /auth/register
-    const response = await api.post<User>('/users', userData);
+    const response = await api.post<User>(API_CONFIG.ENDPOINTS.AUTH.REGISTER, userData);
     
     // Debug: Log para ver qué devuelve la API
     console.log('Registration response status:', response.status);

@@ -19,6 +19,8 @@ import { FollowersModal } from "../components/FollowersModal";
 import { EditFieldModal } from "../components/EditFieldModal";
 import { PlanGeneratingModal } from "../components/PlanGeneratingModal";
 import { getCurrentUserId } from "../utils/userUtils";
+import { usePlan } from '../hooks/usePlan';
+import api from '../services/api';
 
 import { AppHeader } from '../components/AppHeader';
 import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
@@ -49,13 +51,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
     type: 'nutritionGoal' | 'targetWeight' | 'timeFrame' | 'intensity' | 'motivation' | null;
     value: any;
   }>({ type: null, value: null });
-  const [isGeneratingPlan, setIsGeneratingPlan] = React.useState(false);
   const [generationProgress, setGenerationProgress] = React.useState(0);
   const [showEditNameModal, setShowEditNameModal] = React.useState(false);
   const [editingName, setEditingName] = React.useState({ name: '', lastName: '' });
+  const [subscriptionInfo, setSubscriptionInfo] = React.useState<any>(null);
+  const [loadingSub, setLoadingSub] = React.useState(false);
+  const [showGeneratingModal, setShowGeneratingModal] = React.useState(false);
+  const { isPro, isFree, showPaywall, refreshPlan, isGeneratingNutrition: isGeneratingPlan, setIsGeneratingNutrition: setIsGeneratingPlan } = usePlan();
 
   React.useEffect(() => {
     loadUserData();
+    loadSubscriptionInfo();
   }, []);
 
   // Sincronizar si la prop cambia
@@ -87,6 +93,42 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
     } catch (error) {
       // Si falla, no hacer nada (se mostrará el peso del perfil)
     }
+  };
+
+  const loadSubscriptionInfo = async () => {
+    try {
+      setLoadingSub(true);
+      const res = await api.get('/subscriptions/status');
+      setSubscriptionInfo(res.data);
+    } catch (error) {
+      console.log('Error loading subscription info:', error);
+    } finally {
+      setLoadingSub(false);
+    }
+  };
+
+  const handleCancelSubscription = () => {
+    Alert.alert(
+      'Cancelar suscripción',
+      '¿Estás seguro que quieres cancelar tu suscripción PRO? Seguirás teniendo acceso hasta el final de tu período de facturación actual.',
+      [
+        { text: 'No, mantener PRO', style: 'cancel' },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.post('/subscriptions/cancel');
+              Alert.alert('Suscripción cancelada', 'Tu suscripción ha sido cancelada. Tendrás acceso PRO hasta el fin del período actual.');
+              await loadSubscriptionInfo();
+              await refreshPlan();
+            } catch (error) {
+              Alert.alert('Error', 'No se pudo cancelar la suscripción. Intenta de nuevo.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const loadUserData = async () => {
@@ -235,6 +277,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
         setGenerationProgress(100);
         setTimeout(() => {
           setIsGeneratingPlan(false);
+          setShowGeneratingModal(false);
           setGenerationProgress(0);
           Alert.alert('¡Listo! 🎉', 'Tu plan nutricional ha sido regenerado con tus nuevas preferencias.');
           loadUserData();
@@ -248,6 +291,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
         }, pollInterval);
       } else {
         setIsGeneratingPlan(false);
+        setShowGeneratingModal(false);
         setGenerationProgress(0);
         Alert.alert(
           'Plan en proceso',
@@ -261,6 +305,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
         }, pollInterval);
       } else {
         setIsGeneratingPlan(false);
+        setShowGeneratingModal(false);
         setGenerationProgress(0);
         Alert.alert('Error', 'Hubo un problema verificando tu plan.');
       }
@@ -308,6 +353,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
               onPress: async () => {
                 try {
                   setIsGeneratingPlan(true);
+                  setShowGeneratingModal(true);
                   setGenerationProgress(10);
                   const currentWeek = NutritionService.getCurrentWeek();
                   
@@ -340,6 +386,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
                 } catch (error) {
                   console.log("Error generating plan:", error);
                   setIsGeneratingPlan(false);
+                  setShowGeneratingModal(false);
                   setGenerationProgress(0);
                   Alert.alert("Error", "No se pudo regenerar el plan. Intenta nuevamente más tarde.");
                 }
@@ -777,6 +824,118 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
 
       <ScrollView style={styles.content}>
         {renderProfileInfo()}
+
+        {/* Sección Mi Suscripción */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Mi Suscripción</Text>
+
+          {/* Badge del plan actual */}
+          <View style={subStyles.planBadgeRow}>
+            <LinearGradient
+              colors={isPro ? ['#2E7D32', '#43A047'] : ['#757575', '#9E9E9E']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={subStyles.planBadge}
+            >
+              <Text style={subStyles.planBadgeText}>{isPro ? '⭐ PRO' : 'FREE'}</Text>
+            </LinearGradient>
+            {subscriptionInfo?.status === 'TRIAL' && (
+              <View style={subStyles.trialBadge}>
+                <Text style={subStyles.trialBadgeText}>Período de prueba</Text>
+              </View>
+            )}
+          </View>
+
+          {isPro && subscriptionInfo ? (
+            <>
+              <TouchableOpacity style={styles.dataItem}>
+                <View style={styles.dataLeft}>
+                  <Text style={styles.dataIcon}>📋</Text>
+                  <Text style={styles.dataLabel}>Plan</Text>
+                </View>
+                <Text style={styles.dataValue}>
+                  {subscriptionInfo.planType === 'annual' ? 'Anual' : 'Mensual'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.dataItem}>
+                <View style={styles.dataLeft}>
+                  <Text style={styles.dataIcon}>📅</Text>
+                  <Text style={styles.dataLabel}>Estado</Text>
+                </View>
+                <Text style={[styles.dataValue, { color: subscriptionInfo.status === 'CANCELLED' ? COLORS.error : COLORS.primary }]}>
+                  {subscriptionInfo.status === 'ACTIVE' ? 'Activo' :
+                   subscriptionInfo.status === 'TRIAL' ? 'Prueba gratis' :
+                   subscriptionInfo.status === 'CANCELLED' ? 'Cancelado' :
+                   subscriptionInfo.status === 'PENDING' ? 'Pendiente' : subscriptionInfo.status}
+                </Text>
+              </TouchableOpacity>
+
+              {subscriptionInfo.currentPeriodEnd && (
+                <TouchableOpacity style={styles.dataItem}>
+                  <View style={styles.dataLeft}>
+                    <Text style={styles.dataIcon}>🔄</Text>
+                    <Text style={styles.dataLabel}>
+                      {subscriptionInfo.status === 'CANCELLED' ? 'Acceso hasta' : 'Próximo cobro'}
+                    </Text>
+                  </View>
+                  <Text style={styles.dataValue}>
+                    {new Date(subscriptionInfo.currentPeriodEnd).toLocaleDateString('es-CL', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {subscriptionInfo.status !== 'CANCELLED' && (
+                <TouchableOpacity
+                  style={subStyles.cancelBtn}
+                  onPress={handleCancelSubscription}
+                >
+                  <Text style={subStyles.cancelBtnText}>Cancelar suscripción</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          ) : (
+            <>
+              <Text style={subStyles.freeDescription}>
+                Desbloquea Chapi 2.0, recetas completas, análisis semanal y mucho más.
+              </Text>
+              <TouchableOpacity
+                style={subStyles.upgradeBtn}
+                onPress={() => showPaywall()}
+              >
+                <LinearGradient
+                  colors={['#2E7D32', '#43A047']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={subStyles.upgradeBtnGradient}
+                >
+                  <Text style={subStyles.upgradeBtnText}>⭐ Mejorar a PRO</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* Restaurar compra */}
+          <TouchableOpacity
+            style={subStyles.restoreBtn}
+            onPress={async () => {
+              try {
+                await refreshPlan();
+                await loadSubscriptionInfo();
+                Alert.alert('Listo', isPro ? 'Tu suscripción PRO está activa.' : 'No se encontró una suscripción activa asociada a tu cuenta.');
+              } catch {
+                Alert.alert('Error', 'No se pudo verificar tu suscripción.');
+              }
+            }}
+          >
+            <Text style={subStyles.restoreBtnText}>🔄 Restaurar compra</Text>
+          </TouchableOpacity>
+        </View>
+
         {renderSocialStats()}
         {renderHealthData()}
         {renderNutritionGoals()}
@@ -964,8 +1123,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
 
       {/* Modal de generación de plan */}
       <PlanGeneratingModal
-        visible={isGeneratingPlan}
+        visible={showGeneratingModal}
         progress={generationProgress}
+        onRunInBackground={() => {
+          setShowGeneratingModal(false);
+          Alert.alert(
+            '¡Excelente elección! 🚀', 
+            'Chapi seguirá trabajando duro en tu plan. Puedes seguir explorando la app o hacer otras cosas; te enviaremos una notificación en cuanto todo esté listo.',
+            [{ text: 'Entendido' }]
+          );
+        }}
       />
 
       {/* Modal de edición de nombre */}
@@ -1320,5 +1487,83 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     color: COLORS.text,
+  },
+});
+
+// Estilos para la sección de suscripción
+const subStyles = StyleSheet.create({
+  planBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    gap: 10,
+  },
+  planBadge: {
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+  },
+  planBadgeText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  trialBadge: {
+    backgroundColor: '#FFF3E0',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  trialBadgeText: {
+    color: '#E65100',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  freeDescription: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    lineHeight: 20,
+  },
+  upgradeBtn: {
+    marginHorizontal: 20,
+    marginBottom: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...SHADOWS.glow,
+    shadowColor: '#2E7D32',
+  },
+  upgradeBtnGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  upgradeBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  cancelBtn: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    marginHorizontal: 20,
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  cancelBtnText: {
+    color: COLORS.error,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  restoreBtn: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  restoreBtnText: {
+    color: COLORS.textLight,
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

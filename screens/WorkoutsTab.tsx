@@ -27,12 +27,13 @@ import { LockedButton } from '../components/FeatureGate';
 
 export const WorkoutsTab: React.FC = () => {
   const plan = usePlan();
+  const { isPro, showPaywall, isGeneratingWorkout: isGenerating, setIsGeneratingWorkout: setIsGenerating } = plan;
   const [workoutPlan, setWorkoutPlan] = useState<WorkoutPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentWeek, setCurrentWeek] = useState<string>('');
   const [selectedDay, setSelectedDay] = useState(0);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [showGeneratingModal, setShowGeneratingModal] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   
   // Estados para rutina activa
@@ -60,6 +61,21 @@ export const WorkoutsTab: React.FC = () => {
   useEffect(() => {
     loadWorkoutPlan();
     loadFreeExerciseLogs();
+  }, []);
+
+  // Escuchar cuando la rutina está lista para refrescar automáticamente
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('planReady', async (data) => {
+      const isWorkout = data?.type === 'WORKOUT_READY' || data?.type === 'WORKOUT_PLAN_READY';
+      if (!isWorkout) return; // Ignorar si es nutrición, este es el listener de ejercicios
+
+      console.log('💪 Rutina lista recibida en WorkoutsTab — refrescando...');
+      setIsGenerating(false);
+      setShowGeneratingModal(false);
+      setGenerationProgress(0);
+      await loadWorkoutPlan();
+    });
+    return () => sub.remove();
   }, []);
 
   // Timer effect
@@ -173,6 +189,7 @@ export const WorkoutsTab: React.FC = () => {
     try {
       setShowGenerateModal(false);
       setIsGenerating(true);
+      setShowGeneratingModal(true);
       setGenerationProgress(10);
 
       // Iniciar la generación del plan (con imágenes si las hay)
@@ -218,6 +235,7 @@ export const WorkoutsTab: React.FC = () => {
       }
 
       setIsGenerating(false);
+      setShowGeneratingModal(false);
       setGenerationProgress(0);
 
       let errorMessage = 'No se pudo generar la rutina. Intenta de nuevo.';
@@ -268,6 +286,7 @@ export const WorkoutsTab: React.FC = () => {
         setTimeout(() => {
           setWorkoutPlan(plan);
           setIsGenerating(false);
+          setShowGeneratingModal(false);
           setGenerationProgress(0);
           Alert.alert('¡Listo! 🎉', 'Tu rutina de entrenamiento ha sido generada exitosamente.');
         }, 1000); // Pequeña pausa para mostrar 100%
@@ -285,6 +304,7 @@ export const WorkoutsTab: React.FC = () => {
         // Timeout - el plan tardó demasiado
         console.warn('⏰ Polling timeout reached');
         setIsGenerating(false);
+        setShowGeneratingModal(false);
         setGenerationProgress(0);
         Alert.alert(
           'Rutina en proceso',
@@ -312,6 +332,7 @@ export const WorkoutsTab: React.FC = () => {
         }, nextInterval);
       } else {
         setIsGenerating(false);
+        setShowGeneratingModal(false);
         setGenerationProgress(0);
         Alert.alert('Error', 'Hubo un problema verificando tu rutina. Intenta refrescar la pantalla.');
       }
@@ -652,7 +673,7 @@ export const WorkoutsTab: React.FC = () => {
               <TouchableOpacity 
                 style={styles.videoButton}
                 onPress={() => {
-                  if (!plan.isPro) { plan.showPaywall('exercise_video'); return; }
+                  if (!isPro) { showPaywall('exercise_video'); return; }
                   handleOpenVideo(exercise.videoQuery!);
                 }}
               >
@@ -1022,35 +1043,47 @@ export const WorkoutsTab: React.FC = () => {
             </>
           ) : (
             <View style={styles.noPlanContainer}>
-              <View style={styles.chapiEmptyContainer}>
-                <Image 
-                  source={require('../assets/chapi-3d-ejercicio-3.png')}
-                  style={styles.chapiEmptyImage}
-                  resizeMode="cover"
-                />
-              </View>
-              <Text style={styles.noPlanTitle}>¡Crea tu rutina!</Text>
-              <Text style={styles.noPlanText}>
-                No tienes una rutina de entrenamiento para esta semana.
-                Genera una personalizada con IA.
-              </Text>
-              <TouchableOpacity
-                style={styles.generateButton}
-                onPress={() => {
-                  const status = plan.checkFeature('workout_generate');
-                  if (!status.allowed) { plan.showPaywall('workout_generate'); return; }
-                  setShowGenerateModal(true);
-                }}
-              >
-                <LinearGradient
-                  colors={GRADIENTS.primary}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={{ paddingVertical: 16, paddingHorizontal: 30, borderRadius: 24 }}
-                >
-                  <Text style={styles.generateButtonText}>🤖 Generar rutina con IA</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+              {isGenerating ? (
+                <View style={styles.generatingStatus}>
+                  <ActivityIndicator size="large" color="#4CAF50" />
+                  <Text style={[styles.noPlanTitle, { marginTop: 20 }]}>Chapi está trabajando...</Text>
+                  <Text style={styles.noPlanText}>
+                    Preparando tu rutina de entrenamiento personalizada. Te avisaremos en cuanto esté listo 🚀
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  <View style={styles.chapiEmptyContainer}>
+                    <Image 
+                      source={require('../assets/chapi-3d-ejercicio-3.png')}
+                      style={styles.chapiEmptyImage}
+                      resizeMode="cover"
+                    />
+                  </View>
+                  <Text style={styles.noPlanTitle}>¡Crea tu rutina!</Text>
+                  <Text style={styles.noPlanText}>
+                    No tienes una rutina de entrenamiento para esta semana.
+                    Genera una personalizada con IA.
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.generateButton}
+                    onPress={() => {
+                      const status = plan.checkFeature('workout_generate');
+                      if (!status.allowed) { plan.showPaywall('workout_generate'); return; }
+                      setShowGenerateModal(true);
+                    }}
+                  >
+                    <LinearGradient
+                      colors={GRADIENTS.primary}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={{ paddingVertical: 16, paddingHorizontal: 30, borderRadius: 24 }}
+                    >
+                      <Text style={styles.generateButtonText}>🤖 Generar rutina con IA</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           )}
 
@@ -1067,9 +1100,17 @@ export const WorkoutsTab: React.FC = () => {
       />
 
       <PlanGeneratingModal
-        visible={isGenerating}
+        visible={showGeneratingModal}
         progress={generationProgress}
         type="workout"
+        onRunInBackground={() => {
+          setShowGeneratingModal(false);
+          Alert.alert(
+            '¡Excelente elección! 🚀', 
+            'Chapi seguirá trabajando duro en tu rutina. Puedes seguir explorando la app o hacer otras cosas; te enviaremos una notificación en cuanto todo esté listo.',
+            [{ text: 'Entendido' }]
+          );
+        }}
       />
 
       {/* Workout Summary Modal */}

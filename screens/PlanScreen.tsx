@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  DeviceEventEmitter,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NutritionService } from '../services/nutritionService';
@@ -32,6 +33,7 @@ interface DayInfo {
 
 export const PlanScreen: React.FC = () => {
   const plan = usePlan();
+  const { isPro, showPaywall, isGeneratingNutrition: isGenerating, setIsGeneratingNutrition: setIsGenerating } = plan;
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentWeek, setCurrentWeek] = useState<string>('');
@@ -46,7 +48,7 @@ export const PlanScreen: React.FC = () => {
   const [shoppingListItems, setShoppingListItems] = useState<ShoppingListItem[]>([]);
   const [loadingShoppingList, setLoadingShoppingList] = useState(false);
   const [shoppingListTotal, setShoppingListTotal] = useState(0);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [showGeneratingModal, setShowGeneratingModal] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [markingMeal, setMarkingMeal] = useState<string | null>(null); // "dayIndex-mealIndex"
   const [consumedMeals, setConsumedMeals] = useState<Set<string>>(new Set()); // Set de "dayIndex-mealIndex"
@@ -57,6 +59,21 @@ export const PlanScreen: React.FC = () => {
     loadTodayMeals();
     loadConsumedMealsState();
   }, []);
+
+  // Escuchar cuando el plan está listo para refrescar automáticamente
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('planReady', async (data) => {
+      const isWorkout = data?.type === 'WORKOUT_READY' || data?.type === 'WORKOUT_PLAN_READY';
+      if (isWorkout) return; // Ignorar si es una rutina, este es el listener de nutrición
+
+      console.log('🍎 Plan nutricional listo recibido en PlanScreen — refrescando...');
+      setIsGenerating(false);
+      setShowGeneratingModal(false);
+      setGenerationProgress(0);
+      await loadWeeklyPlan();
+    });
+    return () => sub.remove();
+  }, [currentWeek]);
 
   // Cargar estado de comidas consumidas cuando cambie la semana
   useEffect(() => {
@@ -136,7 +153,7 @@ export const PlanScreen: React.FC = () => {
       const plan = await NutritionService.getWeeklyPlan(targetWeek);
       setWeeklyPlan(plan);
       
-      if (!plan) {
+      if (!plan && !isGenerating) {
         if (canModifyWeek(targetWeek)) {
           Alert.alert(
             'Sin plan semanal',
@@ -147,7 +164,6 @@ export const PlanScreen: React.FC = () => {
             ]
           );
         }
-        // Si es semana pasada, no mostrar alert, solo mostrar que no hay plan
       }
     } catch (error) {
       Alert.alert('Error', 'No se pudo cargar el plan semanal');
@@ -159,7 +175,8 @@ export const PlanScreen: React.FC = () => {
   const generatePlan = async (week: string) => {
     try {
       setLoading(false); // Quitar el loading general
-      setIsGenerating(true); // Activar modal de generación
+      setIsGenerating(true); // Estado global
+      setShowGeneratingModal(true); // Modal local
       setGenerationProgress(10);
 
       const generateResponse = await NutritionService.generatePlanWithAI(week);
@@ -186,6 +203,7 @@ export const PlanScreen: React.FC = () => {
 
       // Si es otro tipo de error, cerrar el modal y mostrar error
       setIsGenerating(false);
+      setShowGeneratingModal(false);
       setGenerationProgress(0);
       Alert.alert('Error', 'No se pudo generar el plan. Intenta de nuevo.');
     }
@@ -212,6 +230,7 @@ export const PlanScreen: React.FC = () => {
         setTimeout(() => {
           setWeeklyPlan(plan);
           setIsGenerating(false);
+          setShowGeneratingModal(false);
           setGenerationProgress(0);
           Alert.alert('¡Listo! 🎉', 'Tu plan nutricional personalizado ha sido creado exitosamente.');
         }, 1000); // Pequeña pausa para mostrar 100%
@@ -226,6 +245,7 @@ export const PlanScreen: React.FC = () => {
       } else {
         // Timeout - el plan tardó demasiado
         setIsGenerating(false);
+        setShowGeneratingModal(false);
         setGenerationProgress(0);
         Alert.alert(
           'Plan en proceso',
@@ -252,6 +272,7 @@ export const PlanScreen: React.FC = () => {
         }, pollInterval);
       } else {
         setIsGenerating(false);
+        setShowGeneratingModal(false);
         setGenerationProgress(0);
         Alert.alert('Error', 'Hubo un problema verificando tu plan. Intenta refrescar la pantalla.');
       }
@@ -698,15 +719,24 @@ export const PlanScreen: React.FC = () => {
       return (
         <View style={styles.noMealsContainer}>
           <Text style={styles.noMealsText}>
-            No hay comidas planificadas para este día
+            {isGenerating 
+              ? 'Chapi está diseñando tu menú perfecto...' 
+              : 'No hay comidas planificadas para este día'}
           </Text>
-          {weeklyPlan && (
-            <TouchableOpacity 
-              style={styles.generateButton}
-              onPress={() => generatePlan(currentWeek)}
-            >
-              <Text style={styles.generateButtonText}>Regenerar plan</Text>
-            </TouchableOpacity>
+          {isGenerating ? (
+            <View style={styles.generatingStatus}>
+              <ActivityIndicator size="large" color="#4CAF50" />
+              <Text style={styles.generatingSubtext}>Te avisaremos en cuanto esté listo 🚀</Text>
+            </View>
+          ) : (
+            weeklyPlan && (
+              <TouchableOpacity 
+                style={styles.generateButton}
+                onPress={() => generatePlan(currentWeek)}
+              >
+                <Text style={styles.generateButtonText}>Regenerar plan</Text>
+              </TouchableOpacity>
+            )
           )}
         </View>
       );
@@ -722,13 +752,18 @@ export const PlanScreen: React.FC = () => {
     });
 
     const canModify = canModifyWeek(currentWeek);
-    const isButtonDisabled = regeneratingDay || !canModify;
+    const isButtonDisabled = regeneratingDay || !canModify || isGenerating;
 
     return (
       <View style={styles.mealPlan}>
         {/* Botón para regenerar día completo */}
         <View style={styles.dayActions}>
-          {plan.isPro ? (
+          {isGenerating ? (
+            <View style={styles.generatingDayStatus}>
+              <ActivityIndicator size="small" color="#4CAF50" />
+              <Text style={styles.generatingDayText}>Chapi está trabajando... 🚀</Text>
+            </View>
+          ) : isPro ? (
             <TouchableOpacity 
               style={[
                 styles.regenerateDayButton, 
@@ -749,7 +784,7 @@ export const PlanScreen: React.FC = () => {
             <LockedButton
               label="Regenerar día completo"
               feature="regenerate_meal"
-              plan={plan}
+              plan={{ isPro, isFree: !isPro, showPaywall } as any}
             />
           )}
         </View>
@@ -774,7 +809,7 @@ export const PlanScreen: React.FC = () => {
                   key={`${slot}-${slotMealIndex}`} 
                   style={styles.mealItem}
                   onPress={() => {
-                    if (!plan.isPro) { plan.showPaywall('view_recipe'); return; }
+                    if (!isPro) { showPaywall('view_recipe'); return; }
                     openIngredientsModal(meal);
                   }}
                   activeOpacity={0.7}
@@ -944,38 +979,50 @@ export const PlanScreen: React.FC = () => {
           </>
         ) : (
           <View style={styles.noPlanContainer}>
-            <Text style={styles.noPlanTitle}>Sin plan semanal</Text>
-            <Text style={styles.noPlanDescription}>
-              {isWeekInPast(currentWeek) 
-                ? 'No tienes un plan nutricional registrado para esta semana pasada.'
-                : 'No tienes un plan nutricional para esta semana.'
-              }
-            </Text>
-            {canModifyWeek(currentWeek) && (
-              <TouchableOpacity 
-                style={styles.generateButton}
-                onPress={() => {
-                  const status = plan.checkFeature('plan_generate');
-                  if (!status.allowed) { plan.showPaywall('plan_generate'); return; }
-                  generatePlan(currentWeek);
-                }}
-              >
-                <LinearGradient
-                  colors={GRADIENTS.primary}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={{ paddingVertical: 16, paddingHorizontal: 30, borderRadius: 24 }}
-                >
-                  <Text style={styles.generateButtonText}>🤖 Generar plan con IA</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
-            {isWeekInPast(currentWeek) && (
-              <View style={styles.pastWeekInfo}>
-                <Text style={styles.pastWeekInfoText}>
-                  🔒 Las semanas pasadas son solo de consulta
+            {isGenerating ? (
+              <View style={styles.generatingStatus}>
+                <ActivityIndicator size="large" color="#4CAF50" />
+                <Text style={[styles.noPlanTitle, { marginTop: 20 }]}>Chapi está trabajando...</Text>
+                <Text style={styles.noPlanDescription}>
+                  Diseñando tu menú semanal perfecto. Te avisaremos en cuanto esté listo 🚀
                 </Text>
               </View>
+            ) : (
+              <>
+                <Text style={styles.noPlanTitle}>Sin plan semanal</Text>
+                <Text style={styles.noPlanDescription}>
+                  {isWeekInPast(currentWeek) 
+                    ? 'No tienes un plan nutricional registrado para esta semana pasada.'
+                    : 'No tienes un plan nutricional para esta semana.'
+                  }
+                </Text>
+                {canModifyWeek(currentWeek) && (
+                  <TouchableOpacity 
+                    style={styles.generateButton}
+                    onPress={() => {
+                      const status = plan.checkFeature('plan_generate');
+                      if (!status.allowed) { plan.showPaywall('plan_generate'); return; }
+                      generatePlan(currentWeek);
+                    }}
+                  >
+                    <LinearGradient
+                      colors={GRADIENTS.primary}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={{ paddingVertical: 16, paddingHorizontal: 30, borderRadius: 24 }}
+                    >
+                      <Text style={styles.generateButtonText}>🤖 Generar plan con IA</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                )}
+                {isWeekInPast(currentWeek) && (
+                  <View style={styles.pastWeekInfo}>
+                    <Text style={styles.pastWeekInfoText}>
+                      🔒 Las semanas pasadas son solo de consulta
+                    </Text>
+                  </View>
+                )}
+              </>
             )}
           </View>
         )}
@@ -1004,9 +1051,17 @@ export const PlanScreen: React.FC = () => {
 
       {/* Modal de generación de plan */}
       <PlanGeneratingModal
-        visible={isGenerating}
+        visible={showGeneratingModal}
         progress={generationProgress}
         type="nutrition"
+        onRunInBackground={() => {
+          setShowGeneratingModal(false);
+          Alert.alert(
+            '¡Excelente elección! 🚀', 
+            'Chapi seguirá trabajando duro en tu menú. Puedes seguir explorando la app o hacer otras cosas; te enviaremos una notificación en cuanto todo esté listo.',
+            [{ text: 'Entendido' }]
+          );
+        }}
       />
 
       {/* Paywall global en App.tsx */}
@@ -1415,6 +1470,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
   },
+  generatingStatus: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  generatingSubtext: {
+    marginTop: 15,
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
   generateButton: {
     backgroundColor: '#4CAF50',
     paddingHorizontal: 25,
@@ -1513,5 +1579,22 @@ const styles = StyleSheet.create({
     color: '#E65100',
     fontWeight: '600',
     textAlign: 'center',
+  },
+  generatingDayStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f9f9f9',
+    paddingVertical: 12,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+    borderStyle: 'dashed',
+  },
+  generatingDayText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: '#4CAF50',
+    fontWeight: '600',
   },
 });

@@ -16,6 +16,7 @@ import { Logo } from '../components/Logo';
 import { useSignUp, useAuth, useSSO, useUser } from '@clerk/expo';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import { AuthService } from '../services/authService';
 
 // Hook para mejorar la experiencia de login en Android
 const useWarmUpBrowser = () => {
@@ -88,41 +89,84 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
   };
 
   const handleRegister = async () => {
-    if (!isLoaded) return;
-    if (!validateForm()) return;
+    console.log('🚀 Intento de registro iniciado...');
+    
+    if (!validateForm()) {
+      console.log('❌ Validación de formulario fallida');
+      return;
+    }
 
     setLoading(true);
+    let clerkSuccess = false;
+    let backendSuccess = false;
+
     try {
-      await signUp.create({
-        emailAddress: formData.email.trim().toLowerCase(),
-        password: formData.password,
-      });
+      // 1. Registro en Clerk (si está cargado)
+      if (isLoaded) {
+        console.log('📝 Registrando en Clerk...');
+        try {
+          await signUp.create({
+            emailAddress: formData.email.trim().toLowerCase(),
+            password: formData.password,
+          });
+          await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+          clerkSuccess = true;
+          console.log('✅ Registro en Clerk exitoso (esperando verificación)');
+        } catch (clerkErr: any) {
+          console.error('❌ Error en Clerk:', clerkErr);
+          // Si el usuario ya existe en Clerk, lo tratamos como "éxito parcial" para seguir con el back
+          if (clerkErr.errors?.[0]?.code === 'form_identifier_exists') {
+            clerkSuccess = true; 
+          } else {
+            throw clerkErr;
+          }
+        }
+      } else {
+        console.log('⚠️ Clerk no está listo, saltando registro en Clerk');
+      }
 
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      // 2. Registro en el Backend (siempre)
+      console.log('📝 Registrando en el Backend...');
+      try {
+        await AuthService.register({
+          email: formData.email.trim().toLowerCase(),
+          password: formData.password,
+        });
+        backendSuccess = true;
+        console.log('✅ Registro en Backend exitoso');
+      } catch (backErr: any) {
+        console.error('❌ Error en Backend:', backErr);
+        // Si ya existe en el back, también lo consideramos éxito si Clerk funcionó
+        if (backErr.response?.status === 409 || backErr.response?.status === 400) {
+          backendSuccess = true;
+        } else {
+          throw backErr;
+        }
+      }
 
-      Alert.alert(
-        '¡Cuenta creada exitosamente! 🎉',
-        'Hemos enviado un correo de verificación a tu email. Por favor verifica tu correo antes de iniciar sesión.',
-        [
-          {
-            text: 'Ir a iniciar sesión',
-            onPress: () => onRegisterSuccess('Por favor verifica tu correo electrónico antes de iniciar sesión.', formData.email),
-          },
-        ]
-      );
+      if (clerkSuccess || backendSuccess) {
+        Alert.alert(
+          '¡Cuenta creada! 🎉',
+          clerkSuccess 
+            ? 'Hemos enviado un correo de verificación a tu email. Por favor revísalo antes de iniciar sesión.'
+            : 'Tu cuenta ha sido creada exitosamente en nuestro sistema. Ya puedes iniciar sesión.',
+          [
+            {
+              text: 'Ir a iniciar sesión',
+              onPress: () => onRegisterSuccess(undefined, formData.email),
+            },
+          ]
+        );
+      }
     } catch (error: any) {
-      console.log('Registration error:', error);
-
+      console.log('Registration error final:', error);
       let errorMessage = 'Error al crear la cuenta. Intenta de nuevo.';
-
+      
       const clerkErrorCode = error.errors?.[0]?.code;
       if (clerkErrorCode === 'form_identifier_exists') {
         errorMessage = 'Ya existe una cuenta con este correo electrónico.';
-      } else if (
-        clerkErrorCode === 'form_password_pwned' ||
-        clerkErrorCode === 'form_password_too_short'
-      ) {
-        errorMessage = 'La contraseña es demasiado débil. Usa al menos 8 caracteres con letras y números.';
+      } else if (error.response?.status === 409) {
+        errorMessage = 'Este correo electrónico ya está registrado.';
       }
 
       Alert.alert('Error', errorMessage);

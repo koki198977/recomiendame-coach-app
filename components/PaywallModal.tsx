@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import api from '../services/api';
 
 interface PaywallModalProps {
@@ -20,26 +21,14 @@ interface PaywallModalProps {
   onUpgradeSuccess: () => Promise<void>;
 }
 
-const PLANS = [
-  {
-    id: 'monthly',
-    label: 'Mensual',
-    price: '$6.990',
-    period: '/mes',
-    priceId: 'db89066074fa41cdb6b1fbb47ec8a0de', // TEST vendedor prueba
-    badge: null,
-    saving: null,
-  },
-  {
-    id: 'annual',
-    label: 'Anual',
-    price: '$4.999',
-    period: '/mes',
-    priceId: '4cd005247e2f4225981c9d46531ab700', // TEST vendedor prueba
-    badge: 'Más popular',
-    saving: '$59.988/año · Ahorra 29%',
-  },
-];
+export interface SubscriptionPlan {
+  id: string;
+  label: string;
+  price: string;
+  period: string;
+  badge?: string | null;
+  saving?: string | null;
+}
 
 const PRO_FEATURES = [
   { icon: '🧠', label: 'Chapi 2.0 (IA avanzada)' },
@@ -62,22 +51,92 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
   onUpgradeSuccess,
 }) => {
   const insets = useSafeAreaInsets();
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(true);
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const fetchPlans = async () => {
+      if (!visible) return;
+      try {
+        setLoadingPlans(true);
+        const response = await api.get<SubscriptionPlan[]>('/subscriptions/plans');
+        setPlans(response.data);
+        if (response.data.length > 0) {
+          // Pre-seleccionar el que tenga badge o el primero
+          const popularPlan = response.data.find(p => p.badge);
+          setSelectedPlan(popularPlan ? popularPlan.id : response.data[0].id);
+        }
+      } catch (error) {
+        console.log('Error fetching plans:', error);
+      } finally {
+        setLoadingPlans(false);
+      }
+    };
+    
+    fetchPlans();
+  }, [visible]);
+
+  // Listener para capturar el regreso desde el navegador de pago
+  useEffect(() => {
+    const handleDeepLink = async (event: { url: string }) => {
+      const { path, queryParams } = Linking.parse(event.url);
+      console.log('🔗 Deep Link recibido:', path, queryParams);
+
+      if (path === 'payment-success') {
+        console.log('✅ Pago detectado vía Deep Link');
+        WebBrowser.dismissBrowser();
+        await onUpgradeSuccess();
+        onClose();
+        Alert.alert('¡Suscripción activada! 🎉', 'Tu plan PRO ya está activo. ¡Disfrútalo!');
+      } else if (path === 'payment-failure') {
+        console.log('❌ Pago fallido vía Deep Link');
+        WebBrowser.dismissBrowser();
+        Alert.alert('Pago cancelado', 'No se pudo procesar el pago. Puedes intentarlo de nuevo.');
+      }
+    };
+
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+    return () => subscription.remove();
+  }, [onUpgradeSuccess, onClose]);
+
+  const pollForSubscription = async (maxAttempts = 10, interval = 2000): Promise<boolean> => {
+    for (let i = 0; i < maxAttempts; i++) {
+      try {
+        const res = await api.get('/subscriptions/status');
+        if (res.data.plan === 'PRO') return true;
+      } catch {}
+      await new Promise(resolve => setTimeout(resolve, interval));
+    }
+    return false;
+  };
+
   const handleSubscribe = async () => {
-    const plan = PLANS.find((p) => p.id === selectedPlan)!;
+    if (!selectedPlan) return;
     try {
       setLoading(true);
       const response = await api.post('/subscriptions/checkout', {
-        planType: plan.id,
+        planType: selectedPlan,
       });
       const { checkoutUrl } = response.data;
-      await WebBrowser.openBrowserAsync(checkoutUrl);
-      // Esperar a que el webhook de MP procese el pago antes de refrescar
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      await onUpgradeSuccess();
-      onClose();
+      const result = await WebBrowser.openBrowserAsync(checkoutUrl);
+
+      // Después de cerrar el browser, hacer polling para confirmar el pago
+      const activated = await pollForSubscription();
+      if (activated) {
+        await onUpgradeSuccess();
+        onClose();
+        Alert.alert('¡Suscripción activada! 🎉', 'Tu plan PRO ya está activo. ¡Disfrútalo!');
+      } else {
+        // El pago puede estar pendiente o el usuario canceló
+        await onUpgradeSuccess(); // Refrescar de todas formas
+        Alert.alert(
+          'Pago en proceso',
+          'Si completaste el pago, puede tardar unos minutos en activarse. Si no, puedes intentar de nuevo.',
+          [{ text: 'Entendido' }]
+        );
+      }
     } catch (error: any) {
       Alert.alert('Error', 'No se pudo iniciar el proceso de pago. Intenta de nuevo.');
     } finally {
@@ -115,32 +174,41 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
 
         {/* Plan selector */}
         <View style={styles.planSelector}>
-          {PLANS.map((plan) => (
-            <TouchableOpacity
-              key={plan.id}
-              style={[
-                styles.planCard,
-                selectedPlan === plan.id && styles.planCardSelected,
-              ]}
-              onPress={() => setSelectedPlan(plan.id as 'monthly' | 'annual')}
-            >
-              {plan.badge && (
-                <View style={styles.planBadge}>
-                  <Text style={styles.planBadgeText}>{plan.badge}</Text>
-                </View>
-              )}
-              <Text style={[styles.planLabel, selectedPlan === plan.id && styles.planLabelSelected]}>
-                {plan.label}
-              </Text>
-              <Text style={[styles.planPrice, selectedPlan === plan.id && styles.planPriceSelected]}>
-                {plan.price}
-                <Text style={styles.planPeriod}>{plan.period}</Text>
-              </Text>
-              {plan.saving && (
-                <Text style={styles.planSaving}>{plan.saving}</Text>
-              )}
-            </TouchableOpacity>
-          ))}
+          {loadingPlans ? (
+            <View style={styles.loadingPlansContainer}>
+              <ActivityIndicator color="#2E7D32" size="small" />
+              <Text style={styles.loadingPlansText}>Cargando planes...</Text>
+            </View>
+          ) : plans.length === 0 ? (
+            <Text style={styles.noPlansText}>No hay planes disponibles en este momento.</Text>
+          ) : (
+            plans.map((plan) => (
+              <TouchableOpacity
+                key={plan.id}
+                style={[
+                  styles.planCard,
+                  selectedPlan === plan.id && styles.planCardSelected,
+                ]}
+                onPress={() => setSelectedPlan(plan.id)}
+              >
+                {plan.badge && (
+                  <View style={styles.planBadge}>
+                    <Text style={styles.planBadgeText}>{plan.badge}</Text>
+                  </View>
+                )}
+                <Text style={[styles.planLabel, selectedPlan === plan.id && styles.planLabelSelected]}>
+                  {plan.label}
+                </Text>
+                <Text style={[styles.planPrice, selectedPlan === plan.id && styles.planPriceSelected]}>
+                  {plan.price}
+                  <Text style={styles.planPeriod}>{plan.period}</Text>
+                </Text>
+                {plan.saving && (
+                  <Text style={styles.planSaving}>{plan.saving}</Text>
+                )}
+              </TouchableOpacity>
+            ))
+          )}
         </View>
 
         {/* PRO features */}
@@ -171,9 +239,9 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
 
         {/* CTA */}
         <TouchableOpacity
-          style={[styles.ctaPrimary, loading && styles.ctaDisabled]}
+          style={[styles.ctaPrimary, (!selectedPlan || loading) && styles.ctaDisabled]}
           onPress={handleSubscribe}
-          disabled={loading}
+          disabled={!selectedPlan || loading}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
@@ -229,7 +297,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   trialBadgeText: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  planSelector: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  planSelector: { flexDirection: 'row', gap: 12, marginBottom: 24, minHeight: 120 },
+  loadingPlansContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  loadingPlansText: { color: '#666', marginTop: 8, fontSize: 14 },
+  noPlansText: { color: '#666', textAlign: 'center', paddingVertical: 20, fontSize: 14, flex: 1 },
   planCard: {
     flex: 1,
     borderWidth: 2,

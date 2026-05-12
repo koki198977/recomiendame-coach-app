@@ -185,9 +185,27 @@ export const ChapiChatModal: React.FC<ChapiChatModalProps> = ({ visible, onClose
       setMessages(finalMessages);
       await saveMessages(finalMessages);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error sending message to Chapi 2.0:', error);
-      Alert.alert('Error', 'No se pudo enviar el mensaje. Verifica tu conexión.');
+      
+      if (error.response?.status === 429) {
+        // Revertir el mensaje que no se pudo responder
+        setMessages(messages);
+        saveMessages(messages);
+        // Devolver el texto al input para que no lo pierda
+        setInputText(userMessage.content);
+        
+        Alert.alert(
+          'Límite diario alcanzado 🌟',
+          'Has alcanzado el límite de 3 mensajes diarios con Chapi en la versión gratuita.',
+          [
+            { text: 'Quizás después', style: 'cancel' },
+            { text: 'Mejorar a PRO', onPress: handleShowPaywall }
+          ]
+        );
+      } else {
+        Alert.alert('Error', 'No se pudo enviar el mensaje. Verifica tu conexión.');
+      }
     } finally {
       setIsLoading(false);
     }

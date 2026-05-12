@@ -41,10 +41,14 @@ export class WidgetService {
             lastUpdated: new Date().toISOString()
           };
 
-      // 2. Mezclar con nuevos datos
+      // 2. Mezclar con nuevos datos y asegurar que los números sean enteros (Swift Int)
+      const mergedData = { ...existingData, ...data };
       const updatedData: WidgetData = {
-        ...existingData,
-        ...data,
+        ...mergedData,
+        caloriesTarget: Math.round(Number(mergedData.caloriesTarget) || 0),
+        caloriesConsumed: Math.round(Number(mergedData.caloriesConsumed) || 0),
+        proteinTarget: Math.round(Number(mergedData.proteinTarget) || 0),
+        proteinConsumed: Math.round(Number(mergedData.proteinConsumed) || 0),
         lastUpdated: new Date().toISOString(),
       };
 
@@ -69,15 +73,13 @@ export class WidgetService {
 
   private static async syncToIOSWidget(data: WidgetData): Promise<void> {
     try {
-      // Verificación ultra-segura para Expo Go
-      if (SharedGroupPreferences === null || SharedGroupPreferences === undefined) {
-        console.log('⚠️ [WidgetService] SharedGroupPreferences es null/undefined (Entorno Expo Go)');
-        return;
-      }
-
-      // @ts-ignore - Evitar errores de tipos si el objeto es null en runtime
-      if (typeof SharedGroupPreferences.setItem !== 'function') {
-        console.log('⚠️ [WidgetService] setItem no es una función (Entorno Expo Go)');
+      // Verificación ultra-segura para Expo Go: El módulo nativo no existe en Expo Go
+      if (
+        SharedGroupPreferences === null || 
+        SharedGroupPreferences === undefined || 
+        NativeModules.RNReactNativeSharedGroupPreferences == null
+      ) {
+        console.log('⚠️ [WidgetService] Módulo nativo de AppGroup no disponible (Entorno Expo Go)');
         return;
       }
 
@@ -90,8 +92,17 @@ export class WidgetService {
   }
 
   private static async syncToAndroidWidget(data: WidgetData): Promise<void> {
-    // En Android se suele usar un NativeModule para actualizar el AppWidgetManager
-    console.log('🤖 [Android] Sincronizando con SharedPreferences');
+    try {
+      if (WidgetBridge?.updateAndReload) {
+        console.log('🤖 [Android] Sincronizando con SharedPreferences + widget refresh');
+        WidgetBridge.updateAndReload(JSON.stringify(data));
+        console.log('✅ [Android] Datos sincronizados y widget actualizado');
+      } else {
+        console.log('⚠️ [Android] WidgetBridge no disponible');
+      }
+    } catch (error) {
+      console.error('❌ [Android] Error sincronizando widget:', error);
+    }
   }
 
   /**
@@ -102,6 +113,9 @@ export class WidgetService {
       if (Platform.OS === 'ios' && WidgetBridge?.reloadAllTimelines) {
         WidgetBridge.reloadAllTimelines();
         console.log('🔄 [iOS] Widget timeline recargado');
+      } else if (Platform.OS === 'android' && WidgetBridge?.reloadAllTimelines) {
+        WidgetBridge.reloadAllTimelines();
+        console.log('🔄 [Android] Widget recargado');
       }
     } catch (error) {
       console.log('⚠️ Error recargando widgets:', error);

@@ -30,7 +30,12 @@ class ChapiService {
     } catch (error: any) {
       console.error('❌ Error sending message to Chapi 2.0:', error);
       
-      // Fallback response si hay error
+      // Si el usuario superó la cuota gratuita (429 Too Many Requests), lanzar el error
+      if (error.response?.status === 429) {
+        throw error;
+      }
+      
+      // Fallback response si hay otro tipo de error (conexión, 500, etc)
       return {
         success: false,
         data: {

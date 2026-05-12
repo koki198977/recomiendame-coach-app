@@ -13,8 +13,10 @@ class WidgetBridge: NSObject {
   @objc
   func reloadAllTimelines() {
     if #available(iOS 14.0, *) {
-      WidgetCenter.shared.reloadAllTimelines()
-      print("✅ [WidgetBridge] reloadAllTimelines() ejecutado")
+      DispatchQueue.main.async {
+        WidgetCenter.shared.reloadAllTimelines()
+        print("✅ [WidgetBridge] reloadAllTimelines() ejecutado en el hilo principal")
+      }
     }
   }
 }

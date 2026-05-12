@@ -111,8 +111,12 @@ export class WidgetService {
   static async reloadWidgets(): Promise<void> {
     try {
       if (Platform.OS === 'ios' && WidgetBridge?.reloadAllTimelines) {
-        WidgetBridge.reloadAllTimelines();
-        console.log('🔄 [iOS] Widget timeline recargado');
+        // Pequeño delay de 500ms para asegurar que NSUserDefaults haya escrito en disco
+        // antes de que WidgetKit levante la extensión para leer los datos.
+        setTimeout(() => {
+          WidgetBridge.reloadAllTimelines();
+          console.log('🔄 [iOS] Widget timeline recargado');
+        }, 500);
       } else if (Platform.OS === 'android' && WidgetBridge?.reloadAllTimelines) {
         WidgetBridge.reloadAllTimelines();
         console.log('🔄 [Android] Widget recargado');

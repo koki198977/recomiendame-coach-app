@@ -1,5 +1,6 @@
 package cl.recomiendameapp.coach
 
+import cl.recomiendameapp.coach.R
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
@@ -24,37 +25,41 @@ class CoachWidgetProvider : AppWidgetProvider() {
         private const val DATA_KEY = "widgetData"
 
         fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
-            val views = RemoteViews(context.packageName, R.layout.coach_widget_layout)
-            val data = loadWidgetData(context)
+            try {
+                val views = RemoteViews(context.packageName, R.layout.coach_widget_layout)
+                val data = loadWidgetData(context)
 
-            // Calorías
-            val caloriesConsumed = data.optInt("caloriesConsumed", 0)
-            val caloriesTarget = data.optInt("caloriesTarget", 2000)
-            val proteinConsumed = data.optInt("proteinConsumed", 0)
-            val proteinTarget = data.optInt("proteinTarget", 150)
-            val nextWorkout = data.optString("nextWorkout", "Descanso")
-            val lastUpdated = data.optString("lastUpdated", "")
+                // Calorías
+                val caloriesConsumed = data.optInt("caloriesConsumed", 0)
+                val caloriesTarget = data.optInt("caloriesTarget", 2000)
+                val proteinConsumed = data.optInt("proteinConsumed", 0)
+                val proteinTarget = data.optInt("proteinTarget", 150)
+                val nextWorkout = data.optString("nextWorkout", "Descanso")
+                val lastUpdated = data.optString("lastUpdated", "")
 
-            // Actualizar vistas
-            views.setTextViewText(R.id.widget_calories, "$caloriesConsumed / $caloriesTarget kcal")
+                // Actualizar vistas
+                views.setTextViewText(R.id.widget_calories, "$caloriesConsumed / $caloriesTarget kcal")
 
-            // Progress bar (0-100)
-            val progress = if (caloriesTarget > 0) {
-                ((caloriesConsumed.toFloat() / caloriesTarget.toFloat()) * 100).toInt().coerceIn(0, 100)
-            } else 0
-            views.setProgressBar(R.id.widget_progress, 100, progress, false)
+                // Progress bar (0-100)
+                val progress = if (caloriesTarget > 0) {
+                    ((caloriesConsumed.toFloat() / caloriesTarget.toFloat()) * 100).toInt().coerceIn(0, 100)
+                } else 0
+                views.setProgressBar(R.id.widget_progress, 100, progress, false)
 
-            // Proteína
-            views.setTextViewText(R.id.widget_protein, "$proteinConsumed/${proteinTarget}g")
+                // Proteína
+                views.setTextViewText(R.id.widget_protein, "$proteinConsumed/${proteinTarget}g")
 
-            // Siguiente entreno
-            views.setTextViewText(R.id.widget_workout, if (nextWorkout.isNullOrEmpty()) "Descanso" else nextWorkout)
+                // Siguiente entreno
+                views.setTextViewText(R.id.widget_workout, if (nextWorkout.isNullOrEmpty() || nextWorkout == "null") "Descanso" else nextWorkout)
 
-            // Hora de actualización
-            val timeStr = formatTime(lastUpdated)
-            views.setTextViewText(R.id.widget_time, timeStr)
+                // Hora de actualización
+                val timeStr = formatTime(lastUpdated)
+                views.setTextViewText(R.id.widget_time, timeStr)
 
-            appWidgetManager.updateAppWidget(appWidgetId, views)
+                appWidgetManager.updateAppWidget(appWidgetId, views)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
 
         fun updateAllWidgets(context: Context) {

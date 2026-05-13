@@ -203,6 +203,7 @@ export interface WeeklyPlanMeal {
   instructions?: string;
   videoUrl?: string;
   ingredients: WeeklyPlanIngredient[] | string[];
+  imageUrl?: string;
 }
 
 // Respuesta del endpoint de generación de plan
@@ -217,6 +218,7 @@ export interface MealDetails {
   title: string;
   ingredients: WeeklyPlanIngredient[];
   instructions: string;
+  imageUrl?: string;
 }
 
 // Lista de compras

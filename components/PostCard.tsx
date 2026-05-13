@@ -246,109 +246,106 @@ export const PostCard: React.FC<PostCardProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Off-screen StoryImageView for capture — no opacity:0, it prevents native rendering */}
+      {/* Off-screen StoryImageView for capture */}
       <View style={styles.offScreenContainer}>
-        <View
-          ref={storyViewRef}
-          collapsable={false}
-          pointerEvents="none"
-        >
+        <View ref={storyViewRef} collapsable={false} pointerEvents="none">
           <StoryImageView post={currentPost} />
         </View>
       </View>
 
       {/* Header del post */}
       <View style={styles.header}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {getUserInitial(currentPost)}
-          </Text>
-        </View>
-        <View style={styles.userDetails}>
-          <Text style={styles.userName} numberOfLines={1} ellipsizeMode="tail">
-            {getUserDisplayName(currentPost)}
-          </Text>
-          <Text style={styles.postTime}>
-            {formatDate(currentPost.createdAt)}
-          </Text>
+        <View style={styles.avatarContainer}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{getUserInitial(currentPost)}</Text>
+          </View>
+          <View style={styles.statusIndicator} />
         </View>
         
-        {/* Botón seguir */}
+        <View style={styles.userDetails}>
+          <Text style={styles.userName} numberOfLines={1}>
+            {getUserDisplayName(currentPost)}
+          </Text>
+          <Text style={styles.postTime}>{formatDate(currentPost.createdAt)}</Text>
+        </View>
+        
+        {/* Botón seguir opcional */}
         {showFollowButton && !isMyPost && (
           <TouchableOpacity 
             style={[styles.followButton, isFollowing && styles.followingButton]}
             onPress={handleFollowUser}
             disabled={followingUser}
           >
-            {followingUser ? (
-              <ActivityIndicator size="small" color={isFollowing ? "#4CAF50" : "#fff"} />
-            ) : (
-              <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>
-                {isFollowing ? 'Siguiendo' : 'Seguir'}
-              </Text>
-            )}
+            <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>
+              {isFollowing ? 'Siguiendo' : 'Seguir'}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
 
       {/* Contenido del post */}
-      <Text style={styles.caption}>{currentPost.caption}</Text>
+      <View style={styles.contentContainer}>
+        <Text style={styles.caption}>{currentPost.caption}</Text>
+      </View>
 
-      {/* Imagen del post */}
+      {/* Imagen del post con bordes redondeados */}
       {getMediaUrl(currentPost) && (
-        <Image source={{ uri: getMediaUrl(currentPost)! }} style={styles.postImage} />
+        <View style={styles.imageWrapper}>
+          <Image source={{ uri: getMediaUrl(currentPost)! }} style={styles.postImage} />
+        </View>
       )}
 
       {/* Acciones del post */}
       <View style={styles.actions}>
-        <TouchableOpacity 
-          style={styles.actionButton} 
-          onPress={handleLike}
-          disabled={isLiking}
-        >
-          <Text style={[styles.actionIcon, isPostLiked(currentPost) && styles.likedIcon]}>
-            {isPostLiked(currentPost) ? '❤️' : '🤍'}
-          </Text>
-          <Text style={styles.actionText}>
-            {currentPost.likesCount > 0 ? currentPost.likesCount : ''}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.leftActions}>
+          <TouchableOpacity 
+            style={styles.actionButton} 
+            onPress={handleLike}
+            disabled={isLiking}
+          >
+            <Ionicons 
+              name={isPostLiked(currentPost) ? "heart" : "heart-outline"} 
+              size={26} 
+              color={isPostLiked(currentPost) ? "#FF4B4B" : "#666"} 
+            />
+            {currentPost.likesCount > 0 && (
+              <Text style={[styles.actionText, isPostLiked(currentPost) && styles.likedText]}>
+                {currentPost.likesCount}
+              </Text>
+            )}
+          </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => onCommentPress?.(currentPost)}
-        >
-          <Text style={styles.actionIcon}>💬</Text>
-          <Text style={styles.actionText}>
-            {currentPost.commentsCount > 0 ? currentPost.commentsCount : ''}
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => onCommentPress?.(currentPost)}
+          >
+            <Ionicons name="chatbubble-outline" size={24} color="#666" />
+            {currentPost.commentsCount > 0 && (
+              <Text style={styles.actionText}>{currentPost.commentsCount}</Text>
+            )}
+          </TouchableOpacity>
+        </View>
 
-        {/* Botones de compartir y eliminar solo para mis posts */}
-        {isMyPost && (
-          <>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => handleShare(currentPost, storyViewRef)}
-              disabled={isSharing}
-            >
-              {isSharing ? (
-                <ActivityIndicator size="small" color="#4CAF50" />
-              ) : (
-                <Ionicons name="share-outline" size={22} color="#666" />
-              )}
-            </TouchableOpacity>
+        <View style={styles.rightActions}>
+          {isMyPost && (
+            <>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() => handleShare(currentPost, storyViewRef)}
+                disabled={isSharing}
+              >
+                <Ionicons name="share-social-outline" size={24} color="#666" />
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={handleDeletePost}
-            >
-              <Ionicons name="trash-outline" size={22} color="#666" />
-            </TouchableOpacity>
-          </>
-        )}
-
-
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={handleDeletePost}
+              >
+                <Ionicons name="trash-outline" size={24} color="#FF4B4B" />
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -365,114 +362,130 @@ const styles = StyleSheet.create({
   },
   container: {
     backgroundColor: '#fff',
-    marginBottom: 15,
-    borderRadius: 15,
+    marginBottom: 20,
+    borderRadius: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    paddingBottom: 10,
+    padding: 16,
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 12,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#4CAF50',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
-    flexShrink: 0,
-  },
-  avatarImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
   },
   avatarText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
+  },
+  statusIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#4CAF50',
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   userDetails: {
     flex: 1,
-    marginRight: 8,
-    minWidth: 0, // Permite que el texto se trunque si es necesario
   },
   userName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#333',
   },
   postTime: {
     fontSize: 12,
-    color: '#666',
+    color: '#999',
     marginTop: 2,
   },
+  contentContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
   caption: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: 15,
+    color: '#444',
     lineHeight: 22,
-    paddingHorizontal: 15,
-    paddingBottom: 10,
+  },
+  imageWrapper: {
+    width: '100%',
+    backgroundColor: '#F9F9F9',
   },
   postImage: {
     width: '100%',
-    height: 300,
+    height: 350,
     resizeMode: 'cover',
   },
   actions: {
     flexDirection: 'row',
-    paddingHorizontal: 15,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
     paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+  },
+  leftActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  rightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 20,
-    paddingVertical: 5,
+    paddingHorizontal: 8,
+    marginRight: 10,
   },
-  actionIcon: {
-    fontSize: 20,
-    marginRight: 5,
-  },
-  likedIcon: {
-    // El emoji ❤️ ya tiene color, no necesita estilo adicional
+  iconButton: {
+    padding: 8,
   },
   actionText: {
     fontSize: 14,
     color: '#666',
     fontWeight: '600',
+    marginLeft: 6,
+  },
+  likedText: {
+    color: '#FF4B4B',
   },
   followButton: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    maxWidth: 80,
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
   },
   followingButton: {
-    backgroundColor: '#f0f0f0',
-    borderWidth: 1,
-    borderColor: '#4CAF50',
+    backgroundColor: '#F5F5F5',
   },
   followButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
+    color: '#2E7D32',
+    fontSize: 13,
+    fontWeight: '700',
   },
   followingButtonText: {
-    color: '#4CAF50',
+    color: '#999',
   },
 });

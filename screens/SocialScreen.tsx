@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Modal,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { SocialService } from "../services/socialService";
 import { Post } from "../types/nutrition";
 import { PostCard } from "../components/PostCard";
@@ -276,68 +277,70 @@ export const SocialScreen: React.FC = () => {
         rightComponent={
           <View style={styles.headerButtons}>
             <TouchableOpacity
-              style={styles.searchButton}
+              style={styles.headerIconButton}
               onPress={() => setShowUsersModal(true)}
             >
-              <Text style={styles.searchButtonText}>🔍</Text>
+              <Ionicons name="search-outline" size={24} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.createButton}
               onPress={() => setShowCreateModal(true)}
             >
-              <Text style={styles.createButtonText}>➕</Text>
+              <Ionicons name="add-circle" size={28} color="#fff" />
               <Text style={styles.createButtonLabel}>Crear</Text>
             </TouchableOpacity>
           </View>
         }
       />
 
-      {/* Feed Type Selector */}
-      <View style={styles.feedSelector}>
-        <TouchableOpacity
-          style={[styles.feedTab, feedType === "all" && styles.feedTabActive]}
-          onPress={() => setFeedType("all")}
-        >
-          <Text
-            style={[
-              styles.feedTabText,
-              feedType === "all" && styles.feedTabTextActive,
-            ]}
+      {/* Feed Type Selector - Premium Segmented Control */}
+      <View style={styles.feedSelectorContainer}>
+        <View style={styles.feedSelector}>
+          <TouchableOpacity
+            style={[styles.feedTab, feedType === "all" && styles.feedTabActive]}
+            onPress={() => setFeedType("all")}
           >
-            🌍 Todos
-          </Text>
-        </TouchableOpacity>
+            <Text
+              style={[
+                styles.feedTabText,
+                feedType === "all" && styles.feedTabTextActive,
+              ]}
+            >
+              🌎 Todos
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[
-            styles.feedTab,
-            feedType === "following" && styles.feedTabActive,
-          ]}
-          onPress={() => setFeedType("following")}
-        >
-          <Text
+          <TouchableOpacity
             style={[
-              styles.feedTabText,
-              feedType === "following" && styles.feedTabTextActive,
+              styles.feedTab,
+              feedType === "following" && styles.feedTabActive,
             ]}
+            onPress={() => setFeedType("following")}
           >
-            👥 Siguiendo
-          </Text>
-        </TouchableOpacity>
+            <Text
+              style={[
+                styles.feedTabText,
+                feedType === "following" && styles.feedTabTextActive,
+              ]}
+            >
+              👥 Siguiendo
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.feedTab, feedType === "mine" && styles.feedTabActive]}
-          onPress={() => setFeedType("mine")}
-        >
-          <Text
-            style={[
-              styles.feedTabText,
-              feedType === "mine" && styles.feedTabTextActive,
-            ]}
+          <TouchableOpacity
+            style={[styles.feedTab, feedType === "mine" && styles.feedTabActive]}
+            onPress={() => setFeedType("mine")}
           >
-            👤 Míos
-          </Text>
-        </TouchableOpacity>
+            <Text
+              style={[
+                styles.feedTabText,
+                feedType === "mine" && styles.feedTabTextActive,
+              ]}
+            >
+              👤 Míos
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Feed */}
@@ -368,7 +371,6 @@ export const SocialScreen: React.FC = () => {
                 showFollowButton={false}
                 isFollowingAuthor={isFollowingAuthor(post)}
                 onFollowChange={(authorId, isFollowing) => {
-                  // Actualizar el caché local
                   setFollowingUsers((prev) => {
                     const newSet = new Set(prev);
                     if (isFollowing) {
@@ -382,30 +384,25 @@ export const SocialScreen: React.FC = () => {
               />
             ))}
 
-            {/* Indicador de carga para más posts */}
             {loadingMore && (
               <View style={styles.loadingMore}>
                 <ActivityIndicator size="small" color="#4CAF50" />
-                <Text style={styles.loadingMoreText}>
-                  Cargando más posts...
-                </Text>
+                <Text style={styles.loadingMoreText}>Cargando más...</Text>
               </View>
             )}
 
-            {/* Mensaje cuando no hay más posts */}
             {!hasMorePosts && posts.length > 5 && (
               <View style={styles.endOfFeed}>
-                <Text style={styles.endOfFeedText}>
-                  ¡Has visto todos los posts! 🎉
-                </Text>
+                <Text style={styles.endOfFeedText}>✨ Has llegado al final 🎉</Text>
               </View>
             )}
           </View>
         ) : (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateTitle}>
-              ¡Sé el primero en compartir!
-            </Text>
+            <View style={styles.emptyIconContainer}>
+              <Ionicons name="people-outline" size={80} color="#E0E0E0" />
+            </View>
+            <Text style={styles.emptyStateTitle}>¡Sé el primero en compartir!</Text>
             <Text style={styles.emptyStateDescription}>
               Comparte tu progreso, recetas o motivación con la comunidad
             </Text>
@@ -413,22 +410,19 @@ export const SocialScreen: React.FC = () => {
               style={styles.firstPostButton}
               onPress={() => setShowCreateModal(true)}
             >
-              <Text style={styles.firstPostButtonText}>
-                ✨ Crear mi primer post
-              </Text>
+              <Text style={styles.firstPostButtonText}>✨ Crear mi primer post</Text>
             </TouchableOpacity>
           </View>
         )}
       </ScrollView>
 
-      {/* Modal para crear post */}
+      {/* Modals */}
       <CreatePostModal
         visible={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onPostCreated={handlePostCreated}
       />
 
-      {/* Modal de comentarios */}
       <CommentsModal
         visible={showCommentsModal}
         onClose={closeCommentsModal}
@@ -436,12 +430,7 @@ export const SocialScreen: React.FC = () => {
         onCommentAdded={handleCommentAdded}
       />
 
-      {/* Modal de búsqueda de usuarios */}
-      <Modal
-        visible={showUsersModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
+      <Modal visible={showUsersModal} animationType="slide" presentationStyle="pageSheet">
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity
@@ -461,78 +450,98 @@ export const SocialScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#F8FBF8", // Color de fondo más suave
   },
   centered: {
     justifyContent: "center",
     alignItems: "center",
   },
   loadingText: {
-    marginTop: 10,
+    marginTop: 15,
     fontSize: 16,
     color: "#666",
-  },
-  header: {
-    backgroundColor: "#4CAF50",
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: "500",
   },
   headerButtons: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 15,
   },
-  searchButton: {
-    backgroundColor: "rgba(255,255,255,0.2)",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    minWidth: 40,
+  headerIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    justifyContent: "center",
     alignItems: "center",
   },
-  searchButtonText: {
-    fontSize: 16,
-  },
   createButton: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.2)",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    alignItems: 'center',
-  },
-  createButtonText: {
-    color: "#fff",
-    fontSize: 18,
+    gap: 6,
   },
   createButtonLabel: {
     color: "#fff",
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 2,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  feedSelectorContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+  },
+  feedSelector: {
+    flexDirection: "row",
+    backgroundColor: "#F0F0F0",
+    borderRadius: 14,
+    padding: 4,
+  },
+  feedTab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRadius: 10,
+  },
+  feedTabActive: {
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  feedTabText: {
+    fontSize: 13,
     fontWeight: "600",
+    color: "#666",
+  },
+  feedTabTextActive: {
+    color: "#4CAF50",
+    fontWeight: "700",
   },
   feed: {
     flex: 1,
   },
   postsContainer: {
-    padding: 20,
+    padding: 16,
   },
   emptyState: {
     alignItems: "center",
-    paddingVertical: 60,
+    paddingVertical: 80,
     paddingHorizontal: 40,
   },
+  emptyIconContainer: {
+    marginBottom: 20,
+    opacity: 0.5,
+  },
   emptyStateTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "bold",
     color: "#333",
     textAlign: "center",
@@ -540,7 +549,7 @@ const styles = StyleSheet.create({
   },
   emptyStateDescription: {
     fontSize: 16,
-    color: "#666",
+    color: "#888",
     textAlign: "center",
     lineHeight: 24,
     marginBottom: 30,
@@ -548,13 +557,13 @@ const styles = StyleSheet.create({
   firstPostButton: {
     backgroundColor: "#4CAF50",
     paddingHorizontal: 25,
-    paddingVertical: 15,
-    borderRadius: 25,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    paddingVertical: 16,
+    borderRadius: 30,
+    shadowColor: "#4CAF50",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
   },
   firstPostButtonText: {
     color: "#fff",
@@ -565,21 +574,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 20,
+    paddingVertical: 30,
   },
   loadingMoreText: {
     marginLeft: 10,
     fontSize: 14,
-    color: "#666",
+    color: "#999",
   },
   endOfFeed: {
     alignItems: "center",
-    paddingVertical: 30,
+    paddingVertical: 40,
   },
   endOfFeedText: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
+    fontSize: 15,
+    color: "#BBB",
+    fontWeight: "500",
   },
   modalContainer: {
     flex: 1,
@@ -603,35 +612,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  feedSelector: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    marginHorizontal: 20,
-    marginTop: 10,
-    borderRadius: 25,
-    padding: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  feedTab: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    borderRadius: 18,
-    alignItems: "center",
-  },
-  feedTabActive: {
-    backgroundColor: "#4CAF50",
-  },
-  feedTabText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#666",
-  },
-  feedTabTextActive: {
-    color: "#fff",
-  },
 });
+

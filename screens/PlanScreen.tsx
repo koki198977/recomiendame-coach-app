@@ -419,7 +419,6 @@ export const PlanScreen: React.FC = () => {
   };
 
   const openIngredientsModal = async (meal: WeeklyPlanMeal) => {
-    console.log('🍽️ Opening meal:', meal.id, meal.title, 'ingredients:', meal.ingredients?.length);
     // Mostrar el modal inmediatamente con los datos del plan
     setSelectedMeal(meal);
     setShowIngredientsModal(true);
@@ -429,10 +428,12 @@ export const PlanScreen: React.FC = () => {
       try {
         setLoadingMealDetails(true);
         const details = await NutritionService.getMealDetails(meal.id);
+        
         setSelectedMeal(prev => prev ? {
           ...prev,
           ingredients: details.ingredients,
           instructions: details.instructions,
+          imageUrl: details.imageUrl || prev.imageUrl,
         } : prev);
       } catch (error: any) {
         // Si falla (502, 404, etc.) simplemente usamos los datos del plan
@@ -1051,6 +1052,11 @@ export const PlanScreen: React.FC = () => {
         instructions={selectedMeal?.instructions}
         videoUrl={selectedMeal?.videoUrl}
         loading={loadingMealDetails}
+        kcal={selectedMeal?.kcal}
+        protein_g={selectedMeal?.protein_g}
+        carbs_g={selectedMeal?.carbs_g}
+        fat_g={selectedMeal?.fat_g}
+        imageUrl={selectedMeal?.imageUrl}
       />
 
       {/* Modal de lista de compras */}

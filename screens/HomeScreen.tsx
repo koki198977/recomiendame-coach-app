@@ -177,11 +177,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
       const mealsConsumed = await NutritionService.getTodayMeals();
       setTodayMealsConsumed(mealsConsumed);
 
-      // Sincronizar Widget
-      syncWidget(plan, mealsConsumed, todayWorkout);
+      // Cargar workout del día (await para tener el dato antes de sincronizar el widget)
+      const workoutDay = await loadWorkoutPlan();
 
-      // Cargar workout del día
-      loadWorkoutPlan();
+      // Sincronizar Widget con todos los datos ya disponibles
+      syncWidget(plan, mealsConsumed, workoutDay);
 
       // Inicializar servicio de notificaciones
       await NotificationService.initialize();
@@ -192,7 +192,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
     }
   };
 
-  const loadWorkoutPlan = async () => {
+  const loadWorkoutPlan = async (): Promise<WorkoutDay | null> => {
     try {
       setLoadingWorkout(true);
       const week = WorkoutService.getCurrentISOWeek();
@@ -203,15 +203,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
         // Obtener workout del día actual
         const today = new Date().getDay();
         const todayDayIndex = today === 0 ? 7 : today;
-        const todayWorkoutDay = workoutPlan.days.find(day => day.dayIndex === todayDayIndex);
-        setTodayWorkout(todayWorkoutDay || null);
+        const todayWorkoutDay = workoutPlan.days.find(day => day.dayIndex === todayDayIndex) || null;
+        setTodayWorkout(todayWorkoutDay);
+        return todayWorkoutDay;
       } else {
         setHasWorkoutPlan(false);
         setTodayWorkout(null);
+        return null;
       }
     } catch (error) {
       console.log('Error loading workout:', error);
       setHasWorkoutPlan(false);
+      return null;
     } finally {
       setLoadingWorkout(false);
     }
@@ -351,14 +354,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
     }
   };
 
-  const syncWidget = async (plan: any, meals: any, workout: any) => {
+  const syncWidget = async (plan: any, meals: any, workout: WorkoutDay | null) => {
     try {
+      // Construir nombre del workout: usar dayName si existe, o el primer ejercicio, o 'Descanso'
+      const workoutName = workout?.dayName
+        || (workout?.exercises?.length ? workout.exercises[0].name : null)
+        || 'Descanso';
+
       await WidgetService.updateWidgetData({
         caloriesTarget: plan?.macros?.kcalTarget || 2000,
         caloriesConsumed: meals?.totals?.kcal || 0,
         proteinTarget: plan?.macros?.protein_g || 150,
         proteinConsumed: meals?.totals?.protein_g || 0,
-        nextWorkout: workout?.title || 'Descanso'
+        nextWorkout: workoutName,
       });
     } catch (error) {
       console.log('Error syncing widget:', error);

@@ -92,8 +92,8 @@ android {
         applicationId 'cl.recomiendameapp.coach'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 151
-        versionName "1.5.1"
+        versionCode 152
+        versionName "1.5.2"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }

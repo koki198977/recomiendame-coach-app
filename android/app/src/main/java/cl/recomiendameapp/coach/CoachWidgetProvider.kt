@@ -29,36 +29,51 @@ class CoachWidgetProvider : AppWidgetProvider() {
                 val views = RemoteViews(context.packageName, R.layout.coach_widget_layout)
                 val data = loadWidgetData(context)
 
-                // Calorías
+                // Calorías con valores por defecto seguros
                 val caloriesConsumed = data.optInt("caloriesConsumed", 0)
-                val caloriesTarget = data.optInt("caloriesTarget", 2000)
+                val caloriesTarget = data.optInt("caloriesTarget", 2000).let { if (it <= 0) 2000 else it }
                 val proteinConsumed = data.optInt("proteinConsumed", 0)
-                val proteinTarget = data.optInt("proteinTarget", 150)
+                val proteinTarget = data.optInt("proteinTarget", 150).let { if (it <= 0) 150 else it }
                 val nextWorkout = data.optString("nextWorkout", "Descanso")
                 val lastUpdated = data.optString("lastUpdated", "")
 
-                // Actualizar vistas
+                // Actualizar títulos con emojis por código (más seguro que en XML)
+                views.setTextViewText(R.id.widget_title, "Coach 🥑")
+                
+                // Actualizar vistas principales
                 views.setTextViewText(R.id.widget_calories, "$caloriesConsumed / $caloriesTarget kcal")
 
                 // Progress bar (0-100)
-                val progress = if (caloriesTarget > 0) {
-                    ((caloriesConsumed.toFloat() / caloriesTarget.toFloat()) * 100).toInt().coerceIn(0, 100)
-                } else 0
+                val progress = ((caloriesConsumed.toFloat() / caloriesTarget.toFloat()) * 100).toInt().coerceIn(0, 100)
                 views.setProgressBar(R.id.widget_progress, 100, progress, false)
 
                 // Proteína
                 views.setTextViewText(R.id.widget_protein, "$proteinConsumed/${proteinTarget}g")
 
                 // Siguiente entreno
-                views.setTextViewText(R.id.widget_workout, if (nextWorkout.isNullOrEmpty() || nextWorkout == "null") "Descanso" else nextWorkout)
+                val workoutDisplay = if (nextWorkout.isNullOrEmpty() || nextWorkout == "null" || nextWorkout == "undefined") {
+                    "Descanso"
+                } else {
+                    nextWorkout
+                }
+                views.setTextViewText(R.id.widget_workout, workoutDisplay)
 
                 // Hora de actualización
                 val timeStr = formatTime(lastUpdated)
-                views.setTextViewText(R.id.widget_time, timeStr)
+                if (timeStr.isNotEmpty()) {
+                    views.setTextViewText(R.id.widget_time, "Act. $timeStr")
+                }
 
                 appWidgetManager.updateAppWidget(appWidgetId, views)
             } catch (e: Exception) {
-                e.printStackTrace()
+                // Si falla el inflado o la carga, intentar al menos mostrar algo básico
+                try {
+                    val views = RemoteViews(context.packageName, R.layout.coach_widget_layout)
+                    views.setTextViewText(R.id.widget_calories, "Error de carga")
+                    appWidgetManager.updateAppWidget(appWidgetId, views)
+                } catch (e2: Exception) {
+                    e2.printStackTrace()
+                }
             }
         }
 

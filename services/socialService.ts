@@ -17,35 +17,44 @@ import {
 export class SocialService {
   // Upload de imagen
   static async uploadImage(imageUri: string): Promise<{ url: string; publicId: string }> {
-    console.log('🚀 Uploading image:', imageUri);
+    console.log('🚀 [SocialService] Iniciando subida de imagen a /posts/upload:', imageUri);
     
-    // Crear FormData para la subida de imagen
-    const formData = new FormData();
-    
-    if (Platform.OS === 'web') {
-      // En web, necesitamos convertir el blob
-      console.log('🌐 Uploading from web');
-      const response = await fetch(imageUri);
-      const blob = await response.blob();
-      formData.append('image', blob, 'image.jpg');
-    } else {
-      // En móvil, usar el formato estándar
-      console.log('📱 Uploading from mobile');
-      formData.append('image', {
-        uri: imageUri,
-        type: 'image/jpeg',
-        name: 'image.jpg',
-      } as any);
+    try {
+      // Crear FormData para la subida de imagen
+      const formData = new FormData();
+      
+      if (Platform.OS === 'web') {
+        // En web, necesitamos convertir el blob
+        console.log('🌐 [SocialService] Uploading from web');
+        const response = await fetch(imageUri);
+        const blob = await response.blob();
+        formData.append('image', blob, 'image.jpg');
+      } else {
+        // En móvil, usar el formato estándar
+        console.log('📱 [SocialService] Uploading from mobile');
+        formData.append('image', {
+          uri: imageUri,
+          type: 'image/jpeg',
+          name: 'image.jpg',
+        } as any);
+      }
+
+      const uploadResponse = await api.post('/posts/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      console.log('✅ [SocialService] Imagen subida con éxito:', uploadResponse.data);
+      return uploadResponse.data;
+    } catch (error: any) {
+      console.log('❌ [SocialService] ERROR subiendo imagen:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+      });
+      throw error;
     }
-
-    const uploadResponse = await api.post('/posts/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-
-    console.log('✅ Upload response:', uploadResponse.data);
-    return uploadResponse.data;
   }
 
   // Posts

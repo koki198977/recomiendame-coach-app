@@ -9,7 +9,11 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
+  Image,
+  Platform,
+  Dimensions,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NutritionService } from "../services/nutritionService";
 import { SocialService } from "../services/socialService";
@@ -25,18 +29,21 @@ import api from '../services/api';
 import { AppHeader } from '../components/AppHeader';
 import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+
+const { width, height } = Dimensions.get('window');
 
 interface ProfileScreenProps {
   onLogout?: () => void;
   userProfile?: UserProfile | null;
 }
 
-export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProfile: userProfileProp }) => {
+export const ProfileScreen = ({ onLogout, userProfile: userProfileProp }: ProfileScreenProps) => {
   const [user, setUser] = React.useState<any>(null);
   const [userProfile, setUserProfile] = React.useState<UserProfile | null>(
     userProfileProp || null
   );
-  const [socialProfile, setSocialProfile] =
+  const [socialStats, setSocialStats] =
     React.useState<SocialUserProfile | null>(null);
   const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -57,6 +64,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
   const [subscriptionInfo, setSubscriptionInfo] = React.useState<any>(null);
   const [loadingSub, setLoadingSub] = React.useState(false);
   const [showGeneratingModal, setShowGeneratingModal] = React.useState(false);
+  const [uploadingImage, setUploadingImage] = React.useState(false);
+  const [showAvatarMenu, setShowAvatarMenu] = React.useState(false);
   const { isPro, isFree, showPaywall, refreshPlan, isGeneratingNutrition: isGeneratingPlan, setIsGeneratingNutrition: setIsGeneratingPlan } = usePlan();
 
   React.useEffect(() => {
@@ -164,19 +173,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
 
         // Cargar estadísticas sociales
         try {
-          const socialStats = await SocialService.getMySocialProfile();
-          setSocialProfile(socialStats);
-          console.log("ProfileScreen - Social stats loaded:", socialStats);
+          const stats = await SocialService.getMySocialProfile();
+          setSocialStats(stats);
         } catch (socialStatsError) {
-          console.log("Error loading social stats:", socialStatsError);
+          // Error silencioso
         }
       } catch (socialError) {
-        console.log("Error loading profile:", socialError);
-
         // Fallback: obtener desde AsyncStorage
         const userId = await getCurrentUserId();
         setCurrentUserId(userId);
-        console.log("ProfileScreen - Fallback user ID:", userId);
 
         // Si falla la API, intentar cargar desde AsyncStorage
         const localProfile = await AsyncStorage.getItem("userProfile");
@@ -215,22 +220,135 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
     ]);
   };
 
+  const handleSelectImage = async (useCamera: boolean) => {
+    try {
+      const permissionResult = useCamera 
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (permissionResult.granted === false) {
+        Alert.alert("Permiso denegado", `Se requiere permiso para acceder a la ${useCamera ? 'cámara' : 'galería'}.`);
+        return;
+      }
+
+      const result = useCamera
+        ? await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.5 })
+        : await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.5 });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        uploadAvatar(result.assets[0].uri);
+      }
+    } catch (error) {
+      Alert.alert("Error", "No se pudo seleccionar la imagen.");
+    }
+  };
+
+  const uploadAvatar = async (uri: string) => {
+    try {
+      setUploadingImage(true);
+      const uploadResult = await SocialService.uploadImage(uri);
+      await handleSaveAvatar(uploadResult.url);
+    } catch (error) {
+      console.log("Error uploading avatar:", error);
+      Alert.alert("Error", "No se pudo subir la imagen.");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleSaveAvatar = async (newAvatarUrl: string | null) => {
+    try {
+      const updatedProfile = await NutritionService.updateUserProfile({
+        avatarUrl: newAvatarUrl
+      });
+      setUserProfile(updatedProfile);
+      
+      // Actualizar también en AsyncStorage
+      await AsyncStorage.setItem('userProfile', JSON.stringify(updatedProfile));
+      
+      Alert.alert("¡Listo!", "Tu foto de perfil ha sido actualizada.");
+      await loadUserData();
+    } catch (error) {
+      console.log("Error saving avatar:", error);
+      Alert.alert("Error", "No se pudo actualizar la foto de perfil.");
+    }
+  };
+
+  const generateRandomAvatar = async () => {
+    // Usar robohash para generar un avatar de robot divertido
+    const randomId = Math.random().toString(36).substring(7);
+    const avatarUrl = `https://robohash.org/${randomId}.png?set=set1&bgset=bg1`;
+    handleSaveAvatar(avatarUrl);
+  };
+
+  const handleChangeAvatar = () => {
+    setShowAvatarMenu(true);
+  };
+
   const renderProfileInfo = () => (
     <View style={styles.profileCard}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>
-          {userProfile?.name?.charAt(0).toUpperCase() || user?.name?.charAt(0).toUpperCase() || "U"}
-        </Text>
-      </View>
+      <TouchableOpacity 
+        style={styles.avatarContainer} 
+        onPress={handleChangeAvatar} 
+        disabled={uploadingImage}
+        activeOpacity={0.8}
+      >
+        <View style={styles.avatarWrapper}>
+          {uploadingImage ? (
+            <ActivityIndicator color={COLORS.primary} />
+          ) : userProfile?.avatarUrl ? (
+            <Image source={{ uri: userProfile.avatarUrl }} style={styles.avatarImage} />
+          ) : (
+            <Text style={styles.avatarText}>
+              {userProfile?.name?.charAt(0).toUpperCase() || user?.name?.charAt(0).toUpperCase() || "U"}
+            </Text>
+          )}
+        </View>
+        <LinearGradient
+          colors={GRADIENTS.primary}
+          style={styles.editAvatarBadge}
+        >
+          <Text style={{ fontSize: 10, color: '#fff' }}>✏️</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+
       <Text style={styles.userName}>
         {userProfile?.name && userProfile?.lastName 
           ? `${userProfile.name} ${userProfile.lastName}`
           : userProfile?.name || user?.name || "Usuario"}
       </Text>
-      <Text style={styles.userEmail}>{user?.email}</Text>
       
-      <TouchableOpacity style={styles.editNameButton} onPress={handleEditName}>
-        <Text style={styles.editNameButtonText}>✏️ Editar nombre</Text>
+      <Text style={styles.userEmail}>{userProfile?.email || user?.email}</Text>
+
+      {/* Stats Bar elegante */}
+      <View style={styles.statsBar}>
+        <View style={styles.statItem}>
+          <Text style={styles.statNumber}>{socialStats?.postsCount || 0}</Text>
+          <Text style={styles.statLabel}>Posts</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statNumber}>{socialStats?.followersCount || 0}</Text>
+          <Text style={styles.statLabel}>Seguidores</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statNumber}>{socialStats?.followingCount || 0}</Text>
+          <Text style={styles.statLabel}>Siguiendo</Text>
+        </View>
+      </View>
+
+      <TouchableOpacity 
+        style={styles.editNameButton}
+        onPress={() => {
+          setEditingName({
+            name: userProfile?.name || "",
+            lastName: userProfile?.lastName || ""
+          });
+          setShowEditNameModal(true);
+        }}
+      >
+        <Text style={styles.editNameButtonText}>Editar Perfil</Text>
       </TouchableOpacity>
     </View>
   );
@@ -266,14 +384,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
     const progress = Math.min(20 + (attempts / maxAttempts) * 75, 95);
     setGenerationProgress(progress);
 
-    console.log(`🔄 Polling attempt ${attempts + 1}/${maxAttempts} for nutrition plan`);
-
     try {
       const plan = await NutritionService.getWeeklyPlan(week);
       const isPlanReady = plan && (plan.id === planId || planId.includes(week));
 
       if (isPlanReady) {
-        console.log('✅ Nutrition plan is ready!');
         setGenerationProgress(100);
         setTimeout(() => {
           setIsGeneratingPlan(false);
@@ -362,7 +477,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
                   
                   // Si existe un plan, eliminarlo primero
                   if (existingPlan) {
-                    console.log('Deleting existing plan:', existingPlan.id);
                     await NutritionService.deletePlan(existingPlan.id);
                   }
                   
@@ -375,7 +489,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
                   } catch (error: any) {
                     // Si es un 504, iniciar polling de todas formas
                     if (error.response?.status === 504) {
-                      console.log('⏰ 504 Gateway Timeout - Starting polling...');
                       setGenerationProgress(20);
                       const tempPlanId = `${currentWeek}-${Date.now()}`;
                       pollForPlan(tempPlanId, currentWeek);
@@ -384,7 +497,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
                     throw error;
                   }
                 } catch (error) {
-                  console.log("Error generating plan:", error);
                   setIsGeneratingPlan(false);
                   setShowGeneratingModal(false);
                   setGenerationProgress(0);
@@ -471,8 +583,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
   };
 
   const getNutritionGoalLabel = (goal?: string): string => {
-    console.log('🔍 NutritionGoal recibido:', goal); // Debug
-    
+    if (!goal) return "No especificado";
     const labels: { [key: string]: string } = {
       MAINTAIN_WEIGHT: "Mantener peso",
       LOSE_WEIGHT: "Bajar de peso",
@@ -487,8 +598,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
   };
 
   const getTimeFrameLabel = (timeFrame?: string): string => {
-    console.log('🔍 TimeFrame recibido:', timeFrame); // Debug
-    
+    if (!timeFrame) return "No especificado";
     const labels: { [key: string]: string } = {
       "1_MONTH": "1 mes",
       "ONE_MONTH": "1 mes",
@@ -501,8 +611,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
       "LONG_TERM": "Largo plazo",
     };
     
-    const result = labels[timeFrame || ""] || `No especificado`;
-    console.log('🔍 TimeFrame mapeado:', result); // Debug
+    const result = labels[timeFrame] || timeFrame;
     return result;
   };
 
@@ -608,7 +717,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
   const [showFollowingModal, setShowFollowingModal] = React.useState(false);
 
   const renderSocialStats = () => {
-    console.log("Rendering social stats with profile:", socialProfile);
+    if (!socialStats) return null;
     return (
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Red Social</Text>
@@ -618,13 +727,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
             <Text style={styles.dataIcon}>📝</Text>
             <Text style={styles.dataLabel}>Mis posts</Text>
           </View>
-          <Text style={styles.dataValue}>{socialProfile?.postsCount || 0}</Text>
+          <Text style={styles.dataValue}>{socialStats?.postsCount || 0}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.dataItem}
           onPress={() => {
-            if (currentUserId || socialProfile?.id) {
+            if (currentUserId || socialStats?.id) {
               setShowFollowersModal(true);
             } else {
               console.log("No user ID available for followers");
@@ -637,7 +746,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
           </View>
           <View style={styles.dataRight}>
             <Text style={styles.dataValue}>
-              {socialProfile?.followersCount || 0}
+              {socialStats?.followersCount || 0}
             </Text>
             <Text style={styles.menuArrow}>›</Text>
           </View>
@@ -646,7 +755,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
         <TouchableOpacity
           style={styles.dataItem}
           onPress={() => {
-            if (currentUserId || socialProfile?.id) {
+            if (currentUserId || socialStats?.id) {
               setShowFollowingModal(true);
             } else {
               console.log("No user ID available for following");
@@ -659,7 +768,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
           </View>
           <View style={styles.dataRight}>
             <Text style={styles.dataValue}>
-              {socialProfile?.followingCount || 0}
+              {socialStats?.followingCount || 0}
             </Text>
             <Text style={styles.menuArrow}>›</Text>
           </View>
@@ -957,6 +1066,127 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
         <Text style={styles.version}>Versión 1.0.0 (17)</Text>
       </ScrollView>
 
+      {/* Modal de selección de Avatar (Action Sheet Premium) */}
+      <Modal 
+        visible={showAvatarMenu} 
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowAvatarMenu(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.premiumModalContainer}>
+            {/* Header con Gradiente (Estilo Recetas) */}
+            <View style={styles.premiumHeaderWrapper}>
+              <LinearGradient
+                colors={['#74B796', '#8BC9A8']}
+                style={styles.premiumHeaderGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Ionicons 
+                  name="person-circle" 
+                  size={120} 
+                  color="rgba(255,255,255,0.2)" 
+                  style={{ position: 'absolute', right: -20, bottom: -20 }} 
+                />
+              </LinearGradient>
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.7)']}
+                style={styles.premiumHeaderTitleOverlay}
+              />
+              <View style={styles.premiumHeaderContent}>
+                <View style={styles.premiumTopActions}>
+                  <TouchableOpacity 
+                    style={styles.premiumBackButton} 
+                    onPress={() => setShowAvatarMenu(false)}
+                  >
+                    <Ionicons name="chevron-down" size={28} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.premiumTitleContainer}>
+                  <Text style={styles.premiumTitle}>Personalizar Perfil</Text>
+                  <Text style={styles.premiumSubtitle}>Elige cómo quieres actualizar tu foto</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Contenido (Estilo Recetas) */}
+            <View style={styles.premiumContent}>
+              <View style={styles.avatarOptionsList}>
+                <TouchableOpacity 
+                  style={styles.avatarOptionCard} 
+                  onPress={async () => { 
+                    await handleSelectImage(true);
+                    setShowAvatarMenu(false); 
+                  }}
+                >
+                  <View style={[styles.avatarOptionIcon, { backgroundColor: '#E3F2FD' }]}>
+                    <Ionicons name="camera" size={24} color="#2196F3" />
+                  </View>
+                  <View style={styles.avatarOptionText}>
+                    <Text style={styles.avatarOptionTitle}>Tomar Foto</Text>
+                    <Text style={styles.avatarOptionDesc}>Usa la cámara para una nueva foto</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#CCC" />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.avatarOptionCard} 
+                  onPress={async () => { 
+                    await handleSelectImage(false);
+                    setShowAvatarMenu(false); 
+                  }}
+                >
+                  <View style={[styles.avatarOptionIcon, { backgroundColor: '#F3E5F5' }]}>
+                    <Ionicons name="images" size={24} color="#9C27B0" />
+                  </View>
+                  <View style={styles.avatarOptionText}>
+                    <Text style={styles.avatarOptionTitle}>Elegir de Galería</Text>
+                    <Text style={styles.avatarOptionDesc}>Busca una foto en tus archivos</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#CCC" />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.avatarOptionCard} 
+                  onPress={() => { setShowAvatarMenu(false); generateRandomAvatar(); }}
+                >
+                  <View style={[styles.avatarOptionIcon, { backgroundColor: '#E8F5E9' }]}>
+                    <Ionicons name="ribbon" size={24} color="#4CAF50" />
+                  </View>
+                  <View style={styles.avatarOptionText}>
+                    <Text style={styles.avatarOptionTitle}>Crear Avatar AI</Text>
+                    <Text style={styles.avatarOptionDesc}>Genera un avatar único para ti</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#CCC" />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.avatarOptionCard, { borderBottomWidth: 0 }]} 
+                  onPress={() => { setShowAvatarMenu(false); handleSaveAvatar(null); }}
+                >
+                  <View style={[styles.avatarOptionIcon, { backgroundColor: '#FFEBEE' }]}>
+                    <Ionicons name="trash" size={24} color="#F44336" />
+                  </View>
+                  <View style={styles.avatarOptionText}>
+                    <Text style={[styles.avatarOptionTitle, { color: '#F44336' }]}>Eliminar Foto</Text>
+                    <Text style={styles.avatarOptionDesc}>Volver al avatar por defecto</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#CCC" />
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity 
+                style={styles.premiumCancelButton} 
+                onPress={() => setShowAvatarMenu(false)}
+              >
+                <Text style={styles.premiumCancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Modal de preferencias */}
       <Modal
         visible={showPreferencesModalState}
@@ -1099,7 +1329,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
       <FollowersModal
         visible={showFollowersModal}
         onClose={() => setShowFollowersModal(false)}
-        userId={currentUserId || socialProfile?.id || ""}
+        userId={currentUserId || socialStats?.id || ""}
         type="followers"
       />
 
@@ -1107,7 +1337,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userProf
       <FollowersModal
         visible={showFollowingModal}
         onClose={() => setShowFollowingModal(false)}
-        userId={currentUserId || socialProfile?.id || ""}
+        userId={currentUserId || socialStats?.id || ""}
         type="following"
       />
 
@@ -1234,38 +1464,198 @@ const styles = StyleSheet.create({
   },
   profileCard: {
     backgroundColor: COLORS.card,
-    margin: 20,
-    padding: 30,
-    borderRadius: 24,
+    marginHorizontal: 20,
+    marginTop: -30, // Traslape con el header para elegancia
+    marginBottom: 20,
+    padding: 25,
+    borderRadius: 30,
     alignItems: "center",
-    ...SHADOWS.glow,
-    shadowColor: COLORS.primaryStart,
-    shadowOpacity: 0.15,
+    ...SHADOWS.floating,
   },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  avatarContainer: {
+    position: 'relative',
+    marginBottom: 15,
+  },
+  avatarWrapper: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: COLORS.primary,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 15,
+    borderWidth: 4,
+    borderColor: '#fff',
     ...SHADOWS.glow,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+  },
+  editAvatarBadge: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+    ...SHADOWS.card,
   },
   avatarText: {
-    fontSize: 32,
+    fontSize: 40,
     fontWeight: "bold",
     color: "#fff",
   },
   userName: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "800",
     color: COLORS.text,
-    marginBottom: 5,
+    marginBottom: 4,
   },
   userEmail: {
-    fontSize: 16,
+    fontSize: 14,
     color: COLORS.textLight,
+    marginBottom: 20,
+  },
+  statsBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    width: '100%',
+    paddingVertical: 15,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: COLORS.divider,
+    marginBottom: 20,
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.text,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: COLORS.divider,
+  },
+  editNameButton: {
+    paddingHorizontal: 25,
+    paddingVertical: 10,
+    backgroundColor: COLORS.background,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  editNameButtonText: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  actionSheetContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 32,
+    width: '100%',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  actionSheetHeaderGradient: {
+    paddingTop: 12,
+    paddingBottom: 24,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  actionSheetContent: {
+    padding: 24,
+    paddingBottom: Platform.OS === 'ios' ? 44 : 32,
+  },
+  actionSheetIndicator: {
+    width: 36,
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    borderRadius: 2,
+    marginBottom: 20,
+  },
+  actionSheetTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  actionSheetSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '500',
+  },
+  actionSheetOptions: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 24,
+    marginBottom: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#F1F3F5',
+  },
+  actionOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F3F5',
+  },
+  actionIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+  },
+  actionIcon: {
+    fontSize: 22,
+  },
+  actionLabel: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#2D3436',
+  },
+  cancelButton: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 20,
+    padding: 18,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#F1F3F5',
+  },
+  cancelButtonText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#2D3436',
   },
   section: {
     backgroundColor: COLORS.card,
@@ -1343,19 +1733,132 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "800",
   },
+  // Estilos Premium (Clonados de Recetas)
+  premiumModalContainer: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    height: height * 0.92,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  premiumHeaderWrapper: {
+    height: 220,
+    width: '100%',
+    position: 'relative',
+    backgroundColor: '#74B796',
+  },
+  premiumHeaderGradient: {
+    width: '100%',
+    height: '100%',
+  },
+  premiumHeaderTitleOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 120,
+  },
+  premiumHeaderContent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    justifyContent: 'space-between',
+    paddingBottom: 20,
+  },
+  premiumTopActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  premiumBackButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  premiumTitleContainer: {
+    gap: 4,
+  },
+  premiumTitle: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#fff',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  premiumSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '500',
+  },
+  premiumContent: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 20,
+  },
+  avatarOptionsList: {
+    gap: 12,
+  },
+  avatarOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9F9F9',
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+  },
+  avatarOptionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  avatarOptionText: {
+    flex: 1,
+  },
+  avatarOptionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2C3E36',
+    marginBottom: 2,
+  },
+  avatarOptionDesc: {
+    fontSize: 13,
+    color: '#999',
+  },
+  premiumCancelButton: {
+    marginTop: 20,
+    backgroundColor: '#F5F5F5',
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  premiumCancelButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#666',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'flex-end',
+  },
   version: {
     textAlign: "center",
     color: COLORS.textLight,
     fontSize: 12,
     marginBottom: 30,
-  },
-  // Estilos del modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
   },
   modalContainer: {
     backgroundColor: COLORS.card,

@@ -85,59 +85,72 @@ export class NutritionService {
   }
 
   static async updateUserProfile(profileData: Partial<UserProfile>): Promise<UserProfile> {
-    // Primero obtener el perfil actual
-    const currentProfile = await this.getUserProfile();
-    
-    // Combinar los datos actuales con los nuevos
-    const completeProfileData = {
-      ...currentProfile,
-      ...profileData
-    };
-
-    // Normalizar el formato de timeFrame para el backend
-    if (completeProfileData.timeFrame) {
-      const timeFrameMapping: { [key: string]: string } = {
-        'ONE_MONTH': '1_MONTH',
-        'THREE_MONTHS': '3_MONTHS',
-        'SIX_MONTHS': '6_MONTHS',
-        'ONE_YEAR': '1_YEAR',
-        'LONG_TERM': 'LONG_TERM'
-      };
+    try {
+      // Primero obtener el perfil actual
+      const currentProfile = await this.getUserProfile();
       
-      const normalizedTimeFrame = timeFrameMapping[completeProfileData.timeFrame] || completeProfileData.timeFrame;
-      completeProfileData.timeFrame = normalizedTimeFrame as any;
-    }
-
-    // Normalizar el formato de nutritionGoal para el backend
-    if (completeProfileData.nutritionGoal) {
-      const nutritionGoalMapping: { [key: string]: string } = {
-        'MAINTAIN_WEIGHT': 'MAINTAIN_WEIGHT',
-        'LOSE_WEIGHT': 'LOSE_WEIGHT',
-        'GAIN_WEIGHT': 'GAIN_WEIGHT',
-        'BUILD_MUSCLE': 'GAIN_MUSCLE',
-        'ATHLETIC_PERFORMANCE': 'IMPROVE_HEALTH', // Mapear a IMPROVE_HEALTH
-        'GENERAL_HEALTH': 'IMPROVE_HEALTH'
+      // Combinar los datos actuales con los nuevos
+      const completeProfileData = {
+        ...currentProfile,
+        ...profileData
       };
-      
-      const normalizedGoal = nutritionGoalMapping[completeProfileData.nutritionGoal] || completeProfileData.nutritionGoal;
-      completeProfileData.nutritionGoal = normalizedGoal as any;
-    }
 
-    // Normalizar el formato de intensity para el backend
-    if (completeProfileData.intensity) {
-      const intensityMapping: { [key: string]: string } = {
-        'GENTLE': 'LOW',
-        'MODERATE': 'MODERATE',
-        'AGGRESSIVE': 'HIGH'
-      };
-      
-      const normalizedIntensity = intensityMapping[completeProfileData.intensity] || completeProfileData.intensity;
-      completeProfileData.intensity = normalizedIntensity as any;
-    }
+      // Normalizar el formato de timeFrame para el backend
+      if (completeProfileData.timeFrame) {
+        const timeFrameMapping: { [key: string]: string } = {
+          'ONE_MONTH': '1_MONTH',
+          'THREE_MONTHS': '3_MONTHS',
+          'SIX_MONTHS': '6_MONTHS',
+          'ONE_YEAR': '1_YEAR',
+          'LONG_TERM': 'LONG_TERM'
+        };
+        
+        const normalizedTimeFrame = timeFrameMapping[completeProfileData.timeFrame] || completeProfileData.timeFrame;
+        completeProfileData.timeFrame = normalizedTimeFrame as any;
+      }
 
-    // Enviar todos los datos requeridos
-    const response = await api.post<UserProfile>('/me/profile', completeProfileData);
-    return response.data;
+      // Normalizar el formato de nutritionGoal para el backend
+      if (completeProfileData.nutritionGoal) {
+        const nutritionGoalMapping: { [key: string]: string } = {
+          'MAINTAIN_WEIGHT': 'MAINTAIN_WEIGHT',
+          'LOSE_WEIGHT': 'LOSE_WEIGHT',
+          'GAIN_WEIGHT': 'GAIN_WEIGHT',
+          'BUILD_MUSCLE': 'GAIN_MUSCLE',
+          'ATHLETIC_PERFORMANCE': 'IMPROVE_HEALTH', // Mapear a IMPROVE_HEALTH
+          'GENERAL_HEALTH': 'IMPROVE_HEALTH'
+        };
+        
+        const normalizedGoal = nutritionGoalMapping[completeProfileData.nutritionGoal] || completeProfileData.nutritionGoal;
+        completeProfileData.nutritionGoal = normalizedGoal as any;
+      }
+
+      // Normalizar el formato de intensity para el backend
+      if (completeProfileData.intensity) {
+        const intensityMapping: { [key: string]: string } = {
+          'GENTLE': 'LOW',
+          'MODERATE': 'MODERATE',
+          'AGGRESSIVE': 'HIGH'
+        };
+        
+        const normalizedIntensity = intensityMapping[completeProfileData.intensity] || completeProfileData.intensity;
+        completeProfileData.intensity = normalizedIntensity as any;
+      }
+
+      // Enviar todos los datos requeridos
+      const response = await api.post<any>('/me/profile', completeProfileData);
+      
+      
+      // Si el backend responde con el perfil completo, lo usamos.
+      // Si solo responde con { ok: true } o algo similar, usamos nuestros datos locales combinados
+      // para no corromper el estado del frontend.
+      if (response.data && response.data.userId) {
+        return response.data;
+      }
+      
+      return completeProfileData as UserProfile;
+    } catch (error: any) {
+      throw error;
+    }
   }
 
   // Actualizar preferencias (alergias, condiciones, cuisines)
@@ -500,13 +513,10 @@ export class NutritionService {
       kcal: Math.round(mealData.kcal)
     };
 
-    console.log('🍽️ Logging meal with normalized data:', normalizedMealData);
-    
     const response = await api.post<LogMealResponse>('/meals/log', normalizedMealData);
     
     // Invalidar caché de progreso después de agregar comida
     await CacheService.clearProgressCache();
-    console.log('🔄 Progress cache invalidated after logging meal');
     
     return response.data;
   }
@@ -536,7 +546,6 @@ export class NutritionService {
     
     // Invalidar caché de progreso después de marcar comida como consumida
     await CacheService.clearProgressCache();
-    console.log('🔄 Progress cache invalidated after marking meal as consumed');
     
     return response.data;
   }

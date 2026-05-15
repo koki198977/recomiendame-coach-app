@@ -63,9 +63,8 @@ export const UsersScreen: React.FC = () => {
       setHasMoreUsers((response.items?.length || 0) >= USERS_PER_PAGE);
       setViewType('suggested');
       
-      console.log(`Loaded ${response.items?.length || 0} suggested users`);
+      setViewType('suggested');
     } catch (error) {
-      console.log('Error loading users:', error);
       setUsers([]);
     } finally {
       setLoading(false);
@@ -92,9 +91,7 @@ export const UsersScreen: React.FC = () => {
       setCurrentPage(0);
       setHasMoreUsers((response.items?.length || 0) >= USERS_PER_PAGE);
       
-      console.log(`Found ${response.items?.length || 0} users for "${searchQuery}"`);
     } catch (error) {
-      console.log('Error searching users:', error);
       Alert.alert('Error', 'No se pudo realizar la búsqueda');
       setUsers([]);
     } finally {
@@ -133,7 +130,7 @@ export const UsersScreen: React.FC = () => {
         setHasMoreUsers(false);
       }
     } catch (error) {
-      console.log('Error loading more users:', error);
+      // Error silencioso
     } finally {
       setLoadingMore(false);
     }
@@ -197,10 +194,6 @@ export const UsersScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Descubrir Usuarios</Text>
-      </View>
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -312,7 +305,7 @@ export const UsersScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
   },
   centered: {
     justifyContent: 'center',
@@ -322,18 +315,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: '#666',
-  },
-  header: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
   },
   searchContainer: {
     paddingHorizontal: 20,

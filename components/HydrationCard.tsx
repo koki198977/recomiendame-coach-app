@@ -23,6 +23,7 @@ export const HydrationCard: React.FC<HydrationCardProps> = ({
   const [planStatus, setPlanStatus] = useState<HydrationPlanStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
 
   useEffect(() => {
     loadPlanStatus();
@@ -36,11 +37,15 @@ export const HydrationCard: React.FC<HydrationCardProps> = ({
         setLoading(true);
       }
       
-      const status = await HydrationService.getPlanStatus();
-      setPlanStatus(status);
+      const response = await HydrationService.getPlanStatus();
+      setPlanStatus(response);
+      
+      // Detectar si estamos usando el estado por defecto del fallback
+      setIsOffline(!response.hasPlan && response.recommendedDailyMl === 2500 && response.currentProgress.totalMl === 0);
+      
     } catch (error) {
-      console.error('Error loading hydration status:', error);
-      // No mostrar error, solo log
+      console.log('ℹ️ HydrationCard - Usando modo offline');
+      setIsOffline(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -55,138 +60,135 @@ export const HydrationCard: React.FC<HydrationCardProps> = ({
     return (
       <View style={styles.loadingCard}>
         <ActivityIndicator size="small" color="#00BCD4" />
-        <Text style={styles.loadingText}>Cargando hidratación...</Text>
+        <Text style={styles.loadingText}>Sincronizando hidratación...</Text>
       </View>
     );
   }
 
-  if (!planStatus) {
-    return null; // No mostrar nada si no se puede cargar
-  }
-
-  const { hasPlan, currentProgress } = planStatus;
-  const progressPercentage = (currentProgress.totalMl / currentProgress.targetMl) * 100;
+  const { hasPlan, currentProgress } = planStatus || { hasPlan: false, currentProgress: { totalMl: 0, targetMl: 2500, percentage: 0, status: 'POOR', insights: [] } };
+  const progressPercentage = (currentProgress.totalMl / (currentProgress.targetMl || 2500)) * 100;
 
   if (!hasPlan) {
-    // Mostrar card para configurar plan
     return (
-      <TouchableOpacity style={styles.setupCard} onPress={onSetupPress}>
+      <TouchableOpacity style={styles.setupCard} onPress={onSetupPress} activeOpacity={0.9}>
         <LinearGradient
-          colors={['#00BCD4', '#4CAF50']}
+          colors={['#00C6FF', '#0072FF']}
           style={styles.setupGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
           <View style={styles.setupContent}>
-            <Text style={styles.setupIcon}>💧</Text>
+            <View style={styles.setupIconContainer}>
+              <Text style={styles.setupIcon}>💧</Text>
+            </View>
             <View style={styles.setupTextContainer}>
-              <Text style={styles.setupTitle}>Configura tu Hidratación</Text>
+              <Text style={styles.setupTitle}>Plan de Hidratación</Text>
               <Text style={styles.setupSubtitle}>
-                Crea tu plan personalizado de hidratación
+                Configura tu meta diaria para hoy
               </Text>
             </View>
-            <Text style={styles.setupArrow}>→</Text>
+            <View style={styles.setupAction}>
+              <Text style={styles.setupActionText}>Configurar</Text>
+            </View>
           </View>
         </LinearGradient>
       </TouchableOpacity>
     );
   }
 
-  // Mostrar progreso del plan existente
   return (
     <View style={styles.progressCard}>
-      <View style={styles.progressHeader}>
-        <View style={styles.progressTitleContainer}>
-          <Text style={styles.progressIcon}>
-            {HydrationService.getStatusEmoji(currentProgress.status)}
-          </Text>
-          <View>
-            <Text style={styles.progressTitle}>Hidratación Diaria</Text>
-            <Text style={[
-              styles.progressStatus,
-              { color: HydrationService.getStatusColor(currentProgress.status) }
-            ]}>
-              {currentProgress.status === 'POOR' && 'Necesitas hidratarte'}
-              {currentProgress.status === 'FAIR' && 'Progreso moderado'}
-              {currentProgress.status === 'GOOD' && 'Buen progreso'}
-              {currentProgress.status === 'EXCELLENT' && '¡Excelente!'}
-            </Text>
+      <LinearGradient
+        colors={['#ffffff', '#f0faff']}
+        style={styles.cardGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.progressHeader}>
+          <View style={styles.progressTitleContainer}>
+            <View style={[styles.iconBadge, { backgroundColor: HydrationService.getStatusColor(currentProgress.status) + '20' }]}>
+              <Text style={styles.progressIcon}>
+                {HydrationService.getStatusEmoji(currentProgress.status)}
+              </Text>
+            </View>
+            <View>
+              <Text style={styles.progressTitle}>Hidratación</Text>
+              <Text style={[
+                styles.progressStatus,
+                { color: HydrationService.getStatusColor(currentProgress.status) }
+              ]}>
+                {currentProgress.status === 'POOR' && 'Nivel bajo'}
+                {currentProgress.status === 'FAIR' && 'Progreso medio'}
+                {currentProgress.status === 'GOOD' && '¡Buen ritmo!'}
+                {currentProgress.status === 'EXCELLENT' && '¡Excelente!'}
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity 
+            style={styles.refreshIconContainer} 
+            onPress={handleRefresh} 
+            disabled={refreshing}
+          >
+            {refreshing ? (
+              <ActivityIndicator size="small" color="#999" />
+            ) : (
+              <Text style={styles.refreshIcon}>↻</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.mainProgressSection}>
+          <View style={styles.percentageContainer}>
+            <Text style={styles.progressPercentage}>{Math.round(progressPercentage)}%</Text>
+            <Text style={styles.percentageLabel}>completado</Text>
+          </View>
+          
+          <View style={styles.progressBarWrapper}>
+            <View style={styles.progressBar}>
+              <LinearGradient
+                colors={['#00C6FF', '#0072FF']}
+                style={[
+                  styles.progressFill,
+                  { width: `${Math.min(progressPercentage, 100)}%` }
+                ]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              />
+            </View>
+            <View style={styles.mlLabels}>
+              <Text style={styles.mlCurrent}>{HydrationService.formatMl(currentProgress.totalMl)}</Text>
+              <Text style={styles.mlTarget}>Meta: {HydrationService.formatMl(currentProgress.targetMl)}</Text>
+            </View>
           </View>
         </View>
-        <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
-          <Text style={[styles.refreshButton, refreshing && styles.refreshing]}>
-            {refreshing ? '⟳' : '↻'}
+
+        <View style={styles.footer}>
+          <Text style={styles.motivationalMessage}>
+            {HydrationService.getMotivationalMessage(progressPercentage)}
           </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Barra de progreso */}
-      <View style={styles.progressBarContainer}>
-        <View style={styles.progressBar}>
-          <LinearGradient
-            colors={['#00BCD4', '#4CAF50']}
-            style={[
-              styles.progressFill,
-              { width: `${Math.min(progressPercentage, 100)}%` }
-            ]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          />
+          
+          <TouchableOpacity 
+            style={styles.fabButton} 
+            onPress={onLogPress}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={['#00C6FF', '#0072FF']}
+              style={styles.fabGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Text style={styles.fabIcon}>+</Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
-        <Text style={styles.progressPercentage}>
-          {Math.round(progressPercentage)}%
-        </Text>
-      </View>
 
-      {/* Estadísticas */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>
-            {HydrationService.formatMl(currentProgress.totalMl)}
-          </Text>
-          <Text style={styles.statLabel}>Consumido</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>
-            {HydrationService.formatMl(currentProgress.remainingMl)}
-          </Text>
-          <Text style={styles.statLabel}>Restante</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>
-            {HydrationService.formatMl(currentProgress.targetMl)}
-          </Text>
-          <Text style={styles.statLabel}>Objetivo</Text>
-        </View>
-      </View>
-
-      {/* Mensaje motivacional */}
-      <Text style={styles.motivationalMessage}>
-        {HydrationService.getMotivationalMessage(progressPercentage)}
-      </Text>
-
-      {/* Botón para agregar agua */}
-      <TouchableOpacity style={styles.addWaterButton} onPress={onLogPress}>
-        <LinearGradient
-          colors={['#4CAF50', '#45A049']}
-          style={styles.addWaterGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-        >
-          <Text style={styles.addWaterText}>+ Agregar Agua</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-
-      {/* Insights */}
-      {currentProgress.insights.length > 0 && (
-        <View style={styles.insightsContainer}>
-          {currentProgress.insights.slice(0, 2).map((insight, index) => (
-            <Text key={index} style={styles.insightText}>{insight}</Text>
-          ))}
-        </View>
-      )}
+        {isOffline && (
+          <View style={styles.offlineHint}>
+            <Text style={styles.offlineText}>Ajustes locales activados</Text>
+          </View>
+        )}
+      </LinearGradient>
     </View>
   );
 };

@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  Image,
 } from 'react-native';
 import { SocialService } from '../services/socialService';
 import { UserProfile, Post } from '../types/nutrition';
@@ -215,9 +216,13 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({
         {/* User Info */}
         <View style={styles.userInfo}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {getUserInitial(user)}
-            </Text>
+            {user.avatarUrl ? (
+              <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarText}>
+                {getUserInitial(user)}
+              </Text>
+            )}
           </View>
           
           <Text style={styles.userName}>
@@ -425,6 +430,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 15,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 40,
   },
   avatarText: {
     color: '#fff',

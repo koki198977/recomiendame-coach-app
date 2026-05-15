@@ -24,6 +24,8 @@ interface PostCardProps {
   onFollowChange?: (authorId: string, isFollowing: boolean) => void; // Callback cuando cambia el seguimiento
   onShare?: (post: Post) => void; // Callback opcional para override externo
   onDelete?: (postId: string) => void; // Callback cuando se elimina un post
+  currentUserAvatar?: string | null; // Avatar del usuario actual para fallback
+  currentUserName?: string | null; // Nombre del usuario actual para fallback
 }
 
 export const PostCard: React.FC<PostCardProps> = ({
@@ -36,6 +38,8 @@ export const PostCard: React.FC<PostCardProps> = ({
   onFollowChange,
   onShare,
   onDelete,
+  currentUserAvatar,
+  currentUserName,
 }) => {
   const [isLiking, setIsLiking] = useState(false);
   const [currentPost, setCurrentPost] = useState(post);
@@ -115,23 +119,17 @@ export const PostCard: React.FC<PostCardProps> = ({
   };
 
   const getUserDisplayName = (post: Post): string => {
-    // Si es mi post, mostrar "Tú"
-    if (isMyPost) {
-      return 'Tú';
-    }
-    
     // Formato 1: authorName (de /posts/me y /posts)
     if (post.authorName && post.authorName.trim()) {
-      // Verificar si es un email válido
-      if (post.authorName.includes('@')) {
-        const emailPart = post.authorName.split('@')[0];
-        return emailPart
-          .replace(/[._-]/g, ' ')
-          .split(' ')
-          .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-          .join(' ');
+      // Si el nombre contiene el ID (no tiene nombre real), intentar otras opciones
+      if (!post.authorName.match(/^[a-z0-9]{20,}$/)) {
+        return post.authorName;
       }
-      // Si no es email (como el ID), usar fallback
+    }
+    
+    // Si es mi post y no tenemos nombre real, mostrar nombre de perfil o "Tú"
+    if (isMyPost) {
+      return currentUserName || 'Tú';
     }
     
     // Formato 2: author.email (de /posts/following)
@@ -144,23 +142,18 @@ export const PostCard: React.FC<PostCardProps> = ({
         .join(' ');
     }
     
-    return 'Usuario';
+    return post.authorName || 'Usuario';
   };
 
   const getUserInitial = (post: Post): string => {
-    // Si es mi post, mostrar "T" de "Tú"
+    const name = post.authorName || post.author?.email;
+    if (name) {
+      return name.charAt(0).toUpperCase();
+    }
+    
+    // Si es mi post y no hay nombre, "T" o inicial del perfil
     if (isMyPost) {
-      return 'T';
-    }
-    
-    // Formato 1: authorName
-    if (post.authorName && post.authorName.trim() && post.authorName.includes('@')) {
-      return post.authorName.charAt(0).toUpperCase();
-    }
-    
-    // Formato 2: author.email
-    if (post.author?.email && post.author.email.trim()) {
-      return post.author.email.charAt(0).toUpperCase();
+      return currentUserName ? currentUserName.charAt(0).toUpperCase() : 'T';
     }
     
     return 'U';
@@ -257,7 +250,14 @@ export const PostCard: React.FC<PostCardProps> = ({
       <View style={styles.header}>
         <View style={styles.avatarContainer}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{getUserInitial(currentPost)}</Text>
+            {(currentPost.authorAvatarUrl || currentPost.author?.avatarUrl || (isMyPost && currentUserAvatar)) ? (
+              <Image 
+                source={{ uri: currentPost.authorAvatarUrl || currentPost.author?.avatarUrl || (isMyPost ? currentUserAvatar : null) }} 
+                style={styles.avatarImage} 
+              />
+            ) : (
+              <Text style={styles.avatarText}>{getUserInitial(currentPost)}</Text>
+            )}
           </View>
           <View style={styles.statusIndicator} />
         </View>
@@ -389,6 +389,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CAF50',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 22,
   },
   avatarText: {
     color: '#fff',

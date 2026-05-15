@@ -8,9 +8,12 @@ import {
   ActivityIndicator,
   RefreshControl,
   Modal,
+  Dimensions,
 } from "react-native";
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from "@expo/vector-icons";
 import { SocialService } from "../services/socialService";
+import { NutritionService } from "../services/nutritionService";
 import { Post } from "../types/nutrition";
 import { PostCard } from "../components/PostCard";
 import { CreatePostModal } from "../components/CreatePostModal";
@@ -18,6 +21,8 @@ import { CommentsModal } from "../components/CommentsModal";
 import { UsersScreen } from "./UsersScreen";
 import { getCurrentUserId, getCurrentUserEmail } from "../utils/userUtils";
 import { AppHeader } from "../components/AppHeader";
+
+const { width, height } = Dimensions.get('window');
 
 export const SocialScreen: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -34,6 +39,7 @@ export const SocialScreen: React.FC = () => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set());
+  const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
 
   const POSTS_PER_PAGE = 10;
 
@@ -53,6 +59,10 @@ export const SocialScreen: React.FC = () => {
       try {
         const profileData = await SocialService.getCurrentUser();
         setCurrentUserId(profileData.userId);
+
+        // Cargar perfil completo de nutrición para tener nombre y avatar
+        const nutritionProfile = await NutritionService.getUserProfile();
+        setCurrentUserProfile(nutritionProfile);
 
         // También obtener email desde AsyncStorage
         const userEmail = await getCurrentUserEmail();
@@ -368,6 +378,8 @@ export const SocialScreen: React.FC = () => {
                 onCommentPress={handleCommentPress}
                 onDelete={handlePostDeleted}
                 isMyPost={feedType === "mine" || isMyPost(post)}
+                currentUserAvatar={currentUserProfile?.avatarUrl}
+                currentUserName={`${currentUserProfile?.name || ''} ${currentUserProfile?.lastName || ''}`.trim()}
                 showFollowButton={false}
                 isFollowingAuthor={isFollowingAuthor(post)}
                 onFollowChange={(authorId, isFollowing) => {
@@ -430,17 +442,54 @@ export const SocialScreen: React.FC = () => {
         onCommentAdded={handleCommentAdded}
       />
 
-      <Modal visible={showUsersModal} animationType="slide" presentationStyle="pageSheet">
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity
-              style={styles.closeModalButton}
-              onPress={() => setShowUsersModal(false)}
-            >
-              <Text style={styles.closeModalButtonText}>✕ Cerrar</Text>
-            </TouchableOpacity>
+      <Modal 
+        visible={showUsersModal} 
+        animationType="slide" 
+        transparent
+        onRequestClose={() => setShowUsersModal(false)}
+      >
+        <View style={styles.premiumModalOverlay}>
+          <View style={styles.premiumModalContainer}>
+            {/* Header con Gradiente (Estilo Recetas) */}
+            <View style={styles.premiumHeaderWrapper}>
+              <LinearGradient
+                colors={['#4CAF50', '#8BC34A']}
+                style={styles.premiumHeaderGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Ionicons 
+                  name="people" 
+                  size={120} 
+                  color="rgba(255,255,255,0.2)" 
+                  style={{ position: 'absolute', right: -20, bottom: -20 }} 
+                />
+              </LinearGradient>
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.7)']}
+                style={styles.premiumHeaderTitleOverlay}
+              />
+              <View style={styles.premiumHeaderContent}>
+                <View style={styles.premiumTopActions}>
+                  <TouchableOpacity 
+                    style={styles.premiumBackButton} 
+                    onPress={() => setShowUsersModal(false)}
+                  >
+                    <Ionicons name="chevron-down" size={28} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.premiumTitleContainer}>
+                  <Text style={styles.premiumTitle}>Descubrir Usuarios</Text>
+                  <Text style={styles.premiumSubtitle}>Conecta con la comunidad</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Contenido (UsersScreen se encarga del ScrollView interno) */}
+            <View style={{ flex: 1, backgroundColor: '#fff' }}>
+              <UsersScreen />
+            </View>
           </View>
-          <UsersScreen />
         </View>
       </Modal>
     </View>
@@ -593,6 +642,75 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     backgroundColor: "#f5f5f5",
+  },
+  premiumModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'flex-end',
+  },
+  premiumModalContainer: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    height: height * 0.92,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  premiumHeaderWrapper: {
+    height: 220,
+    width: '100%',
+    position: 'relative',
+  },
+  premiumHeaderGradient: {
+    width: '100%',
+    height: '100%',
+  },
+  premiumHeaderTitleOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 120,
+  },
+  premiumHeaderContent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    justifyContent: 'space-between',
+    paddingBottom: 20,
+  },
+  premiumTopActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  premiumBackButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  premiumTitleContainer: {
+    gap: 4,
+  },
+  premiumTitle: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#fff',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  premiumSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '500',
   },
   modalHeader: {
     backgroundColor: "#4CAF50",

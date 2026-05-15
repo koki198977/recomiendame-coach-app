@@ -21,8 +21,18 @@ class HydrationService {
       const response = await api.get<HydrationPlanStatus>('/hydration/plan-status');
       return response.data;
     } catch (error: any) {
-      console.error('Error getting hydration plan status:', error);
-      throw error;
+      // Silenciar el error 502 y devolver un estado por defecto elegante
+      console.log('ℹ️ [HydrationService] Usando estado por defecto (Servidor no disponible)');
+      return {
+        hasPlan: false,
+        recommendedDailyMl: 2500,
+        currentProgress: {
+          totalMl: 0,
+          percentage: 0,
+          lastIntake: null,
+          status: 'POOR'
+        }
+      };
     }
   }
 

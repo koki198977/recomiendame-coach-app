@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { SocialUserProfile } from '../types/nutrition';
 import { SocialService } from '../services/socialService';
@@ -83,9 +84,13 @@ export const UserCard: React.FC<UserCardProps> = ({
     <View style={styles.container}>
       <View style={styles.userInfo}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {getUserInitial(user)}
-          </Text>
+          {user.avatarUrl ? (
+            <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
+          ) : (
+            <Text style={styles.avatarText}>
+              {getUserInitial(user)}
+            </Text>
+          )}
         </View>
         
         <View style={styles.userDetails}>
@@ -143,6 +148,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 25,
   },
   avatarText: {
     color: '#fff',

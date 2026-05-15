@@ -64,6 +64,7 @@ export interface UserProfile {
   intensity?: "GENTLE" | "MODERATE" | "AGGRESSIVE";
   currentMotivation?: string;
   onboardingCompleted?: boolean;
+  avatarUrl?: string;
 }
 
 export interface Food {
@@ -290,6 +291,7 @@ export interface PostAuthor {
   id: string;
   email: string;
   name?: string;
+  avatarUrl?: string;
 }
 
 export interface PostMedia {
@@ -318,6 +320,7 @@ export interface Post {
   // Formato 2: /posts/me y /posts
   authorId?: string;
   authorName?: string;
+  authorAvatarUrl?: string | null;
   mediaUrl?: string | null;
   isLikedByMe?: boolean;
 }

@@ -558,6 +558,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToWorkout, isT
               }! 👋`}
               subtitle={weeklyPlan ? `Hoy vamos por esa energía 💪` : 'Vamos a crear tu plan nutricional'}
               showLogo={true}
+              avatarUrl={userProfile?.avatarUrl}
+              userName={userProfile?.name ? `${userProfile.name} ${userProfile.lastName || ''}` : undefined}
+              avatarSize={56}
               rightComponent={<NotificationBadge count={0} />}
             />
           </TourGuideZone>

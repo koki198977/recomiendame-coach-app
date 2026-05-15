@@ -3,11 +3,15 @@ import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Logo } from './Logo';
 import { COLORS, GRADIENTS, SHADOWS } from '../theme/theme';
+import { Image } from 'react-native';
 
 interface AppHeaderProps {
   title?: string;
   subtitle?: string;
   showLogo?: boolean;
+  avatarUrl?: string | null;
+  userName?: string;
+  avatarSize?: number;
   rightComponent?: React.ReactNode;
 }
 
@@ -15,11 +19,42 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   title,
   subtitle,
   showLogo = true,
+  avatarUrl,
+  userName,
+  avatarSize = 44,
   rightComponent,
 }) => {
+  const getInitials = (name?: string) => {
+    if (!name) return '?';
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  const renderAvatar = () => {
+    if (avatarUrl) {
+      return (
+        <View style={[styles.avatarContainer, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}>
+          <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+        </View>
+      );
+    }
+
+    if (userName) {
+      return (
+        <View style={[styles.avatarContainer, styles.initialsContainer, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}>
+          <Text style={[styles.initialsText, { fontSize: avatarSize * 0.4 }]}>{getInitials(userName)}</Text>
+        </View>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <View style={styles.container}>
-      {/* Background with Gradient */}
       <LinearGradient
         colors={GRADIENTS.header}
         start={{ x: 0, y: 0 }}
@@ -27,16 +62,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         style={styles.gradient}
       />
       
-      {/* Decorative Circles for "Futuristic" feel */}
       <View style={styles.circle1} />
       <View style={styles.circle2} />
 
-      {/* Content */}
       <View style={styles.content}>
         <View style={styles.leftSection}>
           {showLogo && (
             <View style={styles.logoContainer}>
-              {/* Glow effect */}
               <View style={styles.logoGlow} />
               <View style={styles.logoWrapper}>
                 <Logo size="small" showText={false} />
@@ -57,11 +89,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           </View>
         </View>
 
-        {rightComponent && (
-          <View style={styles.rightSection}>
-            {rightComponent}
-          </View>
-        )}
+        <View style={styles.rightSection}>
+          {renderAvatar()}
+          {rightComponent}
+        </View>
       </View>
     </View>
   );
@@ -167,6 +198,32 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   rightSection: {
-    marginLeft: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 12,
+  },
+  avatarContainer: {
+    width: 44, // Reducido un poco para que no compita tanto con el logo
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    ...SHADOWS.card,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  initialsContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  initialsText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
   },
 });

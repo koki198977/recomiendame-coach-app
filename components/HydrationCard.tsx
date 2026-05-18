@@ -194,6 +194,7 @@ export const HydrationCard: React.FC<HydrationCardProps> = ({
 };
 
 const styles = StyleSheet.create({
+  // ── Loading state ──────────────────────────────────────────────
   loadingCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -213,6 +214,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+
+  // ── Setup card (no plan yet) ───────────────────────────────────
   setupCard: {
     marginHorizontal: 20,
     marginVertical: 10,
@@ -231,9 +234,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  setupIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
   setupIcon: {
-    fontSize: 32,
-    marginRight: 15,
+    fontSize: 26,
   },
   setupTextContainer: {
     flex: 1,
@@ -248,36 +259,57 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.9)',
   },
-  setupArrow: {
-    fontSize: 24,
-    color: '#fff',
-    fontWeight: 'bold',
+  setupAction: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginLeft: 10,
   },
+  setupActionText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  // ── Progress card (plan active) ────────────────────────────────
   progressCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
     marginHorizontal: 20,
     marginVertical: 10,
+    borderRadius: 16,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
   },
+  cardGradient: {
+    borderRadius: 16,
+    padding: 20,
+  },
+
+  // Header row
   progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 16,
   },
   progressTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+  iconBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
   progressIcon: {
-    fontSize: 24,
-    marginRight: 12,
+    fontSize: 22,
   },
   progressTitle: {
     fontSize: 18,
@@ -285,10 +317,126 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   progressStatus: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     marginTop: 2,
   },
+  refreshIconContainer: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  refreshIcon: {
+    fontSize: 18,
+    color: '#666',
+  },
+
+  // Progress section (percentage + bar)
+  mainProgressSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 14,
+  },
+  percentageContainer: {
+    alignItems: 'center',
+    minWidth: 52,
+  },
+  progressPercentage: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#00BCD4',
+    lineHeight: 26,
+  },
+  percentageLabel: {
+    fontSize: 11,
+    color: '#999',
+    marginTop: 1,
+  },
+  progressBarWrapper: {
+    flex: 1,
+  },
+  progressBar: {
+    height: 10,
+    backgroundColor: '#e8f4f8',
+    borderRadius: 5,
+    overflow: 'hidden',
+    marginBottom: 6,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 5,
+  },
+  mlLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  mlCurrent: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#333',
+  },
+  mlTarget: {
+    fontSize: 12,
+    color: '#999',
+  },
+
+  // Footer row (message + FAB)
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  motivationalMessage: {
+    flex: 1,
+    fontSize: 13,
+    color: '#4CAF50',
+    fontWeight: '600',
+    marginRight: 12,
+  },
+  fabButton: {
+    borderRadius: 22,
+    shadowColor: '#0072FF',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  fabGradient: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fabIcon: {
+    fontSize: 26,
+    color: '#fff',
+    fontWeight: '300',
+    lineHeight: 30,
+    textAlign: 'center',
+  },
+
+  // Offline hint
+  offlineHint: {
+    marginTop: 10,
+    backgroundColor: '#fff8e1',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    alignSelf: 'flex-start',
+  },
+  offlineText: {
+    fontSize: 11,
+    color: '#f59e0b',
+    fontWeight: '600',
+  },
+
+  // Legacy / unused (kept to avoid TS errors if referenced elsewhere)
   refreshButton: {
     fontSize: 20,
     color: '#666',
@@ -301,24 +449,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
-  },
-  progressBar: {
-    flex: 1,
-    height: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 4,
-    marginRight: 10,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  progressPercentage: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#00BCD4',
-    minWidth: 35,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -346,13 +476,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#e0e0e0',
     marginHorizontal: 10,
   },
-  motivationalMessage: {
-    fontSize: 14,
-    color: '#4CAF50',
-    textAlign: 'center',
-    fontWeight: '600',
-    marginBottom: 15,
-  },
   addWaterButton: {
     borderRadius: 12,
     marginBottom: 15,
@@ -377,5 +500,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     lineHeight: 16,
+  },
+  setupArrow: {
+    fontSize: 24,
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });

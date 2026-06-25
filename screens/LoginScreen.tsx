@@ -11,20 +11,18 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Pressable,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth, useSSO, useUser } from '@clerk/expo';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
-import Constants from 'expo-constants';
 import { AuthService } from '../services/authService';
 import { Logo } from '../components/Logo';
+import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
 
-// Hook para mejorar la experiencia de login en Android
 export const useWarmUpBrowser = () => {
   React.useEffect(() => {
-    // Warm up the android browser to improve UX
-    // https://docs.expo.dev/guides/authentication/#improving-user-experience
     void WebBrowser.warmUpAsync();
     return () => {
       void WebBrowser.coolDownAsync();
@@ -43,7 +41,12 @@ interface LoginScreenProps {
   initialEmail?: string;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowRegister, verificationMessage, initialEmail }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({
+  onLoginSuccess,
+  onShowRegister,
+  verificationMessage,
+  initialEmail,
+}) => {
   const [email, setEmail] = useState(initialEmail || '');
   const [password, setPassword] = useState('');
   const scrollViewRef = React.useRef<ScrollView>(null);
@@ -51,6 +54,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
   const [showVerificationMessage, setShowVerificationMessage] = useState(!!verificationMessage);
   const [isResending, setIsResending] = useState(false);
   const [isRequestingReset, setIsRequestingReset] = useState(false);
+
+  // Estados de foco para inputs
+  const [isEmailFocused, setIsEmailFocused] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
   useWarmUpBrowser();
 
@@ -161,13 +168,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
     try {
       if (isSignedIn) {
         console.log('ℹ️ Usuario ya autenticado en Clerk, esperando sincronización...');
-        // Si ya está firmado en Clerk pero sigue aquí, App.tsx se encargará 
-        // de intercambiar el token cuando detecte el estado.
         return;
       }
       console.log(` iniciando flujo SSO para ${provider}...`);
       
-      // Quitamos la barra inicial '/' para evitar el problema de las 3 barras (coachapp:///)
       const redirectUrl = Linking.createURL('oauth-native-callback');
       
       console.log('Redirect URL configurada:', redirectUrl);
@@ -182,17 +186,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
       if (createdSessionId && setSSOActive) {
         console.log('✅ Sesión creada en Clerk, activando...');
         await setSSOActive({ session: createdSessionId });
-        // No llamamos al backend aquí para evitar duplicados con App.tsx
       } else {
         console.log('⚠️ No se creó Session ID o no hay setActive');
       }
     } catch (err: any) {
       console.error('❌ Error SSO Detallado:', err);
-      // Loggear propiedades individuales si stringify falla
-      console.log('SSO error message:', err.message);
-      console.log('SSO error code:', err.code);
-      console.log('SSO error meta:', JSON.stringify(err.meta || {}));
-
       if (err.cancelled || err.code === 'session_exists') {
         console.log('SSO cancelado o sesión ya existe');
         return;
@@ -211,9 +209,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      {/* Background Gradient */}
+      {/* Background soft clean gradient */}
       <LinearGradient
-        colors={['#4CAF50', '#81C784', '#A5D6A7']}
+        colors={['#EBF1EE', '#F2F6F4', '#FAFAF6']}
         style={styles.backgroundGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -234,7 +232,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
       >
         {/* Logo Section */}
         <View style={styles.logoSection}>
-          {/* Logo con efecto mejorado */}
           <View style={styles.logoContainer}>
             <View style={styles.logoGlow} />
             <View style={styles.logoWrapper}>
@@ -273,50 +270,63 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
           </View>
         )}
 
-        {/* Login Form */}
-        <View style={styles.formContainer}>
+        {/* Login Form Wrapper in Premium Card */}
+        <View style={styles.card}>
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Email</Text>
+            <Text style={[styles.inputLabel, isEmailFocused && styles.inputLabelFocused]}>
+              Email
+            </Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, isEmailFocused && styles.inputFocused]}
               placeholder="tu@email.com"
-              placeholderTextColor="rgba(0, 0, 0, 0.4)"
+              placeholderTextColor="#9CA3AF"
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
               onFocus={() => {
+                setIsEmailFocused(true);
                 setTimeout(() => {
-                  scrollViewRef.current?.scrollTo({ y: 200, animated: true });
+                  scrollViewRef.current?.scrollTo({ y: 180, animated: true });
                 }, 100);
               }}
+              onBlur={() => setIsEmailFocused(false)}
             />
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Contraseña</Text>
+            <Text style={[styles.inputLabel, isPasswordFocused && styles.inputLabelFocused]}>
+              Contraseña
+            </Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, isPasswordFocused && styles.inputFocused]}
               placeholder="••••••••"
-              placeholderTextColor="rgba(0, 0, 0, 0.4)"
+              placeholderTextColor="#9CA3AF"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
               onFocus={() => {
+                setIsPasswordFocused(true);
                 setTimeout(() => {
-                  scrollViewRef.current?.scrollTo({ y: 300, animated: true });
+                  scrollViewRef.current?.scrollTo({ y: 260, animated: true });
                 }, 100);
               }}
+              onBlur={() => setIsPasswordFocused(false)}
             />
           </View>
 
-          <TouchableOpacity
-            style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+          {/* Interactive Login Button */}
+          <Pressable
             onPress={handleLogin}
             disabled={isLoading}
+            style={({ pressed }) => [
+              styles.loginButton,
+              pressed && styles.buttonPressed,
+              isLoading && styles.loginButtonDisabled
+            ]}
           >
             <LinearGradient
-              colors={isLoading ? ['#ccc', '#999'] : ['#FF9800', '#F57C00']}
+              colors={isLoading ? ['#D1D5DB', '#9CA3AF'] : ['#74B796', '#5FA381']}
               style={styles.loginButtonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -327,12 +337,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
                 <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
               )}
             </LinearGradient>
-          </TouchableOpacity>
+          </Pressable>
 
           <TouchableOpacity 
             style={[styles.forgotPassword, isRequestingReset && styles.forgotPasswordDisabled]}
             onPress={handleForgotPassword}
             disabled={isRequestingReset}
+            activeOpacity={0.7}
           >
             <Text style={[styles.forgotPasswordText, isRequestingReset && styles.forgotPasswordTextDisabled]}>
               {isRequestingReset ? 'Enviando...' : '¿Olvidaste tu contraseña?'}
@@ -347,28 +358,42 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
           <View style={styles.dividerLine} />
         </View>
 
-        {/* Google Button */}
-        <TouchableOpacity
-          style={styles.socialButton}
-          onPress={() => handleSocialLogin('oauth_google')}
-        >
-          <Text style={styles.socialButtonText}>Continuar con Google</Text>
-        </TouchableOpacity>
-
-        {/* Apple Button — iOS only */}
-        {Platform.OS === 'ios' && (
-          <TouchableOpacity
-            style={[styles.socialButton, styles.appleButton]}
-            onPress={() => handleSocialLogin('oauth_apple')}
+        {/* Social Authentication Area */}
+        <View style={styles.socialButtonsContainer}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.socialButton,
+              pressed && styles.buttonPressed
+            ]}
+            onPress={() => handleSocialLogin('oauth_google')}
           >
-            <Text style={[styles.socialButtonText, styles.appleButtonText]}>Continuar con Apple</Text>
-          </TouchableOpacity>
-        )}
+            <Text style={styles.socialButtonText}>Continuar con Google</Text>
+          </Pressable>
 
-        {/* Bottom Section */}
+          {Platform.OS === 'ios' && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.socialButton,
+                styles.appleButton,
+                pressed && styles.buttonPressed
+              ]}
+              onPress={() => handleSocialLogin('oauth_apple')}
+            >
+              <Text style={[styles.socialButtonText, styles.appleButtonText]}>
+                Continuar con Apple
+              </Text>
+            </Pressable>
+          )}
+        </View>
+
+        {/* Bottom Navigation Link */}
         <View style={styles.bottomSection}>
           <Text style={styles.signupText}>¿No tienes cuenta?</Text>
-          <TouchableOpacity style={styles.signupButton} onPress={onShowRegister}>
+          <TouchableOpacity 
+            style={styles.signupButton} 
+            onPress={onShowRegister}
+            activeOpacity={0.8}
+          >
             <Text style={styles.signupButtonText}>Regístrate gratis</Text>
           </TouchableOpacity>
         </View>
@@ -380,6 +405,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShow
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
   },
   scrollView: {
     flex: 1,
@@ -396,7 +422,7 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(116, 183, 150, 0.12)',
     top: -50,
     right: -50,
   },
@@ -405,8 +431,8 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     borderRadius: 75,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    bottom: 100,
+    backgroundColor: 'rgba(116, 183, 150, 0.08)',
+    bottom: 120,
     left: -30,
   },
   decorativeCircle3: {
@@ -414,216 +440,248 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    top: height * 0.3,
-    right: 20,
+    backgroundColor: 'rgba(116, 183, 150, 0.05)',
+    top: height * 0.35,
+    right: -20,
   },
   content: {
     flexGrow: 1,
-    paddingHorizontal: 30,
-    paddingTop: 60,
-    paddingBottom: 60, // Más espacio para la barra de navegación
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === 'ios' ? 70 : 50,
+    paddingBottom: 60,
   },
   logoSection: {
     alignItems: 'center',
-    marginTop: 40,
+    marginBottom: 24,
   },
   logoContainer: {
     position: 'relative',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   logoGlow: {
     position: 'absolute',
-    top: -8,
-    left: -8,
-    right: -8,
-    bottom: -8,
-    backgroundColor: '#4CAF50',
-    borderRadius: 50,
-    opacity: 0.4,
-    shadowColor: '#4CAF50',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
+    top: -6,
+    left: -6,
+    right: -6,
+    bottom: -6,
+    backgroundColor: COLORS.primary,
+    borderRadius: 36,
+    opacity: 0.15,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
-    shadowRadius: 20,
-    elevation: 15,
+    shadowRadius: 16,
+    elevation: 8,
   },
   logoWrapper: {
     backgroundColor: '#FFFFFF',
-    padding: 20,
-    borderRadius: 40,
-    borderWidth: 4,
+    padding: 16,
+    borderRadius: 30,
+    borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.9)',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 20,
+    ...SHADOWS.card,
   },
   brandName: {
-    fontSize: 32,
+    fontSize: 26,
     fontWeight: '800',
-    color: '#fff',
+    color: COLORS.text,
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 6,
     letterSpacing: 0.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
   welcomeText: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#fff',
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.text,
     textAlign: 'center',
-    marginTop: 10,
-    marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.1)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    marginBottom: 4,
   },
   subtitleText: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    color: COLORS.textLight,
     textAlign: 'center',
     fontWeight: '500',
   },
-  formContainer: {
-    marginTop: 40,
+  // Form card styling
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    marginVertical: 16,
+    ...SHADOWS.card,
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
+    color: COLORS.textLight,
     marginBottom: 8,
     marginLeft: 4,
   },
+  inputLabelFocused: {
+    color: COLORS.primary,
+  },
   input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderRadius: 16,
+    backgroundColor: '#F3F5F4',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 14,
     fontSize: 16,
-    color: '#333',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    color: COLORS.text,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none' as any,
+      },
+    }),
+  },
+  inputFocused: {
+    borderColor: COLORS.primary,
+    backgroundColor: '#FFFFFF',
   },
   loginButton: {
-    marginTop: 20,
-    borderRadius: 16,
-    shadowColor: '#FF9800',
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+    marginTop: 16,
+    borderRadius: 14,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  buttonPressed: {
+    transform: [{ scale: 0.98 }],
+    opacity: 0.95,
   },
   loginButtonDisabled: {
-    shadowOpacity: 0.1,
+    opacity: 0.6,
   },
   loginButtonGradient: {
-    paddingVertical: 18,
-    borderRadius: 16,
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   loginButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
     letterSpacing: 0.5,
   },
   forgotPassword: {
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 16,
   },
   forgotPasswordDisabled: {
     opacity: 0.6,
   },
   forgotPasswordText: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 14,
-    fontWeight: '500',
+    color: COLORS.textLight,
+    fontSize: 13,
+    fontWeight: '600',
   },
   forgotPasswordTextDisabled: {
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: '#9CA3AF',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(44, 62, 54, 0.12)',
+  },
+  dividerText: {
+    color: COLORS.textLight,
+    fontSize: 13,
+    fontWeight: '500',
+    marginHorizontal: 12,
+  },
+  socialButtonsContainer: {
+    width: '100%',
+  },
+  socialButton: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginBottom: 12,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    ...SHADOWS.card,
+    shadowOpacity: 0.03,
+  },
+  socialButtonText: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  appleButton: {
+    backgroundColor: '#000000',
+    borderColor: '#000000',
+  },
+  appleButtonText: {
+    color: '#FFFFFF',
   },
   bottomSection: {
     alignItems: 'center',
-    marginTop: 40,
-    paddingBottom: 20, // Espacio extra para la barra de navegación
+    marginTop: 20,
   },
   signupText: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 16,
-    marginBottom: 12,
-  },
-  signupButton: {
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    borderRadius: 25,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  signupButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  verificationMessageContainer: {
-    marginTop: 20,
+    color: COLORS.textLight,
+    fontSize: 14,
     marginBottom: 10,
   },
+  signupButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    backgroundColor: 'transparent',
+  },
+  signupButtonText: {
+    color: COLORS.primary,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  verificationMessageContainer: {
+    marginBottom: 12,
+  },
   verificationMessage: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    ...SHADOWS.card,
     borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50',
+    borderLeftColor: COLORS.primary,
   },
   verificationIcon: {
     fontSize: 20,
-    marginRight: 12,
+    marginRight: 10,
     marginTop: 2,
   },
   verificationContent: {
     flex: 1,
   },
   verificationText: {
-    fontSize: 14,
-    color: '#333',
-    lineHeight: 20,
+    fontSize: 13,
+    color: COLORS.text,
+    lineHeight: 18,
     fontWeight: '500',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   resendButton: {
     alignSelf: 'flex-start',
@@ -632,61 +690,21 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   resendButtonText: {
-    fontSize: 13,
-    color: '#4CAF50',
-    fontWeight: '600',
+    fontSize: 12,
+    color: COLORS.primary,
+    fontWeight: '700',
     textDecorationLine: 'underline',
   },
   resendButtonTextDisabled: {
-    color: '#999',
+    color: '#9CA3AF',
   },
   closeMessageButton: {
     padding: 4,
-    marginLeft: 8,
+    marginLeft: 6,
   },
   closeMessageText: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: 'bold',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 16,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
-  },
-  dividerText: {
-    color: 'rgba(255, 255, 255, 0.8)',
     fontSize: 14,
-    fontWeight: '500',
-    marginHorizontal: 12,
-  },
-  socialButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingVertical: 14,
-    borderRadius: 16,
-    alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  socialButtonText: {
-    color: '#333',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  appleButton: {
-    backgroundColor: '#000',
-  },
-  appleButtonText: {
-    color: '#fff',
+    color: COLORS.textLight,
+    fontWeight: 'bold',
   },
 });

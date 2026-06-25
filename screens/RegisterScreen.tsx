@@ -10,6 +10,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Pressable,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Logo } from '../components/Logo';
@@ -17,8 +19,8 @@ import { useSignUp, useAuth, useSSO, useUser } from '@clerk/expo';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { AuthService } from '../services/authService';
+import { COLORS, SHADOWS, GRADIENTS } from '../theme/theme';
 
-// Hook para mejorar la experiencia de login en Android
 const useWarmUpBrowser = () => {
   React.useEffect(() => {
     void WebBrowser.warmUpAsync();
@@ -29,6 +31,8 @@ const useWarmUpBrowser = () => {
 };
 
 WebBrowser.maybeCompleteAuthSession();
+
+const { width, height } = Dimensions.get('window');
 
 interface RegisterScreenProps {
   onRegisterSuccess: (message?: string, email?: string) => void;
@@ -52,6 +56,11 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const scrollViewRef = React.useRef<ScrollView>(null);
+
+  // Estados de foco para inputs
+  const [isEmailFocused, setIsEmailFocused] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [isConfirmPasswordFocused, setIsConfirmPasswordFocused] = useState(false);
 
   useWarmUpBrowser();
 
@@ -101,7 +110,6 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
     let backendSuccess = false;
 
     try {
-      // 1. Registro en Clerk (si está cargado)
       if (isLoaded) {
         console.log('📝 Registrando en Clerk...');
         try {
@@ -114,7 +122,6 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
           console.log('✅ Registro en Clerk exitoso (esperando verificación)');
         } catch (clerkErr: any) {
           console.error('❌ Error en Clerk:', clerkErr);
-          // Si el usuario ya existe en Clerk, lo tratamos como "éxito parcial" para seguir con el back
           if (clerkErr.errors?.[0]?.code === 'form_identifier_exists') {
             clerkSuccess = true; 
           } else {
@@ -125,7 +132,6 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
         console.log('⚠️ Clerk no está listo, saltando registro en Clerk');
       }
 
-      // 2. Registro en el Backend (siempre)
       console.log('📝 Registrando en el Backend...');
       try {
         await AuthService.register({
@@ -136,7 +142,6 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
         console.log('✅ Registro en Backend exitoso');
       } catch (backErr: any) {
         console.error('❌ Error en Backend:', backErr);
-        // Si ya existe en el back, también lo consideramos éxito si Clerk funcionó
         if (backErr.response?.status === 409 || backErr.response?.status === 400) {
           backendSuccess = true;
         } else {
@@ -192,7 +197,6 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
       if (createdSessionId && setSSOActive) {
         console.log('✅ Sesión creada en Clerk (Registro), activando...');
         await setSSOActive({ session: createdSessionId });
-        // App.tsx se encargará del intercambio de forma centralizada
       }
     } catch (err: any) {
       console.error('❌ Error SSO Registro:', err);
@@ -213,11 +217,16 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
     >
       {/* Background Gradient */}
       <LinearGradient
-        colors={['#4CAF50', '#81C784']}
+        colors={['#EBF1EE', '#F2F6F4', '#FAFAF6']}
         style={styles.backgroundGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       />
+
+      {/* Decorative Circles */}
+      <View style={styles.decorativeCircle1} />
+      <View style={styles.decorativeCircle2} />
+      <View style={styles.decorativeCircle3} />
 
       <ScrollView 
         ref={scrollViewRef}
@@ -225,9 +234,8 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Logo */}
+        {/* Logo Section */}
         <View style={styles.logoSection}>
-          {/* Logo con efecto mejorado */}
           <View style={styles.logoContainer}>
             <View style={styles.logoGlow} />
             <View style={styles.logoWrapper}>
@@ -241,54 +249,63 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
         <View style={styles.welcomeContainer}>
           <Text style={styles.welcomeTitle}>Crear cuenta</Text>
           <Text style={styles.welcomeSubtitle}>
-            Únete y comienza tu transformación nutricional
+            Únete y comienza tu transformación nutricional hoy
           </Text>
         </View>
 
-        {/* Form */}
-        <View style={styles.formContainer}>
+        {/* Form Card */}
+        <View style={styles.card}>
           {/* Email Input */}
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Email</Text>
+            <Text style={[styles.inputLabel, isEmailFocused && styles.inputLabelFocused]}>
+              Email
+            </Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, isEmailFocused && styles.inputFocused]}
               placeholder="tu@email.com"
-              placeholderTextColor="rgba(0, 0, 0, 0.4)"
+              placeholderTextColor="#9CA3AF"
               value={formData.email}
               onChangeText={(value) => handleInputChange('email', value)}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
               onFocus={() => {
+                setIsEmailFocused(true);
                 setTimeout(() => {
-                  scrollViewRef.current?.scrollTo({ y: 150, animated: true });
+                  scrollViewRef.current?.scrollTo({ y: 140, animated: true });
                 }, 100);
               }}
+              onBlur={() => setIsEmailFocused(false)}
             />
           </View>
 
           {/* Password Input */}
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Contraseña</Text>
-            <View style={styles.passwordContainer}>
+            <Text style={[styles.inputLabel, isPasswordFocused && styles.inputLabelFocused]}>
+              Contraseña
+            </Text>
+            <View style={[styles.passwordContainer, isPasswordFocused && styles.passwordContainerFocused]}>
               <TextInput
                 style={styles.passwordInput}
                 placeholder="Mínimo 6 caracteres"
-                placeholderTextColor="rgba(0, 0, 0, 0.4)"
+                placeholderTextColor="#9CA3AF"
                 value={formData.password}
                 onChangeText={(value) => handleInputChange('password', value)}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 autoCorrect={false}
                 onFocus={() => {
+                  setIsPasswordFocused(true);
                   setTimeout(() => {
-                    scrollViewRef.current?.scrollTo({ y: 250, animated: true });
+                    scrollViewRef.current?.scrollTo({ y: 220, animated: true });
                   }, 100);
                 }}
+                onBlur={() => setIsPasswordFocused(false)}
               />
               <TouchableOpacity
                 style={styles.eyeButton}
                 onPress={() => setShowPassword(!showPassword)}
+                activeOpacity={0.7}
               >
                 <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
               </TouchableOpacity>
@@ -297,26 +314,31 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
 
           {/* Confirm Password Input */}
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Confirmar contraseña</Text>
-            <View style={styles.passwordContainer}>
+            <Text style={[styles.inputLabel, isConfirmPasswordFocused && styles.inputLabelFocused]}>
+              Confirmar contraseña
+            </Text>
+            <View style={[styles.passwordContainer, isConfirmPasswordFocused && styles.passwordContainerFocused]}>
               <TextInput
                 style={styles.passwordInput}
                 placeholder="Repite tu contraseña"
-                placeholderTextColor="rgba(0, 0, 0, 0.4)"
+                placeholderTextColor="#9CA3AF"
                 value={formData.confirmPassword}
                 onChangeText={(value) => handleInputChange('confirmPassword', value)}
                 secureTextEntry={!showConfirmPassword}
                 autoCapitalize="none"
                 autoCorrect={false}
                 onFocus={() => {
+                  setIsConfirmPasswordFocused(true);
                   setTimeout(() => {
-                    scrollViewRef.current?.scrollTo({ y: 350, animated: true });
+                    scrollViewRef.current?.scrollTo({ y: 300, animated: true });
                   }, 100);
                 }}
+                onBlur={() => setIsConfirmPasswordFocused(false)}
               />
               <TouchableOpacity
                 style={styles.eyeButton}
                 onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                activeOpacity={0.7}
               >
                 <Text style={styles.eyeText}>{showConfirmPassword ? '🙈' : '👁️'}</Text>
               </TouchableOpacity>
@@ -324,13 +346,17 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
           </View>
 
           {/* Register Button */}
-          <TouchableOpacity
-            style={[styles.registerButton, loading && styles.registerButtonDisabled]}
+          <Pressable
             onPress={handleRegister}
             disabled={loading}
+            style={({ pressed }) => [
+              styles.registerButton,
+              pressed && styles.buttonPressed,
+              loading && styles.registerButtonDisabled
+            ]}
           >
             <LinearGradient
-              colors={loading ? ['#ccc', '#999'] : ['#FF9800', '#F57C00']}
+              colors={loading ? ['#D1D5DB', '#9CA3AF'] : ['#74B796', '#5FA381']}
               style={styles.registerButtonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -341,10 +367,14 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
                 <Text style={styles.registerButtonText}>Crear cuenta</Text>
               )}
             </LinearGradient>
-          </TouchableOpacity>
+          </Pressable>
 
           {/* Back to Login */}
-          <TouchableOpacity style={styles.backButton} onPress={onBackToLogin}>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={onBackToLogin}
+            activeOpacity={0.7}
+          >
             <Text style={styles.backButtonText}>
               ¿Ya tienes cuenta? <Text style={styles.backButtonLink}>Iniciar sesión</Text>
             </Text>
@@ -359,24 +389,31 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
             <View style={styles.dividerLine} />
           </View>
 
-          <TouchableOpacity
-            style={styles.socialButton}
+          <Pressable
+            style={({ pressed }) => [
+              styles.socialButton,
+              pressed && styles.buttonPressed
+            ]}
             onPress={() => handleSocialLogin('oauth_google')}
           >
             <Text style={styles.socialButtonText}>Continuar con Google</Text>
-          </TouchableOpacity>
+          </Pressable>
 
           {Platform.OS === 'ios' && (
-            <TouchableOpacity
-              style={[styles.socialButton, styles.appleButton]}
+            <Pressable
+              style={({ pressed }) => [
+                styles.socialButton,
+                styles.appleButton,
+                pressed && styles.buttonPressed
+              ]}
               onPress={() => handleSocialLogin('oauth_apple')}
             >
               <Text style={[styles.socialButtonText, styles.appleButtonText]}>Continuar con Apple</Text>
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
 
-        {/* Terms */}
+        {/* Terms and Privacy */}
         <View style={styles.termsContainer}>
           <Text style={styles.termsText}>
             Al crear una cuenta, aceptas nuestros{' '}
@@ -403,6 +440,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
   },
   backgroundGradient: {
     position: 'absolute',
@@ -411,210 +449,268 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
   },
+  decorativeCircle1: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(116, 183, 150, 0.12)',
+    top: -50,
+    right: -50,
+  },
+  decorativeCircle2: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(116, 183, 150, 0.08)',
+    bottom: 120,
+    left: -30,
+  },
+  decorativeCircle3: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(116, 183, 150, 0.05)',
+    top: height * 0.35,
+    right: -20,
+  },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 40,
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === 'ios' ? 70 : 50,
+    paddingBottom: 50,
   },
   logoSection: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 16,
   },
   logoContainer: {
     position: 'relative',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   logoGlow: {
     position: 'absolute',
-    top: -8,
-    left: -8,
-    right: -8,
-    bottom: -8,
-    backgroundColor: '#4CAF50',
-    borderRadius: 50,
-    opacity: 0.4,
-    shadowColor: '#4CAF50',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
+    top: -6,
+    left: -6,
+    right: -6,
+    bottom: -6,
+    backgroundColor: COLORS.primary,
+    borderRadius: 36,
+    opacity: 0.15,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
-    shadowRadius: 20,
-    elevation: 15,
+    shadowRadius: 16,
+    elevation: 8,
   },
   logoWrapper: {
     backgroundColor: '#FFFFFF',
-    padding: 20,
-    borderRadius: 40,
-    borderWidth: 4,
+    padding: 16,
+    borderRadius: 30,
+    borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.9)',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 20,
+    ...SHADOWS.card,
   },
   brandName: {
-    fontSize: 32,
+    fontSize: 26,
     fontWeight: '800',
-    color: '#fff',
+    color: COLORS.text,
     textAlign: 'center',
     letterSpacing: 0.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
   welcomeContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 16,
   },
   welcomeTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 10,
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 6,
     textAlign: 'center',
   },
   welcomeSubtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    color: COLORS.textLight,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 20,
   },
-  formContainer: {
-    marginBottom: 30,
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    marginVertical: 12,
+    ...SHADOWS.card,
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   inputLabel: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
+    color: COLORS.textLight,
     marginBottom: 8,
+    marginLeft: 4,
+  },
+  inputLabelFocused: {
+    color: COLORS.primary,
   },
   input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderRadius: 16,
+    backgroundColor: '#F3F5F4',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 14,
     fontSize: 16,
-    color: '#333',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    color: COLORS.text,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none' as any,
+      },
+    }),
+  },
+  inputFocused: {
+    borderColor: COLORS.primary,
+    backgroundColor: '#FFFFFF',
   },
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: '#F3F5F4',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  passwordContainerFocused: {
+    borderColor: COLORS.primary,
+    backgroundColor: '#FFFFFF',
   },
   passwordInput: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     fontSize: 16,
-    color: '#333',
+    color: COLORS.text,
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none' as any,
+      },
+    }),
   },
   eyeButton: {
     paddingHorizontal: 15,
-    paddingVertical: 16,
+    paddingVertical: 14,
   },
   eyeText: {
     fontSize: 18,
   },
   registerButton: {
     marginTop: 10,
-    borderRadius: 16,
+    borderRadius: 14,
     overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  buttonPressed: {
+    transform: [{ scale: 0.98 }],
+    opacity: 0.95,
   },
   registerButtonDisabled: {
-    opacity: 0.7,
+    opacity: 0.6,
   },
   registerButtonGradient: {
-    paddingVertical: 18,
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   registerButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   backButton: {
-    marginTop: 20,
+    marginTop: 16,
     alignItems: 'center',
   },
   backButtonText: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 16,
+    color: COLORS.textLight,
+    fontSize: 14,
   },
   backButtonLink: {
-    color: '#fff',
-    fontWeight: '600',
+    color: COLORS.primary,
+    fontWeight: '700',
     textDecorationLine: 'underline',
   },
   termsContainer: {
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+    marginTop: 10,
   },
   termsText: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 11,
+    color: COLORS.textLight,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 16,
   },
   termsLink: {
-    color: '#fff',
+    color: COLORS.primary,
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
   socialSection: {
-    marginTop: 20,
-    marginBottom: 20,
+    width: '100%',
+    marginVertical: 12,
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(44, 62, 54, 0.12)',
   },
   dividerText: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 14,
-    marginHorizontal: 10,
+    color: COLORS.textLight,
+    fontSize: 13,
+    fontWeight: '500',
+    marginHorizontal: 12,
   },
   socialButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 14,
-    borderRadius: 16,
+    borderRadius: 14,
     alignItems: 'center',
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    ...SHADOWS.card,
+    shadowOpacity: 0.03,
   },
   socialButtonText: {
-    color: '#333',
-    fontSize: 16,
+    color: COLORS.text,
+    fontSize: 15,
     fontWeight: '600',
   },
   appleButton: {
-    backgroundColor: '#000',
+    backgroundColor: '#000000',
+    borderColor: '#000000',
   },
   appleButtonText: {
-    color: '#fff',
+    color: '#FFFFFF',
   },
 });

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ClerkProvider, useAuth, useSession, useUser } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View, StyleSheet, Text, TouchableOpacity, Alert, Animated, LayoutChangeEvent, DeviceEventEmitter } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Text, TouchableOpacity, Alert, Animated, LayoutChangeEvent, DeviceEventEmitter, Platform } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
@@ -31,6 +31,8 @@ import { NotificationReminderService } from './services/notificationReminderServ
 import { useTour } from './hooks/useTour';
 import { PlanProvider, usePlan } from './hooks/usePlan';
 import { PaywallModal } from './components/PaywallModal';
+import { COLORS } from './theme/theme';
+import { Ionicons } from '@expo/vector-icons';
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
@@ -58,21 +60,21 @@ const GlobalPaywall: React.FC = () => {
 
 // Tabs con flex fijo — la pill se superpone sin mover nada
 const TABS = [
-  { key: 'home',     label: 'Inicio',   icon: '🏠' },
-  { key: 'plan',     label: 'Plan',     icon: '🍎' },
-  { key: 'social',   label: 'Social',   icon: '👥' },
-  { key: 'progress', label: 'Progreso', icon: '📊' },
-  { key: 'profile',  label: 'Perfil',   icon: '👤' },
+  { key: 'home',     label: 'Inicio',   iconActive: 'home' as const,          iconInactive: 'home-outline' as const },
+  { key: 'plan',     label: 'Plan',     iconActive: 'restaurant' as const,    iconInactive: 'restaurant-outline' as const },
+  { key: 'social',   label: 'Social',   iconActive: 'chatbubbles' as const,   iconInactive: 'chatbubbles-outline' as const },
+  { key: 'progress', label: 'Progreso', iconActive: 'stats-chart' as const,   iconInactive: 'stats-chart-outline' as const },
+  { key: 'profile',  label: 'Perfil',   iconActive: 'person' as const,        iconInactive: 'person-outline' as const },
 ];
 
 // Tab bar animado con pill deslizante
-// Ancho de pill por label (ícono 18px + gap 5px + texto + padding 20px)
+// Ancho de pill por icon (ancho uniforme para estilo Instagram)
 const PILL_WIDTHS: Record<string, number> = {
-  home:     105,
-  plan:      90,
-  social:   105,
-  progress: 118,
-  profile:   98,
+  home:     50,
+  plan:      50,
+  social:   50,
+  progress: 50,
+  profile:   50,
 };
 
 const AnimatedTabBar: React.FC<{
@@ -162,12 +164,11 @@ const AnimatedTabBar: React.FC<{
               onPress={() => handlePress(tab.key)}
               activeOpacity={0.8}
             >
-              <Text style={styles.tabIcon}>{tab.icon}</Text>
-              {isActive && (
-                <Text style={styles.activeTabLabel} numberOfLines={1}>
-                  {tab.label}
-                </Text>
-              )}
+              <Ionicons
+                name={isActive ? tab.iconActive : tab.iconInactive}
+                size={24}
+                color={isActive ? COLORS.primary : 'rgba(195, 210, 202, 0.6)'}
+              />
             </TouchableOpacity>
           );
 
@@ -584,7 +585,7 @@ function AppContent() {
   if (currentScreen === 'loading') {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4CAF50" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Cargando...</Text>
       </View>
     );
@@ -654,16 +655,16 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#666',
+    color: COLORS.textLight,
   },
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
   },
 
   content: {
@@ -671,35 +672,36 @@ const styles = StyleSheet.create({
   },
   tabBarContainer: {
     backgroundColor: 'transparent',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 4,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 30,
-    paddingVertical: 6,
-    paddingHorizontal: 6,
-    shadowColor: '#000',
+    backgroundColor: 'rgba(44, 62, 54, 0.96)',
+    borderRadius: 28,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 8,
     alignItems: 'center',
     position: 'relative',
+    height: 60,
   },
   pill: {
     position: 'absolute',
     height: 44,
-    backgroundColor: '#4CAF50',
+    backgroundColor: 'rgba(116, 183, 150, 0.22)',
     borderRadius: 22,
-    top: 6,
-    shadowColor: '#4CAF50',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6,
+    top: 8,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   tab: {
     flex: 1,
@@ -707,7 +709,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: 44,
-    paddingHorizontal: 2,
     zIndex: 1,
   },
   activeTab: {},
@@ -728,12 +729,12 @@ const styles = StyleSheet.create({
   activeTabIconContainer: {},
   tabText: {
     fontSize: 11,
-    color: '#999',
+    color: COLORS.textLight,
     fontWeight: '600',
     textAlign: 'center',
   },
   activeTabText: {
-    color: '#4CAF50',
+    color: COLORS.primary,
     fontWeight: 'bold',
   },
 });

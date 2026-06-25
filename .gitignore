@@ -211,3 +211,5 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+.agents

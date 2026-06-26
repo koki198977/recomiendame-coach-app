@@ -713,10 +713,11 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({
                 {steps.map((_, index) => (
                   <View
                     key={index}
-                    style={[
-                      styles.progressDot,
-                      index <= currentStep && styles.progressDotActive
-                    ]}
+                    style={
+                      index <= currentStep
+                        ? styles.progressDotActive
+                        : styles.progressDot
+                    }
                   />
                 ))}
               </View>
@@ -1324,16 +1325,23 @@ const styles = StyleSheet.create({
   progressContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   progressDot: {
     width: 10,
     height: 10,
-    borderRadius: 5,
+    borderRadius: 100,
     backgroundColor: 'rgba(255,255,255,0.3)',
     marginHorizontal: 5,
+    overflow: 'hidden',
   },
   progressDotActive: {
+    width: 10,
+    height: 10,
+    borderRadius: 100,
     backgroundColor: '#fff',
+    marginHorizontal: 5,
+    overflow: 'hidden',
   },
   content: {
     flex: 1,

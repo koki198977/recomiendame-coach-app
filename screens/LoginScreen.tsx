@@ -12,10 +12,15 @@ import {
   Platform,
   ScrollView,
   Pressable,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth, useSSO, useUser } from '@clerk/expo';
 import * as WebBrowser from 'expo-web-browser';
+import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as LocalAuthentication from 'expo-local-authentication';
+import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
 import { AuthService } from '../services/authService';
 import { Logo } from '../components/Logo';
@@ -58,12 +63,68 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   // Estados de foco para inputs
   const [isEmailFocused, setIsEmailFocused] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [showEmailForm, setShowEmailForm] = useState(false);
+
+  // Estados de Biometría
+  const [showBiometricModal, setShowBiometricModal] = useState(false);
+  const [isBiometricSupported, setIsBiometricSupported] = useState(false);
 
   useWarmUpBrowser();
 
   const { getToken, isSignedIn } = useAuth();
   const { startSSOFlow } = useSSO();
   const { user } = useUser();
+
+  React.useEffect(() => {
+    checkBiometricSupportAndAutoLogin();
+  }, []);
+
+  const checkBiometricSupportAndAutoLogin = async () => {
+    try {
+      const compatible = await LocalAuthentication.hasHardwareAsync();
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      const supported = compatible && enrolled;
+      setIsBiometricSupported(supported);
+
+      if (supported) {
+        const isBiometricEnabled = await AsyncStorage.getItem('biometricEnabled');
+        if (isBiometricEnabled === 'true') {
+          handleBiometricLogin();
+        }
+      }
+    } catch (error) {
+      console.log('Error checking biometrics:', error);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Inicia sesión con Biometría',
+        fallbackLabel: 'Usar contraseña',
+      });
+
+      if (result.success) {
+        const savedEmail = await SecureStore.getItemAsync('savedEmail');
+        const savedPassword = await SecureStore.getItemAsync('savedPassword');
+        
+        if (savedEmail && savedPassword) {
+          setEmail(savedEmail);
+          setPassword(savedPassword);
+          setIsLoading(true);
+          try {
+            await AuthService.login({ email: savedEmail, password: savedPassword });
+            onLoginSuccess();
+          } catch (error: any) {
+            Alert.alert('Error', 'No se pudo iniciar sesión. Por favor ingresa tu contraseña manualmente.');
+            setIsLoading(false);
+          }
+        }
+      }
+    } catch (error) {
+      console.log('Biometric login error:', error);
+    }
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -75,7 +136,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     setIsLoading(true);
     try {
       await AuthService.login({ email, password });
-      onLoginSuccess();
+      
+      // Guardar credenciales para futuro inicio de sesión biométrico
+      await SecureStore.setItemAsync('savedEmail', email);
+      await SecureStore.setItemAsync('savedPassword', password);
+
+      const promptSeen = await AsyncStorage.getItem('biometricPromptSeen');
+      const biometricEnabled = await AsyncStorage.getItem('biometricEnabled');
+
+      if (isBiometricSupported && biometricEnabled !== 'true' && promptSeen !== 'true') {
+        setShowBiometricModal(true);
+      } else {
+        onLoginSuccess();
+      }
     } catch (error: any) {
       console.log('Login error:', error);
 
@@ -94,6 +167,33 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleEnableBiometrics = async () => {
+    await AsyncStorage.setItem('biometricPromptSeen', 'true');
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Confirma para activar Biometría',
+      });
+      if (result.success) {
+        await AsyncStorage.setItem('biometricEnabled', 'true');
+        Alert.alert('¡Activado!', 'Biometría activada con éxito.');
+        setShowBiometricModal(false);
+        onLoginSuccess();
+      } else {
+        setShowBiometricModal(false);
+        onLoginSuccess();
+      }
+    } catch (error) {
+      setShowBiometricModal(false);
+      onLoginSuccess();
+    }
+  };
+
+  const handleSkipBiometrics = async () => {
+    await AsyncStorage.setItem('biometricPromptSeen', 'true');
+    setShowBiometricModal(false);
+    onLoginSuccess();
   };
 
   const handleResendVerification = async () => {
@@ -270,121 +370,164 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           </View>
         )}
 
-        {/* Login Form Wrapper in Premium Card */}
-        <View style={styles.card}>
-          <View style={styles.inputContainer}>
-            <Text style={[styles.inputLabel, isEmailFocused && styles.inputLabelFocused]}>
-              Email
-            </Text>
-            <TextInput
-              style={[styles.input, isEmailFocused && styles.inputFocused]}
-              placeholder="tu@email.com"
-              placeholderTextColor="#9CA3AF"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              onFocus={() => {
-                setIsEmailFocused(true);
-                setTimeout(() => {
-                  scrollViewRef.current?.scrollTo({ y: 180, animated: true });
-                }, 100);
-              }}
-              onBlur={() => setIsEmailFocused(false)}
-            />
-          </View>
+        {!showEmailForm ? (
+          <>
+            <View style={styles.socialButtonsContainer}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.socialButton,
+                  styles.socialButtonVertical,
+                  pressed && styles.buttonPressed
+                ]}
+                onPress={() => handleSocialLogin('oauth_google')}
+              >
+                <FontAwesome5 name="google" size={20} color="#DB4437" style={styles.socialIcon} />
+                <Text style={styles.socialButtonText}>Continuar con Google</Text>
+              </Pressable>
 
-          <View style={styles.inputContainer}>
-            <Text style={[styles.inputLabel, isPasswordFocused && styles.inputLabelFocused]}>
-              Contraseña
-            </Text>
-            <TextInput
-              style={[styles.input, isPasswordFocused && styles.inputFocused]}
-              placeholder="••••••••"
-              placeholderTextColor="#9CA3AF"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              onFocus={() => {
-                setIsPasswordFocused(true);
-                setTimeout(() => {
-                  scrollViewRef.current?.scrollTo({ y: 260, animated: true });
-                }, 100);
-              }}
-              onBlur={() => setIsPasswordFocused(false)}
-            />
-          </View>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.socialButton,
+                  styles.socialButtonVertical,
+                  pressed && styles.buttonPressed
+                ]}
+                onPress={() => setShowEmailForm(true)}
+              >
+                <MaterialCommunityIcons name="email-outline" size={22} color={COLORS.text} style={styles.socialIcon} />
+                <Text style={styles.socialButtonText}>Continuar con email/username</Text>
+              </Pressable>
+            </View>
 
-          {/* Interactive Login Button */}
-          <Pressable
-            onPress={handleLogin}
-            disabled={isLoading}
-            style={({ pressed }) => [
-              styles.loginButton,
-              pressed && styles.buttonPressed,
-              isLoading && styles.loginButtonDisabled
-            ]}
-          >
-            <LinearGradient
-              colors={isLoading ? ['#D1D5DB', '#9CA3AF'] : ['#74B796', '#5FA381']}
-              style={styles.loginButtonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
+            {/* Divider */}
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>O</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Side by side buttons */}
+            <View style={styles.horizontalSocialContainer}>
+              {Platform.OS === 'ios' && (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.socialButton,
+                    styles.socialButtonHorizontal,
+                    styles.appleButton,
+                    pressed && styles.buttonPressed
+                  ]}
+                  onPress={() => handleSocialLogin('oauth_apple')}
+                >
+                  <FontAwesome5 name="apple" size={20} color="#FFFFFF" style={styles.socialIconHorizontal} />
+                  <Text style={[styles.socialButtonText, styles.appleButtonText]}>
+                    Apple
+                  </Text>
+                </Pressable>
               )}
-            </LinearGradient>
-          </Pressable>
+              
+              <Pressable
+                style={({ pressed }) => [
+                  styles.socialButton,
+                  styles.socialButtonHorizontal,
+                  styles.facebookButton,
+                  pressed && styles.buttonPressed,
+                  Platform.OS !== 'ios' && { width: '100%' }
+                ]}
+                onPress={() => {
+                  Alert.alert("Próximamente", "Inicio de sesión con Facebook estará disponible pronto.");
+                }}
+              >
+                <FontAwesome5 name="facebook" size={20} color="#1877F2" style={styles.socialIconHorizontal} />
+                <Text style={[styles.socialButtonText, styles.facebookButtonText]}>
+                  Facebook
+                </Text>
+              </Pressable>
+            </View>
+          </>
+        ) : (
+          <View style={styles.card}>
+            <TouchableOpacity onPress={() => setShowEmailForm(false)} style={styles.backButton}>
+               <Text style={styles.backButtonText}>← Volver a opciones</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.forgotPassword, isRequestingReset && styles.forgotPasswordDisabled]}
-            onPress={handleForgotPassword}
-            disabled={isRequestingReset}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.forgotPasswordText, isRequestingReset && styles.forgotPasswordTextDisabled]}>
-              {isRequestingReset ? 'Enviando...' : '¿Olvidaste tu contraseña?'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Divider */}
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>o continúa con</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        {/* Social Authentication Area */}
-        <View style={styles.socialButtonsContainer}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.socialButton,
-              pressed && styles.buttonPressed
-            ]}
-            onPress={() => handleSocialLogin('oauth_google')}
-          >
-            <Text style={styles.socialButtonText}>Continuar con Google</Text>
-          </Pressable>
-
-          {Platform.OS === 'ios' && (
-            <Pressable
-              style={({ pressed }) => [
-                styles.socialButton,
-                styles.appleButton,
-                pressed && styles.buttonPressed
-              ]}
-              onPress={() => handleSocialLogin('oauth_apple')}
-            >
-              <Text style={[styles.socialButtonText, styles.appleButtonText]}>
-                Continuar con Apple
+            <View style={styles.inputContainer}>
+              <Text style={[styles.inputLabel, isEmailFocused && styles.inputLabelFocused]}>
+                Email
               </Text>
+              <TextInput
+                style={[styles.input, isEmailFocused && styles.inputFocused]}
+                placeholder="tu@email.com"
+                placeholderTextColor="#9CA3AF"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                onFocus={() => {
+                  setIsEmailFocused(true);
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollTo({ y: 180, animated: true });
+                  }, 100);
+                }}
+                onBlur={() => setIsEmailFocused(false)}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={[styles.inputLabel, isPasswordFocused && styles.inputLabelFocused]}>
+                Contraseña
+              </Text>
+              <TextInput
+                style={[styles.input, isPasswordFocused && styles.inputFocused]}
+                placeholder="••••••••"
+                placeholderTextColor="#9CA3AF"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                onFocus={() => {
+                  setIsPasswordFocused(true);
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollTo({ y: 260, animated: true });
+                  }, 100);
+                }}
+                onBlur={() => setIsPasswordFocused(false)}
+              />
+            </View>
+
+            {/* Interactive Login Button */}
+            <Pressable
+              onPress={handleLogin}
+              disabled={isLoading}
+              style={({ pressed }) => [
+                styles.loginButton,
+                pressed && styles.buttonPressed,
+                isLoading && styles.loginButtonDisabled
+              ]}
+            >
+              <LinearGradient
+                colors={isLoading ? ['#D1D5DB', '#9CA3AF'] : ['#74B796', '#5FA381']}
+                style={styles.loginButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
+                )}
+              </LinearGradient>
             </Pressable>
-          )}
-        </View>
+
+            <TouchableOpacity 
+              style={[styles.forgotPassword, isRequestingReset && styles.forgotPasswordDisabled]}
+              onPress={handleForgotPassword}
+              disabled={isRequestingReset}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.forgotPasswordText, isRequestingReset && styles.forgotPasswordTextDisabled]}>
+                {isRequestingReset ? 'Enviando...' : '¿Olvidaste tu contraseña?'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Bottom Navigation Link */}
         <View style={styles.bottomSection}>
@@ -398,6 +541,35 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Biometric Prompt Modal */}
+      <Modal
+        visible={showBiometricModal}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>¿Activar Biometría?</Text>
+            <Text style={styles.modalText}>Activa Face ID o Huella Digital para iniciar sesión más rápido la próxima vez.</Text>
+            
+            <TouchableOpacity 
+              style={styles.modalButtonPrimary}
+              onPress={handleEnableBiometrics}
+            >
+              <Text style={styles.modalButtonPrimaryText}>Sí, activar</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.modalButtonSecondary}
+              onPress={handleSkipBiometrics}
+            >
+              <Text style={styles.modalButtonSecondaryText}>No por ahora</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </KeyboardAvoidingView>
   );
 };
@@ -613,13 +785,35 @@ const styles = StyleSheet.create({
   socialButton: {
     backgroundColor: '#FFFFFF',
     paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 14,
+    flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
     borderWidth: 1.5,
     borderColor: COLORS.border,
     ...SHADOWS.card,
     shadowOpacity: 0.03,
+  },
+  socialButtonVertical: {
+    justifyContent: 'center',
+  },
+  socialIcon: {
+    position: 'absolute',
+    left: 20,
+  },
+  socialIconHorizontal: {
+    marginRight: 10,
+  },
+  horizontalSocialContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  socialButtonHorizontal: {
+    flex: 1,
+    justifyContent: 'center',
+    marginHorizontal: 4,
   },
   socialButtonText: {
     color: COLORS.text,
@@ -632,6 +826,22 @@ const styles = StyleSheet.create({
   },
   appleButtonText: {
     color: '#FFFFFF',
+  },
+  facebookButton: {
+    backgroundColor: '#FFFFFF',
+    borderColor: COLORS.border,
+  },
+  facebookButtonText: {
+    color: COLORS.text,
+  },
+  backButton: {
+    marginBottom: 20,
+    alignSelf: 'flex-start',
+  },
+  backButtonText: {
+    color: COLORS.textLight,
+    fontSize: 14,
+    fontWeight: '600',
   },
   bottomSection: {
     alignItems: 'center',
@@ -706,5 +916,57 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textLight,
     fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    alignItems: 'center',
+    ...SHADOWS.card,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 12,
+  },
+  modalText: {
+    fontSize: 15,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  modalButtonPrimary: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 14,
+    borderRadius: 14,
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalButtonPrimaryText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalButtonSecondary: {
+    paddingVertical: 14,
+    borderRadius: 14,
+    width: '100%',
+    alignItems: 'center',
+  },
+  modalButtonSecondaryText: {
+    color: COLORS.textLight,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

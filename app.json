@@ -2,7 +2,7 @@
   "expo": {
     "name": "Recomiéndame Coach",
     "slug": "recomiendame-coach-app",
-    "version": "1.5.6",
+    "version": "1.5.7",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -28,6 +28,13 @@
           "cameraPermission": "La app necesita acceso a tu cámara para escanear códigos de barras de productos."
         }
       ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Permite el uso de Face ID para iniciar sesión rápidamente y de forma segura."
+        }
+      ],
+      "expo-secure-store",
       "expo-web-browser"
     ],
     "splash": {
@@ -48,7 +55,7 @@
     },
     "android": {
       "package": "cl.recomiendameapp.coach",
-      "versionCode": 156,
+      "versionCode": 157,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#4CAF50"
@@ -59,7 +66,9 @@
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.RECORD_AUDIO",
-        "android.permission.INTERNET"
+        "android.permission.INTERNET",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
       ],
       "softwareKeyboardLayoutMode": "pan",
       "intentFilters": [

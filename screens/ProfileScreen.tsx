@@ -12,8 +12,10 @@ import {
   Image,
   Platform,
   Dimensions,
+  Switch,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import * as LocalAuthentication from "expo-local-authentication";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NutritionService } from "../services/nutritionService";
 import { SocialService } from "../services/socialService";
@@ -66,12 +68,58 @@ export const ProfileScreen = ({ onLogout, userProfile: userProfileProp }: Profil
   const [showGeneratingModal, setShowGeneratingModal] = React.useState(false);
   const [uploadingImage, setUploadingImage] = React.useState(false);
   const [showAvatarMenu, setShowAvatarMenu] = React.useState(false);
+  
+  // Biometric state
+  const [isBiometricSupported, setIsBiometricSupported] = React.useState(false);
+  const [isBiometricEnabled, setIsBiometricEnabled] = React.useState(false);
+
   const { isPro, isFree, showPaywall, refreshPlan, isGeneratingNutrition: isGeneratingPlan, setIsGeneratingNutrition: setIsGeneratingPlan } = usePlan();
 
   React.useEffect(() => {
     loadUserData();
     loadSubscriptionInfo();
+    checkBiometricStatus();
   }, []);
+
+  const checkBiometricStatus = async () => {
+    try {
+      const compatible = await LocalAuthentication.hasHardwareAsync();
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      if (compatible && enrolled) {
+        setIsBiometricSupported(true);
+        const enabled = await AsyncStorage.getItem('biometricEnabled');
+        setIsBiometricEnabled(enabled === 'true');
+      }
+    } catch (error) {
+      console.log('Error checking biometric status:', error);
+    }
+  };
+
+  const handleToggleBiometric = async (value: boolean) => {
+    try {
+      if (value) {
+        // Al intentar activarlo, pedimos verificación de biometría
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage: 'Confirma para activar Biometría',
+        });
+        
+        if (result.success) {
+          await AsyncStorage.setItem('biometricEnabled', 'true');
+          setIsBiometricEnabled(true);
+          Alert.alert('¡Activado!', 'El inicio de sesión biométrico ha sido activado.');
+        } else {
+          setIsBiometricEnabled(false);
+        }
+      } else {
+        // Desactivar
+        await AsyncStorage.setItem('biometricEnabled', 'false');
+        setIsBiometricEnabled(false);
+      }
+    } catch (error) {
+      console.log('Error toggling biometric:', error);
+      Alert.alert('Error', 'No se pudo modificar la configuración de biometría.');
+    }
+  };
 
   // Sincronizar si la prop cambia
   React.useEffect(() => {
@@ -908,6 +956,27 @@ export const ProfileScreen = ({ onLogout, userProfile: userProfileProp }: Profil
     </View>
   );
 
+  const renderAppSettings = () => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Ajustes de la App</Text>
+
+      {isBiometricSupported && (
+        <View style={styles.dataItem}>
+          <View style={styles.dataLeft}>
+            <Text style={styles.dataIcon}>🔐</Text>
+            <Text style={styles.dataLabel}>Biometría (Face ID / Huella)</Text>
+          </View>
+          <Switch
+            value={isBiometricEnabled}
+            onValueChange={handleToggleBiometric}
+            trackColor={{ false: "#767577", true: COLORS.primary }}
+            thumbColor={Platform.OS === 'ios' ? "#fff" : isBiometricEnabled ? "#fff" : "#f4f3f4"}
+          />
+        </View>
+      )}
+    </View>
+  );
+
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
@@ -1049,6 +1118,7 @@ export const ProfileScreen = ({ onLogout, userProfile: userProfileProp }: Profil
         {renderHealthData()}
         {renderNutritionGoals()}
         {renderCulinaryPreferences()}
+        {renderAppSettings()}
 
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>

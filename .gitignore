@@ -213,3 +213,7 @@ yarn-error.*
 *.tsbuildinfo
 
 .agents
+.agent
+.claude
+.kiro
+openspec
